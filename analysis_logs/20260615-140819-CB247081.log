@@ -1,0 +1,36 @@
+2026-06-15 14:08:19+0900: Running with following config:
+logDir = analysis_logs
+maxVisits = 500
+nnCacheSizePowerOfTwo = 23
+nnMaxBatchSize = 64
+nnMutexPoolSizePowerOfTwo = 17
+nnRandomize = true
+numAnalysisThreads = 2
+numSearchThreads = 16
+reportAnalysisWinratesAs = BLACK
+
+2026-06-15 14:08:19+0900: Analysis Engine starting...
+2026-06-15 14:08:19+0900: KataGo v1.16.5
+2026-06-15 14:08:19+0900: nnRandSeed0 = 11142038968442901729
+2026-06-15 14:08:19+0900: After dedups: nnModelFile0 = C:/KataGo/models/kata1-b28c512nbt-s13255194368-d5935380940.bin.gz useFP16 auto useNHWC auto
+2026-06-15 14:08:19+0900: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
+2026-06-15 14:08:21+0900: Found OpenCL Platform 0: NVIDIA CUDA (NVIDIA Corporation) (OpenCL 3.0 CUDA 12.9.90)
+2026-06-15 14:08:21+0900: Found 1 device(s) on platform 0 with type CPU or GPU or Accelerator
+2026-06-15 14:08:21+0900: Found OpenCL Device 0: NVIDIA GeForce RTX 4060 (NVIDIA Corporation) (score 11000300)
+2026-06-15 14:08:21+0900: Creating context for OpenCL Platform: NVIDIA CUDA (NVIDIA Corporation) (OpenCL 3.0 CUDA 12.9.90)
+2026-06-15 14:08:21+0900: Using OpenCL Device 0: NVIDIA GeForce RTX 4060 (NVIDIA Corporation) OpenCL 3.0 CUDA (Extensions: cl_khr_global_int32_base_atomics cl_khr_global_int32_extended_atomics cl_khr_local_int32_base_atomics cl_khr_local_int32_extended_atomics cl_khr_fp64 cl_khr_3d_image_writes cl_khr_byte_addressable_store cl_khr_icd cl_khr_gl_sharing cl_nv_compiler_options cl_nv_device_attribute_query cl_nv_pragma_unroll cl_nv_d3d10_sharing cl_khr_d3d10_sharing cl_nv_d3d11_sharing cl_nv_copy_opts cl_nv_create_buffer cl_khr_int64_base_atomics cl_khr_int64_extended_atomics cl_khr_device_uuid cl_khr_pci_bus_info cl_khr_external_semaphore cl_khr_external_memory cl_khr_external_semaphore_win32 cl_khr_external_memory_win32 cl_khr_semaphore)
+2026-06-15 14:08:21+0900: Loaded tuning parameters from: C:\KataGo\katago-v1.16.5-opencl-windows-x64/KataGoData/opencltuning/tune11_gpuNVIDIAGeForceRTX4060_x19_y19_c512_mv15.txt
+2026-06-15 14:08:21+0900: OpenCL backend thread 0: Model version 15
+2026-06-15 14:08:21+0900: OpenCL backend thread 0: Model name: kata1-b28c512nbt-s13255194368-d5935380940
+2026-06-15 14:08:23+0900: OpenCL backend thread 0: FP16Storage true FP16Compute false FP16TensorCores true FP16TensorCoresFor1x1 false
+2026-06-15 14:08:23+0900: Loaded config C:/KataGo/katago-v1.16.5-opencl-windows-x64/analysis_example.cfg
+2026-06-15 14:08:23+0900: Loaded model C:/KataGo/models/kata1-b28c512nbt-s13255194368-d5935380940.bin.gz
+2026-06-15 14:08:23+0900: Analyzing up to 2 positions at a time in parallel
+2026-06-15 14:08:23+0900: Started, ready to begin handling requests
+2026-06-15 14:08:23+0900: Error: {"error":"Must provide an integer from 2 to 19","field":"boardXSize","id":"8aeccd24-090d-4960-966d-d40882b7a93c"}
+2026-06-15 14:08:23+0900: C:/KataGo/models/kata1-b28c512nbt-s13255194368-d5935380940.bin.gz
+2026-06-15 14:08:23+0900: NN rows: 0
+2026-06-15 14:08:23+0900: NN batches: 0
+2026-06-15 14:08:23+0900: NN avg batch size: -nan(ind)
+2026-06-15 14:08:23+0900: GPU -1 finishing, processed 0 rows 0 batches
+2026-06-15 14:08:23+0900: All cleaned up, quitting

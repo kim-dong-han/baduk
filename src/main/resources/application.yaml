@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: baduk-analyzer
+
+katago:
+  path: C:/KataGo/katago-v1.16.5-opencl-windows-x64/katago.exe
+  model: C:/KataGo/models/kata1-b28c512nbt-s13255194368-d5935380940.bin.gz
+  config: C:/KataGo/katago-v1.16.5-opencl-windows-x64/analysis_example.cfg
+  record-dir: C:/KataGo/Baduk_Records
