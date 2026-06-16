@@ -1,10 +1,12 @@
 package com.example.badukanalyzer.service;
 
-import com.example.badukanalyzer.converter.SgfConverter;
 import com.example.badukanalyzer.domain.Move;
 import com.example.badukanalyzer.dto.AnalysisResponse;
 import com.example.badukanalyzer.parser.GibParser;
+import com.example.badukanalyzer.parser.SgfParser;
+import com.example.badukanalyzer.util.CoordinateConverter;
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +14,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class AnalysisService {
@@ -22,47 +23,100 @@ public class AnalysisService {
     @Value("${katago.record-dir}")
     private String recordDir;
 
+    private volatile List<AnalysisResponse> userResults;
+    private volatile List<AnalysisResponse> proResults;
+    private volatile String errorMessage;
+    private volatile boolean running;
+
     public AnalysisService(KataGoService kataGoService) {
         this.kataGoService = kataGoService;
     }
 
-    public List<AnalysisResponse> analyzeBatch() throws Exception {
+    @PostConstruct
+    public void startBackgroundAnalysis() {
+        running = true;
+        Thread.ofVirtual().name("batch-analysis").start(() -> {
+            try {
+                userResults = analyzeByPrefix("", 5);
+                proResults = analyzeByPrefix("pro_", 50);
+            } catch (Exception e) {
+                errorMessage = e.getMessage();
+            } finally {
+                running = false;
+            }
+        });
+    }
+
+    public List<AnalysisResponse> getUserResults() {
+        return userResults;
+    }
+
+    public List<AnalysisResponse> getProResults() {
+        return proResults;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public boolean isRunning() {
+        return running;
+    }
+
+    private List<AnalysisResponse> analyzeByPrefix(String prefix, int maxFiles) throws Exception {
         File dir = new File(recordDir);
-        File[] files = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".gib"));
-        
+        File[] files = dir.listFiles((d, name) -> {
+            String lower = name.toLowerCase();
+            boolean matchesPrefix = prefix.isEmpty() ? !lower.startsWith("pro_") : lower.startsWith(prefix);
+            return matchesPrefix && (lower.endsWith(".gib") || lower.endsWith(".sgf"));
+        });
+
         if (files == null || files.length == 0) {
-            throw new IOException("분석할 GIB 파일이 없습니다: " + recordDir);
+            String label = prefix.isEmpty() ? "내 기보" : "프로 기보";
+            System.out.println(label + " 파일 없음");
+            return List.of();
         }
+
+        GibParser gibParser = new GibParser();
+        SgfParser sgfParser = new SgfParser();
+        List<List<Move>> allMoves = new ArrayList<>();
+        List<String> fileNames = new ArrayList<>();
+
+        int count = 0;
+        for (File file : files) {
+            if (count++ >= maxFiles) break;
+            System.out.println("파싱 (" + prefix + "): " + file.getName());
+            String path = file.getAbsolutePath();
+            if (path.toLowerCase().endsWith(".gib")) {
+                allMoves.add(gibParser.parse(path));
+            } else {
+                allMoves.add(sgfParser.parse(path));
+            }
+            fileNames.add(file.getName());
+        }
+
+        if (allMoves.isEmpty()) return List.of();
+
+        String label = prefix.isEmpty() ? "내 기보" : "프로 기보";
+        System.out.println(label + " KataGo 분석 시작 (" + allMoves.size() + "개)");
+        long t0 = System.currentTimeMillis();
+        List<List<JsonNode>> allResults = kataGoService.analyzeMultipleGames(allMoves);
+        long t1 = System.currentTimeMillis();
+        System.out.println(label + " 분석 완료 (" + (t1-t0)/1000.0 + "초)");
 
         List<AnalysisMetrics> allOpening = new ArrayList<>();
         List<AnalysisMetrics> allMiddle = new ArrayList<>();
         List<AnalysisMetrics> allEndgame = new ArrayList<>();
 
-        // 최대 3판 또는 존재하는 파일 수만큼 분석 (테스트를 위해 축소)
-        int count = 0;
-        GibParser parser = new GibParser();
-        SgfConverter converter = new SgfConverter();
-
-        for (File file : files) {
-            if (count++ >= 3) break;
-            System.out.println("분석 시작: " + file.getName());
-            
-            // 1. GIB 파싱 및 SGF 변환
-            List<Move> moves = parser.parse(file.getAbsolutePath());
-            String sgfContent = converter.convert(moves);
-            
-            // 2. 카타고 분석 (모든 수 분석 요청)
-            List<JsonNode> analysisData = kataGoService.analyzeSgf(sgfContent, moves.size());
-            
-            // 3. 구간별 데이터 분류
-            processGameData(analysisData, moves, allOpening, allMiddle, allEndgame);
-            System.out.println("분석 완료: " + file.getName() + " (데이터 수: " + analysisData.size() + ")");
+        for (int i = 0; i < allMoves.size(); i++) {
+            System.out.println("결과 처리: " + fileNames.get(i) + " (데이터 수: " + allResults.get(i).size() + ")");
+            processGameData(allResults.get(i), allMoves.get(i), allOpening, allMiddle, allEndgame);
         }
 
         List<AnalysisResponse> result = new ArrayList<>();
-        result.add(calculateSummary("초반", allOpening));
-        result.add(calculateSummary("중반", allMiddle));
-        result.add(calculateSummary("종반", allEndgame));
+        if (!allOpening.isEmpty()) result.add(calculateSummary("초반", allOpening));
+        if (!allMiddle.isEmpty()) result.add(calculateSummary("중반", allMiddle));
+        if (!allEndgame.isEmpty()) result.add(calculateSummary("종반", allEndgame));
 
         return result;
     }
@@ -85,20 +139,26 @@ public class AnalysisService {
             double wrLoss = Math.abs(currentWinrate - prevWinrate);
             double scoreLoss = Math.abs(currentScoreLead - prevScoreLead);
             
-            boolean isMatch = false;
-            // 해당 turnNumber에서 두어진 실제 수 찾기
-            // turnNumber 0은 착수 전 상태, turnNumber 1은 1번째 수(index 0)가 두어진 후 상태
-            // 카타고 일치율은 해당 '상태'에서 추천된 수와 '실제 두어진 수'를 비교해야 함
-            // 즉, turnNumber N에서의 추천 수와 actualMoves[N]을 비교
+            double matchScore = 0.0;
             if (turnNumber < actualMoves.size() && node.has("moveInfos") && node.get("moveInfos").size() > 0) {
                 Move actualMove = actualMoves.get(turnNumber);
-                String actualMoveSgf = convertToSgfCoord(actualMove);
-                String recommendedMoveSgf = node.get("moveInfos").get(0).get("move").asText();
-                
-                isMatch = actualMoveSgf.equalsIgnoreCase(recommendedMoveSgf);
+                String actualMoveGtp = CoordinateConverter.toGtpCoord(actualMove);
+
+                double topWinrate = node.get("moveInfos").get(0).get("winrate").asDouble();
+                double actualWinrate = -1;
+                for (JsonNode moveInfo : node.get("moveInfos")) {
+                    String moveGtp = moveInfo.get("move").asText();
+                    if (actualMoveGtp.equalsIgnoreCase(moveGtp)) {
+                        actualWinrate = moveInfo.get("winrate").asDouble();
+                        break;
+                    }
+                }
+                if (actualWinrate >= 0 && topWinrate > 0) {
+                    matchScore = Math.min(1.0, actualWinrate / topWinrate);
+                }
             }
 
-            AnalysisMetrics metric = new AnalysisMetrics(wrLoss, scoreLoss, isMatch);
+            AnalysisMetrics metric = new AnalysisMetrics(wrLoss, scoreLoss, matchScore);
             
             if (turnNumber <= openingEnd) {
                 opening.add(metric);
@@ -113,11 +173,6 @@ public class AnalysisService {
         }
     }
 
-    private String convertToSgfCoord(Move move) {
-        char[] SGF_CHARS = "abcdefghijklmnopqrs".toCharArray();
-        return "" + SGF_CHARS[move.getX()] + SGF_CHARS[18 - move.getY()];
-    }
-
     private AnalysisResponse calculateSummary(String phase, List<AnalysisMetrics> metrics) {
         if (metrics.isEmpty()) {
             return AnalysisResponse.builder().phase(phase).matchRate(0).winRateLoss(0).scoreLoss(0).build();
@@ -125,8 +180,8 @@ public class AnalysisService {
 
         double avgWrLoss = metrics.stream().mapToDouble(m -> m.wrLoss).average().orElse(0);
         double avgScoreLoss = metrics.stream().mapToDouble(m -> m.scoreLoss).average().orElse(0);
-        long matches = metrics.stream().filter(m -> m.isMatch).count();
-        double matchRate = (double) matches / metrics.size() * 100;
+        double avgMatchScore = metrics.stream().mapToDouble(m -> m.matchScore).average().orElse(0);
+        double matchRate = avgMatchScore * 100;
 
         return AnalysisResponse.builder()
                 .phase(phase)
@@ -139,12 +194,12 @@ public class AnalysisService {
     private static class AnalysisMetrics {
         double wrLoss;
         double scoreLoss;
-        boolean isMatch;
+        double matchScore;
 
-        AnalysisMetrics(double wrLoss, double scoreLoss, boolean isMatch) {
+        AnalysisMetrics(double wrLoss, double scoreLoss, double matchScore) {
             this.wrLoss = wrLoss;
             this.scoreLoss = scoreLoss;
-            this.isMatch = isMatch;
+            this.matchScore = matchScore;
         }
     }
 }

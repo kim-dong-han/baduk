@@ -1,13 +1,11 @@
 package com.example.badukanalyzer.converter;
 
 import com.example.badukanalyzer.domain.Move;
+import com.example.badukanalyzer.util.CoordinateConverter;
 
 import java.util.List;
 
 public class SgfConverter {
-
-    private static final char[] SGF =
-            "abcdefghijklmnopqrs".toCharArray();
 
     public String convert(List<Move> moves) {
 
@@ -20,16 +18,11 @@ public class SgfConverter {
 
         for (Move move : moves) {
 
-            char x = SGF[move.getX()];
-
-            // 타이젬 -> SGF 변환
-            char y = SGF[18 - move.getY()];
-
             sb.append(";")
                     .append(move.getColor())
                     .append("[")
-                    .append(x)
-                    .append(y)
+                    .append(CoordinateConverter.toSgfX(move.getX()))
+                    .append(CoordinateConverter.toSgfY(move.getY()))
                     .append("]");
         }
 

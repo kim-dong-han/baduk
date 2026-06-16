@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>배치 분석 결과</title>
+    <meta th:if="${running}" http-equiv="refresh" content="5">
+    <style>
+        body { font-family: sans-serif; margin: 40px; background: #f5f5f5; }
+        h1 { color: #333; }
+        table { border-collapse: collapse; width: 100%; max-width: 700px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        th, td { padding: 12px 16px; text-align: center; border-bottom: 1px solid #ddd; }
+        th { background: #4a90d9; color: #fff; }
+        tr:hover { background: #f0f0f0; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #4a90d9; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <h1>배치 분석 결과</h1>
+
+    <div th:if="${running}" style="text-align: center; padding: 40px;">
+        <div class="spinner"></div>
+        <p style="color: #888; margin-top: 12px;">KataGo 분석 중입니다. 잠시만 기다려주세요...</p>
+    </div>
+
+    <div th:if="${error}" style="background: #ffe0e0; border: 1px solid #e00; padding: 16px; border-radius: 4px; margin-bottom: 20px; max-width: 700px;">
+        <strong>오류:</strong> <span th:text="${error}"></span>
+    </div>
+
+    <div th:if="${userResults != null and #lists.size(userResults) > 0}">
+        <h2>내 기보 분석</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>구간</th>
+                    <th>카타고 일치율 (%)</th>
+                    <th>평균 승률 손실</th>
+                    <th>평균 집수 손실</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="result : ${userResults}">
+                    <td th:text="${result.phase}"></td>
+                    <td th:text="${result.matchRate}"></td>
+                    <td th:text="${result.winRateLoss}"></td>
+                    <td th:text="${result.scoreLoss}"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div th:if="${proResults != null and #lists.size(proResults) > 0}" style="margin-top: 40px;">
+        <h2>프로기보 분석</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>구간</th>
+                    <th>카타고 일치율 (%)</th>
+                    <th>평균 승률 손실</th>
+                    <th>평균 집수 손실</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="result : ${proResults}">
+                    <td th:text="${result.phase}"></td>
+                    <td th:text="${result.matchRate}"></td>
+                    <td th:text="${result.winRateLoss}"></td>
+                    <td th:text="${result.scoreLoss}"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p th:if="${(userResults == null or #lists.size(userResults) == 0) and (proResults == null or #lists.size(proResults) == 0)}">분석 결과가 없습니다.</p>
+    <p th:unless="${running}"><a href="/analysis/batch">새로고침</a></p>
+</body>
+</html>
