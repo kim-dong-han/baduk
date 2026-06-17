@@ -45,6 +45,17 @@
         .stat-row { display: flex; justify-content: space-between; font-size: 13px; color: #666; margin-top: 4px; }
         .stat-row span:last-child { font-weight: 600; color: #333; }
 
+        /* 수질 분포 스택 바 */
+        .quality-bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin: 12px 0 5px; }
+        .q-excellent { background: #8e44ad; }
+        .q-good      { background: #2ecc71; }
+        .q-normal    { background: #f39c12; }
+        .q-bad       { background: #e67e22; }
+        .q-blunder   { background: #e74c3c; }
+        .quality-legend { display: flex; flex-wrap: wrap; gap: 6px; }
+        .ql-item { display: flex; align-items: center; gap: 3px; font-size: 11px; color: #777; }
+        .ql-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
         .badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
         .badge.strong { background: #d5f5e3; color: #1e8449; }
         .badge.normal { background: #fdebd0; color: #b7770d; }
@@ -161,6 +172,8 @@
             const lv = level(r.matchRate);
             const g = grade(r.matchRate);
             const fillW = Math.min(r.matchRate, 100);
+            const ex = r.excellentRate || 0, gd = r.goodRate || 0,
+                  nm = r.normalRate || 0, bd = r.badRate || 0, bl = r.blunderRate || 0;
             return `
             <div class="card ${lv}">
                 <div class="card-header">
@@ -172,7 +185,23 @@
                 </div>
                 <div class="gauge-label"><span>카타고 일치율</span><span>${r.matchRate}%</span></div>
                 <div class="gauge-track"><div class="gauge-fill fill-${lv}" style="width:${fillW}%"></div></div>
-                <div class="stat-row"><span>승률 손실</span><span>${r.winRateLoss}</span></div>
+
+                <div class="quality-bar">
+                    <div class="q-excellent" style="width:${ex}%" title="최선 ${ex}%"></div>
+                    <div class="q-good"      style="width:${gd}%" title="준최선 ${gd}%"></div>
+                    <div class="q-normal"    style="width:${nm}%" title="보통 ${nm}%"></div>
+                    <div class="q-bad"       style="width:${bd}%" title="악수 ${bd}%"></div>
+                    <div class="q-blunder"   style="width:${bl}%" title="실수 ${bl}%"></div>
+                </div>
+                <div class="quality-legend">
+                    <span class="ql-item"><span class="ql-dot" style="background:#8e44ad"></span>최선 ${ex}%</span>
+                    <span class="ql-item"><span class="ql-dot" style="background:#2ecc71"></span>준최선 ${gd}%</span>
+                    <span class="ql-item"><span class="ql-dot" style="background:#f39c12"></span>보통 ${nm}%</span>
+                    <span class="ql-item"><span class="ql-dot" style="background:#e67e22"></span>악수 ${bd}%</span>
+                    <span class="ql-item"><span class="ql-dot" style="background:#e74c3c"></span>실수 ${bl}%</span>
+                </div>
+
+                <div class="stat-row" style="margin-top:10px"><span>승률 손실</span><span>${r.winRateLoss}</span></div>
                 <div class="stat-row"><span>집수 손실</span><span>${r.scoreLoss}집</span></div>
             </div>`;
         }).join('');
