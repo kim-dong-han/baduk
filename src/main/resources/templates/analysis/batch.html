@@ -99,19 +99,20 @@
     </div>
 
     <!-- 데이터를 JS로 전달 -->
-    <script th:if="${userResults != null and #lists.size(userResults) > 0}" th:inline="javascript">
-        const userResults = /*[[${userResults}]]*/ [];
+    <script th:inline="javascript">
+        const userResultsData  = /*[[${userResults}]]*/ [];
+        const proResultsData   = /*[[${proResults}]]*/ [];
     </script>
 
-    <div th:if="${userResults != null and #lists.size(userResults) > 0}" id="analysis-root"></div>
+    <div id="user-root"></div>
+    <div id="pro-root"></div>
 
-    <p th:if="${(userResults == null or #lists.size(userResults) == 0) and not running}" class="empty">분석 결과가 없습니다. 타이젬에서 대국 후 자동으로 업데이트됩니다.</p>
+    <p th:if="${(userResults == null or #lists.size(userResults) == 0) and (proResults == null or #lists.size(proResults) == 0) and not running}" class="empty">분석 결과가 없습니다. 타이젬에서 대국 후 자동으로 업데이트됩니다.</p>
 
     <p th:unless="${running}"><a class="refresh-link" href="/analysis/batch">↻ 새로고침</a></p>
 
-    <script th:if="${userResults != null and #lists.size(userResults) > 0}">
+    <script>
     (function() {
-        const results = userResults;
 
         function grade(rate) {
             if (rate >= 75) return 'S';
@@ -130,128 +131,157 @@
             if (rate >= 40) return '보통';
             return '약함';
         }
-
-        // 요약
-        const sorted = [...results].sort((a, b) => b.matchRate - a.matchRate);
-        const best = sorted[0];
-        const worst = sorted[sorted.length - 1];
-        const avgMatch = (results.reduce((s, r) => s + r.matchRate, 0) / results.length).toFixed(1);
-
-        let summaryMsg = '';
-        if (results.length >= 2) {
-            summaryMsg = `<b>${best.phase}</b>이 가장 강하고, <b>${worst.phase}</b> 집중 개선이 필요합니다.`;
-        } else {
-            summaryMsg = `<b>${best.phase}</b> 구간 분석 완료 — 더 많은 기보가 쌓이면 전체 리포트가 나옵니다.`;
+        function wrLabel(loss) {
+            if (loss < 0.05) return { text: '안정적', color: '#27ae60' };
+            if (loss < 0.10) return { text: '보통',   color: '#f39c12' };
+            if (loss < 0.20) return { text: '기복 있음', color: '#e67e22' };
+            return { text: '기복 심함', color: '#e74c3c' };
+        }
+        function scoreLabel(loss) {
+            if (loss < 2)  return { text: '안정적',   color: '#27ae60' };
+            if (loss < 5)  return { text: '보통',     color: '#f39c12' };
+            if (loss < 10) return { text: '기복 있음', color: '#e67e22' };
+            return { text: '기복 심함', color: '#e74c3c' };
+        }
+        function interpret(r) {
+            const matchHigh  = r.matchRate >= 60;
+            const scoreStable = r.scoreLoss < 5;
+            if (matchHigh  && scoreStable)  return 'AI와 비슷한 판단으로 형세를 안정적으로 이끌었습니다.';
+            if (matchHigh  && !scoreStable) return '좋은 수를 뒀지만 형세 기복이 있었습니다.';
+            if (!matchHigh && scoreStable)  return 'AI와 판단은 달랐지만 형세는 유지했습니다.';
+            return '판단 미스가 형세에 영향을 미쳤습니다. 집중 복기가 필요합니다.';
         }
 
-        const root = document.getElementById('analysis-root');
+        let chartIdx = 0;
+        function renderAnalysis(results, rootId, title, color) {
+            if (!results || results.length === 0) return;
+            const root = document.getElementById(rootId);
+            const sorted = [...results].sort((a, b) => b.matchRate - a.matchRate);
+            const best = sorted[0], worst = sorted[sorted.length - 1];
+            const avgMatch = (results.reduce((s, r) => s + r.matchRate, 0) / results.length).toFixed(1);
 
-        // 요약 배너
-        root.innerHTML = `
-        <div class="summary-banner">
-            <div class="summary-item">
-                <div class="summary-label">평균 일치율</div>
-                <div class="summary-value" style="color:#4a90d9">${avgMatch}%</div>
-            </div>
-            <div class="summary-divider"></div>
-            <div class="summary-item">
-                <div class="summary-label">가장 강한 구간</div>
-                <div class="summary-value" style="color:#2ecc71">${best.phase} (${best.matchRate}%)</div>
-            </div>
-            <div class="summary-divider"></div>
-            <div class="summary-item">
-                <div class="summary-label">집중 개선 구간</div>
-                <div class="summary-value" style="color:#e74c3c">${worst.phase} (${worst.matchRate}%)</div>
-            </div>
-            <div class="summary-divider"></div>
-            <div style="font-size:13px; color:#555; flex:1;">${summaryMsg}</div>
-        </div>`;
+            let summaryMsg = results.length >= 2
+                ? `<b>${best.phase}</b>이 가장 강하고, <b>${worst.phase}</b> 집중 개선이 필요합니다.`
+                : `<b>${best.phase}</b> 구간 분석 완료 — 더 많은 기보가 쌓이면 전체 리포트가 나옵니다.`;
 
-        // 구간 카드
-        const cardsHtml = results.map(r => {
-            const lv = level(r.matchRate);
-            const g = grade(r.matchRate);
-            const fillW = Math.min(r.matchRate, 100);
-            const ex = r.excellentRate || 0, gd = r.goodRate || 0,
-                  nm = r.normalRate || 0, bd = r.badRate || 0, bl = r.blunderRate || 0;
-            return `
-            <div class="card ${lv}">
-                <div class="card-header">
-                    <div>
-                        <div class="card-phase">${r.phase}</div>
-                        <span class="badge ${lv}">${levelLabel(r.matchRate)}</span>
-                    </div>
-                    <div class="grade ${g}">${g}</div>
+            root.innerHTML = `<h2 style="font-size:18px;margin:0 0 16px;color:#333;">${title}</h2>`;
+
+            // 요약 배너
+            root.innerHTML += `
+            <div class="summary-banner">
+                <div class="summary-item">
+                    <div class="summary-label">평균 일치율</div>
+                    <div class="summary-value" style="color:${color}">${avgMatch}%</div>
                 </div>
-                <div class="gauge-label"><span>카타고 일치율</span><span>${r.matchRate}%</span></div>
-                <div class="gauge-track"><div class="gauge-fill fill-${lv}" style="width:${fillW}%"></div></div>
-
-                <div class="quality-bar">
-                    <div class="q-excellent" style="width:${ex}%" title="최선 ${ex}%"></div>
-                    <div class="q-good"      style="width:${gd}%" title="준최선 ${gd}%"></div>
-                    <div class="q-normal"    style="width:${nm}%" title="보통 ${nm}%"></div>
-                    <div class="q-bad"       style="width:${bd}%" title="악수 ${bd}%"></div>
-                    <div class="q-blunder"   style="width:${bl}%" title="실수 ${bl}%"></div>
+                <div class="summary-divider"></div>
+                <div class="summary-item">
+                    <div class="summary-label">가장 강한 구간</div>
+                    <div class="summary-value" style="color:#2ecc71">${best.phase} (${best.matchRate}%)</div>
                 </div>
-                <div class="quality-legend">
-                    <span class="ql-item"><span class="ql-dot" style="background:#8e44ad"></span>최선 ${ex}%</span>
-                    <span class="ql-item"><span class="ql-dot" style="background:#2ecc71"></span>준최선 ${gd}%</span>
-                    <span class="ql-item"><span class="ql-dot" style="background:#f39c12"></span>보통 ${nm}%</span>
-                    <span class="ql-item"><span class="ql-dot" style="background:#e67e22"></span>악수 ${bd}%</span>
-                    <span class="ql-item"><span class="ql-dot" style="background:#e74c3c"></span>실수 ${bl}%</span>
+                <div class="summary-divider"></div>
+                <div class="summary-item">
+                    <div class="summary-label">집중 개선 구간</div>
+                    <div class="summary-value" style="color:#e74c3c">${worst.phase} (${worst.matchRate}%)</div>
                 </div>
-
-                <div class="stat-row" style="margin-top:10px"><span>승률 손실</span><span>${r.winRateLoss}</span></div>
-                <div class="stat-row"><span>집수 손실</span><span>${r.scoreLoss}집</span></div>
+                <div class="summary-divider"></div>
+                <div style="font-size:13px; color:#555; flex:1;">${summaryMsg}</div>
             </div>`;
-        }).join('');
-        root.innerHTML += `<div class="cards">${cardsHtml}</div>`;
 
-        // 레이더 차트
-        root.innerHTML += `
-        <div class="chart-section">
-            <h2>구간별 실력 분포</h2>
-            <div class="chart-wrap"><canvas id="radarChart"></canvas></div>
-        </div>`;
+            // 구간 카드
+            const cardsHtml = results.map(r => {
+                const lv = level(r.matchRate), g = grade(r.matchRate);
+                const fillW = Math.min(r.matchRate, 100);
+                const ex = r.excellentRate||0, gd = r.goodRate||0,
+                      nm = r.normalRate||0, bd = r.badRate||0, bl = r.blunderRate||0;
+                return `
+                <div class="card ${lv}">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-phase">${r.phase}</div>
+                            <span class="badge ${lv}">${levelLabel(r.matchRate)}</span>
+                        </div>
+                        <div class="grade ${g}">${g}</div>
+                    </div>
+                    <div class="gauge-label"><span>카타고 일치율</span><span>${r.matchRate}%</span></div>
+                    <div class="gauge-track"><div class="gauge-fill fill-${lv}" style="width:${fillW}%"></div></div>
+                    <div class="quality-bar">
+                        <div class="q-excellent" style="width:${ex}%" title="최선 ${ex}%"></div>
+                        <div class="q-good"      style="width:${gd}%" title="준최선 ${gd}%"></div>
+                        <div class="q-normal"    style="width:${nm}%" title="보통 ${nm}%"></div>
+                        <div class="q-bad"       style="width:${bd}%" title="악수 ${bd}%"></div>
+                        <div class="q-blunder"   style="width:${bl}%" title="실수 ${bl}%"></div>
+                    </div>
+                    <div class="quality-legend">
+                        <span class="ql-item"><span class="ql-dot" style="background:#8e44ad"></span>최선 ${ex}%</span>
+                        <span class="ql-item"><span class="ql-dot" style="background:#2ecc71"></span>준최선 ${gd}%</span>
+                        <span class="ql-item"><span class="ql-dot" style="background:#f39c12"></span>보통 ${nm}%</span>
+                        <span class="ql-item"><span class="ql-dot" style="background:#e67e22"></span>악수 ${bd}%</span>
+                        <span class="ql-item"><span class="ql-dot" style="background:#e74c3c"></span>실수 ${bl}%</span>
+                    </div>
+                    <div class="stat-row" style="margin-top:10px">
+                        <span>형세 변동</span>
+                        <span style="display:flex;align-items:center;gap:6px;">
+                            <span style="color:#aaa;font-size:12px;">${(r.winRateLoss*100).toFixed(1)}%</span>
+                            <span style="color:${wrLabel(r.winRateLoss).color};font-weight:700;font-size:12px;">${wrLabel(r.winRateLoss).text}</span>
+                        </span>
+                    </div>
+                    <div class="stat-row">
+                        <span>집 기복</span>
+                        <span style="display:flex;align-items:center;gap:6px;">
+                            <span style="color:#aaa;font-size:12px;">${r.scoreLoss}집</span>
+                            <span style="color:${scoreLabel(r.scoreLoss).color};font-weight:700;font-size:12px;">${scoreLabel(r.scoreLoss).text}</span>
+                        </span>
+                    </div>
+                    <div style="margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:12px;color:#777;font-style:italic;">
+                        ${interpret(r)}
+                    </div>
+                </div>`;
+            }).join('');
+            root.innerHTML += `<div class="cards">${cardsHtml}</div>`;
 
-        // 상세 테이블
-        const tableRows = results.map(r => `
-            <tr>
-                <td><strong>${r.phase}</strong></td>
-                <td>${r.matchRate}%</td>
-                <td>${r.winRateLoss}</td>
-                <td>${r.scoreLoss}집</td>
-                <td><span class="badge ${level(r.matchRate)}">${grade(r.matchRate)}</span></td>
-            </tr>`).join('');
-        root.innerHTML += `
-        <div class="table-section">
-            <h2>상세 수치</h2>
-            <table>
-                <thead><tr><th>구간</th><th>카타고 일치율</th><th>승률 손실</th><th>집수 손실</th><th>등급</th></tr></thead>
-                <tbody>${tableRows}</tbody>
-            </table>
-        </div>`;
+            // 레이더 차트
+            const cid = 'radarChart' + (chartIdx++);
+            root.innerHTML += `
+            <div class="chart-section">
+                <h2 style="font-size:15px;">구간별 실력 분포</h2>
+                <div class="chart-wrap"><canvas id="${cid}"></canvas></div>
+            </div>`;
 
-        // 레이더 차트 렌더
-        const ctx = document.getElementById('radarChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'radar',
-            data: {
-                labels: results.map(r => r.phase),
-                datasets: [{
-                    label: '카타고 일치율 (%)',
-                    data: results.map(r => r.matchRate),
-                    backgroundColor: 'rgba(74,144,217,0.2)',
-                    borderColor: '#4a90d9',
-                    borderWidth: 2,
-                    pointBackgroundColor: '#4a90d9'
-                }]
-            },
-            options: {
-                scales: { r: { min: 0, max: 100, ticks: { stepSize: 25 } } },
-                plugins: { legend: { display: false } }
-            }
-        });
+            // 상세 테이블
+            const tableRows = results.map(r => `
+                <tr>
+                    <td><strong>${r.phase}</strong></td>
+                    <td>${r.matchRate}%</td>
+                    <td><span style="color:${wrLabel(r.winRateLoss).color}">${wrLabel(r.winRateLoss).text}</span> <span style="color:#ccc;font-size:11px;">${(r.winRateLoss*100).toFixed(1)}%</span></td>
+                    <td><span style="color:${scoreLabel(r.scoreLoss).color}">${scoreLabel(r.scoreLoss).text}</span> <span style="color:#ccc;font-size:11px;">${r.scoreLoss}집</span></td>
+                    <td><span class="badge ${level(r.matchRate)}">${grade(r.matchRate)}</span></td>
+                </tr>`).join('');
+            root.innerHTML += `
+            <div class="table-section">
+                <h2 style="font-size:15px;">상세 수치</h2>
+                <table>
+                    <thead><tr><th>구간</th><th>카타고 일치율</th><th>형세 변동</th><th>집 기복</th><th>등급</th></tr></thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            </div>`;
+
+            new Chart(document.getElementById(cid).getContext('2d'), {
+                type: 'radar',
+                data: {
+                    labels: results.map(r => r.phase),
+                    datasets: [{ label: '카타고 일치율 (%)', data: results.map(r => r.matchRate),
+                        backgroundColor: `${color}33`, borderColor: color,
+                        borderWidth: 2, pointBackgroundColor: color }]
+                },
+                options: {
+                    scales: { r: { min: 0, max: 100, ticks: { stepSize: 25 } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        renderAnalysis(userResultsData, 'user-root', '내 기보 분석', '#4a90d9');
+        renderAnalysis(proResultsData,  'pro-root',  '신진서 프로 기보 분석', '#8e44ad');
     })();
     </script>
 </body>

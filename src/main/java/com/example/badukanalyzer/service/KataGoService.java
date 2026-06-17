@@ -11,9 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -30,110 +28,131 @@ public class KataGoService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public List<List<JsonNode>> analyzeMultipleGames(List<List<Move>> allGames) throws IOException {
+    public record HybridGameResult(List<JsonNode> winrateNodes, List<JsonNode> qualityNodes) {}
+
+    /**
+     * 하이브리드 분석: 한 KataGo 세션에서 두 종류 쿼리를 전송
+     *  - 매 수, visits=1  → 형세 변동 (winrateNodes)
+     *  - 10수마다, visits=10 → 일치율 (qualityNodes)
+     */
+    public List<HybridGameResult> analyzeMultipleGamesHybrid(List<List<Move>> allGames) throws IOException {
         List<String> gameIds = new ArrayList<>();
         int totalAnalyzeTurns = 0;
 
-        System.out.println("KataGo 프로세스 시작 (" + allGames.size() + "개 기보)");
-        ProcessBuilder pb = new ProcessBuilder(
-                kataGoPath, "analysis",
-                "-model", modelPath,
-                "-config", configPath
-        );
+        System.out.println("KataGo 하이브리드 분석 시작 (" + allGames.size() + "개 기보)");
+        ProcessBuilder pb = new ProcessBuilder(kataGoPath, "analysis", "-model", modelPath, "-config", configPath);
         pb.redirectErrorStream(true);
         Process process = pb.start();
 
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
+
         for (int gi = 0; gi < allGames.size(); gi++) {
             List<Move> moves = allGames.get(gi);
-            ObjectNode query = objectMapper.createObjectNode();
-            String id = UUID.randomUUID().toString();
-            gameIds.add(id);
-            query.put("id", id);
-            query.put("boardXSize", 19);
-            query.put("boardYSize", 19);
-            query.put("rules", "chinese");
-            query.put("komi", 7.5);
-
-            ArrayNode movesArray = query.putArray("moves");
-            for (Move move : moves) {
-                ArrayNode moveEntry = movesArray.addArray();
-                moveEntry.add(move.getColor());
-                moveEntry.add(CoordinateConverter.toGtpCoord(move));
-            }
+            String gameId = UUID.randomUUID().toString();
+            gameIds.add(gameId);
 
             int totalMoves = moves.size();
-            List<Integer> analyzeTurns = new ArrayList<>();
-            analyzeTurns.add(0);
-            if (totalMoves > 50) analyzeTurns.add(50);
-            if (totalMoves > 100) analyzeTurns.add(100);
-            int last = totalMoves / 20 * 20;
-            if (last > 0 && !analyzeTurns.contains(last)) analyzeTurns.add(last);
-            if (!analyzeTurns.contains(totalMoves)) analyzeTurns.add(totalMoves);
 
-            query.set("analyzeTurns", objectMapper.valueToTree(analyzeTurns));
-            query.put("maxVisits", 20);
+            // 공통 moves 배열
+            ArrayNode movesArray = objectMapper.createArrayNode();
+            for (Move move : moves) {
+                ArrayNode entry = movesArray.addArray();
+                entry.add(move.getColor());
+                entry.add(CoordinateConverter.toGtpCoord(move));
+            }
 
-            totalAnalyzeTurns += analyzeTurns.size();
-
-            System.out.println("  [" + (gi + 1) + "/" + allGames.size() + "] 쿼리 전송 (" + moves.size() + "수, " + analyzeTurns.size() + "개 분석지점): " + id);
-
-            writer.write(query.toString());
+            // 쿼리 1: 매 수, visits=1 (형세 변동용)
+            List<Integer> allTurns = new ArrayList<>();
+            for (int t = 0; t <= totalMoves; t++) allTurns.add(t);
+            writer.write(buildQuery("wr_" + gameId, movesArray, allTurns, 1).toString());
             writer.newLine();
+            totalAnalyzeTurns += allTurns.size();
+
+            // 쿼리 2: 10수마다, visits=10 (일치율용)
+            List<Integer> checkTurns = new ArrayList<>();
+            for (int t = 0; t <= totalMoves; t += 10) checkTurns.add(t);
+            if (!checkTurns.contains(totalMoves)) checkTurns.add(totalMoves);
+            writer.write(buildQuery("q_" + gameId, movesArray, checkTurns, 10).toString());
+            writer.newLine();
+            totalAnalyzeTurns += checkTurns.size();
+
+            System.out.println("  [" + (gi + 1) + "/" + allGames.size() + "] 쿼리 전송 (" + totalMoves + "수, wr:" + allTurns.size() + " q:" + checkTurns.size() + "): " + gameId);
         }
         writer.flush();
         writer.close();
 
         System.out.println("전체 쿼리 전송 완료, 결과 수신 대기 중...");
-        List<JsonNode> allJsonLines = new ArrayList<>();
+        List<JsonNode> allJsonLines = collectResults(process);
+
+        int timeoutSeconds = Math.max(60, totalAnalyzeTurns * 2 + 30);
+        try {
+            if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                throw new IOException("KataGo 타임아웃 (" + timeoutSeconds + "초)");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            process.destroyForcibly();
+            throw new IOException("KataGo 인터럽트", e);
+        }
+
+        System.out.println("KataGo 결과 수신 완료 (" + allJsonLines.size() + "개 JSON 라인)");
+
+        List<HybridGameResult> results = new ArrayList<>();
+        for (String gid : gameIds) {
+            List<JsonNode> wrNodes = new ArrayList<>();
+            List<JsonNode> qNodes  = new ArrayList<>();
+            String wrId = "wr_" + gid, qId = "q_" + gid;
+            for (JsonNode node : allJsonLines) {
+                if (!node.has("id")) continue;
+                String nodeId = node.get("id").asText();
+                if (wrId.equals(nodeId))     wrNodes.add(node);
+                else if (qId.equals(nodeId)) qNodes.add(node);
+            }
+            results.add(new HybridGameResult(wrNodes, qNodes));
+        }
+        return results;
+    }
+
+    private ObjectNode buildQuery(String id, ArrayNode movesArray, List<Integer> analyzeTurns, int maxVisits) {
+        ObjectNode query = objectMapper.createObjectNode();
+        query.put("id", id);
+        query.put("boardXSize", 19);
+        query.put("boardYSize", 19);
+        query.put("rules", "chinese");
+        query.put("komi", 7.5);
+        query.set("moves", movesArray.deepCopy());
+        query.set("analyzeTurns", objectMapper.valueToTree(analyzeTurns));
+        query.put("maxVisits", maxVisits);
+        return query;
+    }
+
+    private List<JsonNode> collectResults(Process process) throws IOException {
+        List<JsonNode> lines = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty()) continue;
                 if (line.startsWith("{")) {
-                    try {
-                        allJsonLines.add(objectMapper.readTree(line));
-                    } catch (Exception e) {
-                        System.err.println("JSON 파싱 에러: " + line);
-                    }
+                    try { lines.add(objectMapper.readTree(line)); }
+                    catch (Exception e) { System.err.println("JSON 파싱 에러: " + line); }
                 } else {
                     System.out.println("KataGo: " + line);
                 }
             }
         }
-
-        int timeoutSeconds = Math.max(60, totalAnalyzeTurns * 2 + 30);
-        System.out.println("KataGo 분석 대기 중... (최대 " + timeoutSeconds + "초, " + totalAnalyzeTurns + "개 분석지점)");
-
-        try {
-            if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
-                process.destroyForcibly();
-                throw new IOException("KataGo 프로세스 타임아웃 (" + timeoutSeconds + "초, " + allGames.size() + "개 기보, " + totalAnalyzeTurns + "개 분석지점)");
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            process.destroyForcibly();
-            throw new IOException("KataGo 분석 중 인터럽트 발생", e);
-        }
-
-        System.out.println("KataGo 결과 수신 완료 (" + allJsonLines.size() + "개 JSON 라인)");
-
-        List<List<JsonNode>> allResults = new ArrayList<>();
-        for (String gid : gameIds) {
-            List<JsonNode> gameResults = new ArrayList<>();
-            for (JsonNode node : allJsonLines) {
-                if (node.has("id") && gid.equals(node.get("id").asText())) {
-                    gameResults.add(node);
-                }
-            }
-            allResults.add(gameResults);
-        }
-        return allResults;
+        return lines;
     }
-    
+
+    public List<List<JsonNode>> analyzeMultipleGames(List<List<Move>> allGames) throws IOException {
+        List<HybridGameResult> hybrid = analyzeMultipleGamesHybrid(allGames);
+        List<List<JsonNode>> result = new ArrayList<>();
+        for (HybridGameResult h : hybrid) result.add(h.winrateNodes());
+        return result;
+    }
+
     public List<JsonNode> analyzeMoves(List<Move> moves) throws IOException {
-        List<List<Move>> single = List.of(moves);
-        return analyzeMultipleGames(single).getFirst();
+        return analyzeMultipleGames(List.of(moves)).getFirst();
     }
 }
