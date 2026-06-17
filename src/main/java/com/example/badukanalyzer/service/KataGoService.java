@@ -65,7 +65,7 @@ public class KataGoService {
             int totalMoves = moves.size();
             List<Integer> analyzeTurns = new ArrayList<>();
             analyzeTurns.add(0);
-            analyzeTurns.add(50);
+            if (totalMoves > 50) analyzeTurns.add(50);
             if (totalMoves > 100) analyzeTurns.add(100);
             int last = totalMoves / 20 * 20;
             if (last > 0 && !analyzeTurns.contains(last)) analyzeTurns.add(last);

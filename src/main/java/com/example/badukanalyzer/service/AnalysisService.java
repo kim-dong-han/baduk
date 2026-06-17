@@ -33,12 +33,13 @@ public class AnalysisService {
     }
 
     @PostConstruct
-    public void startBackgroundAnalysis() {
+    public synchronized void startBackgroundAnalysis() {
+        if (running) return;
         running = true;
         Thread.ofVirtual().name("batch-analysis").start(() -> {
             try {
                 userResults = analyzeByPrefix("", 5);
-                proResults = analyzeByPrefix("pro_", 50);
+                proResults = List.of(); // 프로 기보 분석 임시 비활성화
             } catch (Exception e) {
                 errorMessage = e.getMessage();
             } finally {

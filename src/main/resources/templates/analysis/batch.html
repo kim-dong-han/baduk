@@ -18,6 +18,13 @@
 <body>
     <h1>배치 분석 결과</h1>
 
+    <!-- 타이젬 자동 연동 안내 -->
+    <div style="background:#fff; border-radius:8px; padding:16px 20px; margin-bottom:30px; max-width:700px; box-shadow:0 2px 8px rgba(0,0,0,0.1); border-left:4px solid #4a90d9;">
+        <p style="margin:0; color:#555; font-size:14px;">
+            타이젬 자동 연동 중 — 대국 종료 후 기보가 자동으로 분석 폴더에 저장됩니다.
+        </p>
+    </div>
+
     <div th:if="${running}" style="text-align: center; padding: 40px;">
         <div class="spinner"></div>
         <p style="color: #888; margin-top: 12px;">KataGo 분석 중입니다. 잠시만 기다려주세요...</p>

@@ -96,7 +96,6 @@ public class SgfParser {
         }
         return mainLine.toString();
     }
-
     private String stripProperties(String s) {
         StringBuilder sb = new StringBuilder();
         int i = 0;
