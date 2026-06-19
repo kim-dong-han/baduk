@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 @Service
 public class AnalysisService {
@@ -22,8 +24,12 @@ public class AnalysisService {
     @Value("${katago.record-dir}")
     private String recordDir;
 
+    public record WinrateTrend(int[] turns, double[] values) {}
+
     private volatile List<AnalysisResponse> userResults;
     private volatile List<AnalysisResponse> proResults;
+    private volatile WinrateTrend proWinrateTrend;
+    private volatile WinrateTrend userWinrateTrend;
     private volatile String errorMessage;
     private volatile boolean running;
 
@@ -49,8 +55,10 @@ public class AnalysisService {
 
     public List<AnalysisResponse> getUserResults() { return userResults; }
     public List<AnalysisResponse> getProResults()  { return proResults; }
-    public String getErrorMessage()                 { return errorMessage; }
-    public boolean isRunning()                      { return running; }
+    public WinrateTrend getProWinrateTrend()       { return proWinrateTrend; }
+    public WinrateTrend getUserWinrateTrend()      { return userWinrateTrend; }
+    public String getErrorMessage()                { return errorMessage; }
+    public boolean isRunning()                     { return running; }
 
     private List<AnalysisResponse> analyzeByPrefix(String prefix, int maxFiles) throws Exception {
         File dir = new File(recordDir);
@@ -85,6 +93,10 @@ public class AnalysisService {
         long t0 = System.currentTimeMillis();
         List<KataGoService.HybridGameResult> hybridResults = kataGoService.analyzeMultipleGamesHybrid(allMoves);
         System.out.println(label + " 분석 완료 (" + (System.currentTimeMillis() - t0) / 1000.0 + "초)");
+
+        WinrateTrend trend = computeWinrateTrend(hybridResults);
+        if (prefix.isEmpty()) userWinrateTrend = trend;
+        else proWinrateTrend = trend;
 
         // 구간별 지표를 분리해서 수집
         List<WrMetric>      allOpeningWr = new ArrayList<>(), allMiddleWr = new ArrayList<>(), allEndgameWr = new ArrayList<>();
@@ -194,6 +206,31 @@ public class AnalysisService {
 
     private double round3(double v) { return Math.round(v * 1000) / 1000.0; }
     private double round2(double v) { return Math.round(v * 100)  / 100.0; }
+
+    private WinrateTrend computeWinrateTrend(List<KataGoService.HybridGameResult> hybridResults) {
+        Map<Integer, List<Double>> turnMap = new TreeMap<>();
+        for (KataGoService.HybridGameResult h : hybridResults) {
+            for (JsonNode node : h.winrateNodes()) {
+                if (!node.has("rootInfo") || !node.has("turnNumber")) continue;
+                int turn = node.get("turnNumber").asInt();
+                double wr = Math.abs(node.get("rootInfo").get("winrate").asDouble() * 100 - 50);
+                turnMap.computeIfAbsent(turn, k -> new ArrayList<>()).add(wr);
+            }
+        }
+        int minGames = Math.max(1, hybridResults.size() / 5);
+        List<Integer> turns = new ArrayList<>();
+        List<Double> values = new ArrayList<>();
+        for (Map.Entry<Integer, List<Double>> e : turnMap.entrySet()) {
+            if (e.getValue().size() >= minGames) {
+                turns.add(e.getKey());
+                values.add(e.getValue().stream().mapToDouble(d -> d).average().orElse(50.0));
+            }
+        }
+        return new WinrateTrend(
+            turns.stream().mapToInt(Integer::intValue).toArray(),
+            values.stream().mapToDouble(Double::doubleValue).toArray()
+        );
+    }
 
     private record WrMetric(double wrLoss, double scoreLoss) {}
     private record QualityMetric(double matchScore) {}

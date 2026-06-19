@@ -11,14 +11,12 @@
         h1 { font-size: 24px; margin-bottom: 6px; }
         .subtitle { color: #888; font-size: 14px; margin-bottom: 28px; }
 
-        /* 요약 배너 */
         .summary-banner { background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 24px; max-width: 820px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; gap: 32px; align-items: center; }
         .summary-item { text-align: center; }
         .summary-label { font-size: 12px; color: #888; margin-bottom: 4px; }
         .summary-value { font-size: 16px; font-weight: 700; }
         .summary-divider { width: 1px; background: #eee; align-self: stretch; }
 
-        /* 구간 카드 */
         .cards { display: flex; gap: 16px; max-width: 820px; margin-bottom: 24px; }
         .card { flex: 1; background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 5px solid #ccc; }
         .card.strong { border-top-color: #2ecc71; }
@@ -27,14 +25,8 @@
 
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
         .card-phase { font-size: 16px; font-weight: 700; }
-        .grade { font-size: 22px; font-weight: 900; }
-        .grade.S { color: #8e44ad; }
-        .grade.A { color: #2ecc71; }
-        .grade.B { color: #27ae60; }
-        .grade.C { color: #f39c12; }
-        .grade.D { color: #e74c3c; }
+        .stars { font-size: 18px; letter-spacing: 2px; }
 
-        /* 게이지 바 */
         .gauge-label { font-size: 12px; color: #888; margin-bottom: 4px; display: flex; justify-content: space-between; }
         .gauge-track { background: #eee; border-radius: 99px; height: 10px; margin-bottom: 12px; }
         .gauge-fill { height: 100%; border-radius: 99px; transition: width 0.8s ease; }
@@ -45,7 +37,6 @@
         .stat-row { display: flex; justify-content: space-between; font-size: 13px; color: #666; margin-top: 4px; }
         .stat-row span:last-child { font-weight: 600; color: #333; }
 
-        /* 수질 분포 스택 바 */
         .quality-bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin: 12px 0 5px; }
         .q-excellent { background: #8e44ad; }
         .q-good      { background: #2ecc71; }
@@ -61,19 +52,17 @@
         .badge.normal { background: #fdebd0; color: #b7770d; }
         .badge.weak   { background: #fadbd8; color: #c0392b; }
 
-        /* 레이더 차트 */
         .chart-section { background: #fff; border-radius: 12px; padding: 24px; max-width: 820px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px; }
-        .chart-section h2 { font-size: 16px; margin: 0 0 16px; }
+        .chart-section h2 { font-size: 16px; margin: 0 0 6px; }
+        .chart-desc { font-size: 12px; color: #999; margin: 0 0 18px; }
         .chart-wrap { max-width: 340px; margin: 0 auto; }
 
-        /* 상세 테이블 */
         .table-section { background: #fff; border-radius: 12px; padding: 24px; max-width: 820px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px; }
         .table-section h2 { font-size: 16px; margin: 0 0 16px; }
         table { border-collapse: collapse; width: 100%; }
         th { background: #f8f9fa; color: #555; font-size: 13px; padding: 10px 14px; border-bottom: 2px solid #eee; text-align: center; }
         td { padding: 10px 14px; text-align: center; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
 
-        /* 기타 */
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #4a90d9; border-radius: 50%; width: 36px; height: 36px; animation: spin 1s linear infinite; margin: 0 auto 12px; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading { text-align: center; padding: 60px; }
@@ -98,10 +87,11 @@
         <strong>오류:</strong> <span th:text="${error}"></span>
     </div>
 
-    <!-- 데이터를 JS로 전달 -->
     <script th:inline="javascript">
         const userResultsData  = /*[[${userResults}]]*/ [];
         const proResultsData   = /*[[${proResults}]]*/ [];
+        const proWinrateTrend  = /*[[${proWinrateTrend}]]*/ null;
+        const userWinrateTrend = /*[[${userWinrateTrend}]]*/ null;
     </script>
 
     <div id="user-root"></div>
@@ -114,12 +104,12 @@
     <script>
     (function() {
 
-        function grade(rate) {
-            if (rate >= 75) return 'S';
-            if (rate >= 60) return 'A';
-            if (rate >= 45) return 'B';
-            if (rate >= 30) return 'C';
-            return 'D';
+        function stars(rate) {
+            if (rate >= 75) return '⭐⭐⭐⭐⭐';
+            if (rate >= 60) return '⭐⭐⭐⭐';
+            if (rate >= 45) return '⭐⭐⭐';
+            if (rate >= 30) return '⭐⭐';
+            return '⭐';
         }
         function level(rate) {
             if (rate >= 60) return 'strong';
@@ -127,32 +117,33 @@
             return 'weak';
         }
         function levelLabel(rate) {
-            if (rate >= 60) return '강함';
-            if (rate >= 40) return '보통';
-            return '약함';
+            if (rate >= 60) return 'AI와 잘 맞아요';
+            if (rate >= 40) return '보통이에요';
+            return '연습이 필요해요';
         }
         function wrLabel(loss) {
             if (loss < 0.05) return { text: '안정적', color: '#27ae60' };
-            if (loss < 0.10) return { text: '보통',   color: '#f39c12' };
+            if (loss < 0.10) return { text: '조금 불안정', color: '#f39c12' };
             if (loss < 0.20) return { text: '기복 있음', color: '#e67e22' };
             return { text: '기복 심함', color: '#e74c3c' };
         }
         function scoreLabel(loss) {
-            if (loss < 2)  return { text: '안정적',   color: '#27ae60' };
-            if (loss < 5)  return { text: '보통',     color: '#f39c12' };
-            if (loss < 10) return { text: '기복 있음', color: '#e67e22' };
+            if (loss < 2)  return { text: '안정적',      color: '#27ae60' };
+            if (loss < 5)  return { text: '조금 불안정', color: '#f39c12' };
+            if (loss < 10) return { text: '기복 있음',   color: '#e67e22' };
             return { text: '기복 심함', color: '#e74c3c' };
         }
         function interpret(r) {
-            const matchHigh  = r.matchRate >= 60;
+            const matchHigh   = r.matchRate >= 60;
             const scoreStable = r.scoreLoss < 5;
-            if (matchHigh  && scoreStable)  return 'AI와 비슷한 판단으로 형세를 안정적으로 이끌었습니다.';
-            if (matchHigh  && !scoreStable) return '좋은 수를 뒀지만 형세 기복이 있었습니다.';
-            if (!matchHigh && scoreStable)  return 'AI와 판단은 달랐지만 형세는 유지했습니다.';
-            return '판단 미스가 형세에 영향을 미쳤습니다. 집중 복기가 필요합니다.';
+            if (matchHigh  && scoreStable)  return 'AI와 비슷하게 두면서 형세를 잘 유지했어요.';
+            if (matchHigh  && !scoreStable) return 'AI와 비슷하게 뒀지만 가끔 큰 실수가 있었어요.';
+            if (!matchHigh && scoreStable)  return 'AI와 다르게 뒀어도 형세는 잘 지켰어요.';
+            return '실수가 형세에 영향을 줬어요. 이 구간 복기를 추천해요.';
         }
 
         let chartIdx = 0;
+
         function renderAnalysis(results, rootId, title, color) {
             if (!results || results.length === 0) return;
             const root = document.getElementById(rootId);
@@ -161,117 +152,114 @@
             const avgMatch = (results.reduce((s, r) => s + r.matchRate, 0) / results.length).toFixed(1);
 
             let summaryMsg = results.length >= 2
-                ? `<b>${best.phase}</b>이 가장 강하고, <b>${worst.phase}</b> 집중 개선이 필요합니다.`
-                : `<b>${best.phase}</b> 구간 분석 완료 — 더 많은 기보가 쌓이면 전체 리포트가 나옵니다.`;
+                ? '<b>' + best.phase + '</b>을 가장 잘 뒀고, <b>' + worst.phase + '</b> 연습이 가장 필요해요.'
+                : '<b>' + best.phase + '</b> 구간 분석 완료 — 기보가 더 쌓이면 전체 리포트가 나와요.';
 
-            root.innerHTML = `<h2 style="font-size:18px;margin:0 0 16px;color:#333;">${title}</h2>`;
+            root.innerHTML = '<h2 style="font-size:18px;margin:0 0 16px;color:#333;">' + title + '</h2>';
 
             // 요약 배너
-            root.innerHTML += `
-            <div class="summary-banner">
-                <div class="summary-item">
-                    <div class="summary-label">평균 일치율</div>
-                    <div class="summary-value" style="color:${color}">${avgMatch}%</div>
-                </div>
-                <div class="summary-divider"></div>
-                <div class="summary-item">
-                    <div class="summary-label">가장 강한 구간</div>
-                    <div class="summary-value" style="color:#2ecc71">${best.phase} (${best.matchRate}%)</div>
-                </div>
-                <div class="summary-divider"></div>
-                <div class="summary-item">
-                    <div class="summary-label">집중 개선 구간</div>
-                    <div class="summary-value" style="color:#e74c3c">${worst.phase} (${worst.matchRate}%)</div>
-                </div>
-                <div class="summary-divider"></div>
-                <div style="font-size:13px; color:#555; flex:1;">${summaryMsg}</div>
-            </div>`;
+            root.innerHTML += '<div class="summary-banner">'
+                + '<div class="summary-item">'
+                + '<div class="summary-label">전체 AI 유사도</div>'
+                + '<div class="summary-value" style="color:' + color + '">' + avgMatch + '%</div>'
+                + '</div>'
+                + '<div class="summary-divider"></div>'
+                + '<div class="summary-item">'
+                + '<div class="summary-label">가장 잘한 구간</div>'
+                + '<div class="summary-value" style="color:#2ecc71">' + best.phase + ' (' + best.matchRate + '%)</div>'
+                + '</div>'
+                + '<div class="summary-divider"></div>'
+                + '<div class="summary-item">'
+                + '<div class="summary-label">가장 아쉬운 구간</div>'
+                + '<div class="summary-value" style="color:#e74c3c">' + worst.phase + ' (' + worst.matchRate + '%)</div>'
+                + '</div>'
+                + '<div class="summary-divider"></div>'
+                + '<div style="font-size:13px;color:#555;flex:1;">' + summaryMsg + '</div>'
+                + '</div>';
 
             // 구간 카드
-            const cardsHtml = results.map(r => {
-                const lv = level(r.matchRate), g = grade(r.matchRate);
+            const cardsHtml = results.map(function(r) {
+                const lv = level(r.matchRate), sg = stars(r.matchRate);
                 const fillW = Math.min(r.matchRate, 100);
                 const ex = r.excellentRate||0, gd = r.goodRate||0,
                       nm = r.normalRate||0, bd = r.badRate||0, bl = r.blunderRate||0;
-                return `
-                <div class="card ${lv}">
-                    <div class="card-header">
-                        <div>
-                            <div class="card-phase">${r.phase}</div>
-                            <span class="badge ${lv}">${levelLabel(r.matchRate)}</span>
-                        </div>
-                        <div class="grade ${g}">${g}</div>
-                    </div>
-                    <div class="gauge-label"><span>카타고 일치율</span><span>${r.matchRate}%</span></div>
-                    <div class="gauge-track"><div class="gauge-fill fill-${lv}" style="width:${fillW}%"></div></div>
-                    <div class="quality-bar">
-                        <div class="q-excellent" style="width:${ex}%" title="최선 ${ex}%"></div>
-                        <div class="q-good"      style="width:${gd}%" title="준최선 ${gd}%"></div>
-                        <div class="q-normal"    style="width:${nm}%" title="보통 ${nm}%"></div>
-                        <div class="q-bad"       style="width:${bd}%" title="악수 ${bd}%"></div>
-                        <div class="q-blunder"   style="width:${bl}%" title="실수 ${bl}%"></div>
-                    </div>
-                    <div class="quality-legend">
-                        <span class="ql-item"><span class="ql-dot" style="background:#8e44ad"></span>최선 ${ex}%</span>
-                        <span class="ql-item"><span class="ql-dot" style="background:#2ecc71"></span>준최선 ${gd}%</span>
-                        <span class="ql-item"><span class="ql-dot" style="background:#f39c12"></span>보통 ${nm}%</span>
-                        <span class="ql-item"><span class="ql-dot" style="background:#e67e22"></span>악수 ${bd}%</span>
-                        <span class="ql-item"><span class="ql-dot" style="background:#e74c3c"></span>실수 ${bl}%</span>
-                    </div>
-                    <div class="stat-row" style="margin-top:10px">
-                        <span>형세 변동</span>
-                        <span style="display:flex;align-items:center;gap:6px;">
-                            <span style="color:#aaa;font-size:12px;">${(r.winRateLoss*100).toFixed(1)}%</span>
-                            <span style="color:${wrLabel(r.winRateLoss).color};font-weight:700;font-size:12px;">${wrLabel(r.winRateLoss).text}</span>
-                        </span>
-                    </div>
-                    <div class="stat-row">
-                        <span>집 기복</span>
-                        <span style="display:flex;align-items:center;gap:6px;">
-                            <span style="color:#aaa;font-size:12px;">${r.scoreLoss}집</span>
-                            <span style="color:${scoreLabel(r.scoreLoss).color};font-weight:700;font-size:12px;">${scoreLabel(r.scoreLoss).text}</span>
-                        </span>
-                    </div>
-                    <div style="margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:12px;color:#777;font-style:italic;">
-                        ${interpret(r)}
-                    </div>
-                </div>`;
+                const approxPer100 = Math.round(r.matchRate);
+                return '<div class="card ' + lv + '">'
+                     + '<div class="card-header">'
+                     + '<div><div class="card-phase">' + r.phase + '</div>'
+                     + '<span class="badge ' + lv + '">' + levelLabel(r.matchRate) + '</span></div>'
+                     + '<div class="stars">' + sg + '</div>'
+                     + '</div>'
+                     + '<div style="font-size:12px;color:#888;margin-bottom:10px;">100수 중 약 <b style="color:#333;">' + approxPer100 + '수</b>를 AI와 같이 뒀어요</div>'
+                     + '<div class="gauge-label"><span>AI 유사도</span><span>' + r.matchRate + '%</span></div>'
+                     + '<div class="gauge-track"><div class="gauge-fill fill-' + lv + '" style="width:' + fillW + '%"></div></div>'
+                     + '<div class="quality-bar">'
+                     + '<div class="q-excellent" style="width:' + ex + '%" title="아주 좋은 수 ' + ex + '%"></div>'
+                     + '<div class="q-good"      style="width:' + gd + '%" title="좋은 수 ' + gd + '%"></div>'
+                     + '<div class="q-normal"    style="width:' + nm + '%" title="평범한 수 ' + nm + '%"></div>'
+                     + '<div class="q-bad"       style="width:' + bd + '%" title="나쁜 수 ' + bd + '%"></div>'
+                     + '<div class="q-blunder"   style="width:' + bl + '%" title="큰 실수 ' + bl + '%"></div>'
+                     + '</div>'
+                     + '<div class="quality-legend">'
+                     + '<span class="ql-item"><span class="ql-dot" style="background:#8e44ad"></span>아주 좋은 수 ' + ex + '%</span>'
+                     + '<span class="ql-item"><span class="ql-dot" style="background:#2ecc71"></span>좋은 수 ' + gd + '%</span>'
+                     + '<span class="ql-item"><span class="ql-dot" style="background:#f39c12"></span>평범한 수 ' + nm + '%</span>'
+                     + '<span class="ql-item"><span class="ql-dot" style="background:#e67e22"></span>나쁜 수 ' + bd + '%</span>'
+                     + '<span class="ql-item"><span class="ql-dot" style="background:#e74c3c"></span>큰 실수 ' + bl + '%</span>'
+                     + '</div>'
+                     + '<div class="stat-row" style="margin-top:10px">'
+                     + '<span>실수로 인한 승률 변화</span>'
+                     + '<span style="display:flex;align-items:center;gap:6px;">'
+                     + '<span style="color:#aaa;font-size:12px;">' + (r.winRateLoss*100).toFixed(1) + '%</span>'
+                     + '<span style="color:' + wrLabel(r.winRateLoss).color + ';font-weight:700;font-size:12px;">' + wrLabel(r.winRateLoss).text + '</span>'
+                     + '</span></div>'
+                     + '<div class="stat-row">'
+                     + '<span>실수로 잃은 집 수</span>'
+                     + '<span style="display:flex;align-items:center;gap:6px;">'
+                     + '<span style="color:#aaa;font-size:12px;">' + r.scoreLoss + '집</span>'
+                     + '<span style="color:' + scoreLabel(r.scoreLoss).color + ';font-weight:700;font-size:12px;">' + scoreLabel(r.scoreLoss).text + '</span>'
+                     + '</span></div>'
+                     + '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:12px;color:#777;font-style:italic;">'
+                     + interpret(r) + '</div>'
+                     + '</div>';
             }).join('');
-            root.innerHTML += `<div class="cards">${cardsHtml}</div>`;
+            root.innerHTML += '<div class="cards">' + cardsHtml + '</div>';
 
             // 레이더 차트
             const cid = 'radarChart' + (chartIdx++);
-            root.innerHTML += `
-            <div class="chart-section">
-                <h2 style="font-size:15px;">구간별 실력 분포</h2>
-                <div class="chart-wrap"><canvas id="${cid}"></canvas></div>
-            </div>`;
+            root.innerHTML += '<div class="chart-section">'
+                + '<h2>구간별 AI 유사도</h2>'
+                + '<p class="chart-desc">각 구간에서 AI와 얼마나 비슷하게 뒀는지 한눈에 보여줘요.</p>'
+                + '<div class="chart-wrap"><canvas id="' + cid + '"></canvas></div>'
+                + '</div>';
 
             // 상세 테이블
-            const tableRows = results.map(r => `
-                <tr>
-                    <td><strong>${r.phase}</strong></td>
-                    <td>${r.matchRate}%</td>
-                    <td><span style="color:${wrLabel(r.winRateLoss).color}">${wrLabel(r.winRateLoss).text}</span> <span style="color:#ccc;font-size:11px;">${(r.winRateLoss*100).toFixed(1)}%</span></td>
-                    <td><span style="color:${scoreLabel(r.scoreLoss).color}">${scoreLabel(r.scoreLoss).text}</span> <span style="color:#ccc;font-size:11px;">${r.scoreLoss}집</span></td>
-                    <td><span class="badge ${level(r.matchRate)}">${grade(r.matchRate)}</span></td>
-                </tr>`).join('');
-            root.innerHTML += `
-            <div class="table-section">
-                <h2 style="font-size:15px;">상세 수치</h2>
-                <table>
-                    <thead><tr><th>구간</th><th>카타고 일치율</th><th>형세 변동</th><th>집 기복</th><th>등급</th></tr></thead>
-                    <tbody>${tableRows}</tbody>
-                </table>
-            </div>`;
+            const tableRows = results.map(function(r) {
+                return '<tr>'
+                    + '<td><strong>' + r.phase + '</strong></td>'
+                    + '<td>' + r.matchRate + '%</td>'
+                    + '<td><span style="color:' + wrLabel(r.winRateLoss).color + '">' + wrLabel(r.winRateLoss).text + '</span> <span style="color:#ccc;font-size:11px;">' + (r.winRateLoss*100).toFixed(1) + '%</span></td>'
+                    + '<td><span style="color:' + scoreLabel(r.scoreLoss).color + '">' + scoreLabel(r.scoreLoss).text + '</span> <span style="color:#ccc;font-size:11px;">' + r.scoreLoss + '집</span></td>'
+                    + '<td>' + stars(r.matchRate) + '</td>'
+                    + '</tr>';
+            }).join('');
+            root.innerHTML += '<div class="table-section">'
+                + '<h2 style="font-size:15px;">상세 수치</h2>'
+                + '<table><thead><tr><th>구간</th><th>AI 유사도</th><th>승률 변화</th><th>잃은 집</th><th>평가</th></tr></thead>'
+                + '<tbody>' + tableRows + '</tbody></table>'
+                + '</div>';
 
+            // 레이더 차트 초기화
             new Chart(document.getElementById(cid).getContext('2d'), {
                 type: 'radar',
                 data: {
-                    labels: results.map(r => r.phase),
-                    datasets: [{ label: '카타고 일치율 (%)', data: results.map(r => r.matchRate),
-                        backgroundColor: `${color}33`, borderColor: color,
-                        borderWidth: 2, pointBackgroundColor: color }]
+                    labels: results.map(function(r) { return r.phase; }),
+                    datasets: [{
+                        label: 'AI 유사도 (%)',
+                        data: results.map(function(r) { return r.matchRate; }),
+                        backgroundColor: color + '33', borderColor: color,
+                        borderWidth: 2, pointBackgroundColor: color
+                    }]
                 },
                 options: {
                     scales: { r: { min: 0, max: 100, ticks: { stepSize: 25 } } },
@@ -280,7 +268,7 @@
             });
         }
 
-        renderAnalysis(userResultsData, 'user-root', '내 기보 분석', '#4a90d9');
+        renderAnalysis(userResultsData, 'user-root', '내 기보 분석',          '#4a90d9');
         renderAnalysis(proResultsData,  'pro-root',  '신진서 프로 기보 분석', '#8e44ad');
     })();
     </script>

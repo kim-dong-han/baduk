@@ -33,7 +33,7 @@ public class KataGoService {
     /**
      * 하이브리드 분석: 한 KataGo 세션에서 두 종류 쿼리를 전송
      *  - 매 수, visits=1  → 형세 변동 (winrateNodes)
-     *  - 10수마다, visits=10 → 일치율 (qualityNodes)
+     *  - 10수마다, visits=30 → 일치율 (qualityNodes)
      */
     public List<HybridGameResult> analyzeMultipleGamesHybrid(List<List<Move>> allGames) throws IOException {
         List<String> gameIds = new ArrayList<>();
@@ -72,7 +72,7 @@ public class KataGoService {
             List<Integer> checkTurns = new ArrayList<>();
             for (int t = 0; t <= totalMoves; t += 10) checkTurns.add(t);
             if (!checkTurns.contains(totalMoves)) checkTurns.add(totalMoves);
-            writer.write(buildQuery("q_" + gameId, movesArray, checkTurns, 10).toString());
+            writer.write(buildQuery("q_" + gameId, movesArray, checkTurns, 30).toString());
             writer.newLine();
             totalAnalyzeTurns += checkTurns.size();
 
