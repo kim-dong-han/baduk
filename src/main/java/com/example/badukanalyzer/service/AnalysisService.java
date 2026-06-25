@@ -24,6 +24,9 @@ public class AnalysisService {
     @Value("${katago.record-dir}")
     private String recordDir;
 
+    @Value("${katago.batch-analysis-enabled:false}")
+    private boolean batchAnalysisEnabled;
+
     public record WinrateTrend(int[] turns, double[] values) {}
 
     private volatile List<AnalysisResponse> userResults;
@@ -39,11 +42,15 @@ public class AnalysisService {
 
     @PostConstruct
     public synchronized void startBackgroundAnalysis() {
+        if (!batchAnalysisEnabled) {
+            System.out.println("배치 분석 비활성화 (batch-analysis-enabled: false)");
+            return;
+        }
         if (running) return;
         running = true;
         Thread.ofVirtual().name("batch-analysis").start(() -> {
             try {
-                userResults = List.of(); // 내 기보 분석 임시 비활성화
+                userResults = List.of();
                 proResults = analyzeByPrefix("pro_", 50);
             } catch (Exception e) {
                 errorMessage = e.getMessage();

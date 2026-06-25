@@ -372,6 +372,70 @@ function drawBestMarker(ctx, gx, gy) {
     ctx.fill();
 }
 
+/* ── 바둑 따냄 로직 ── */
+function getAdjacent(x, y) {
+    const adj = [];
+    if (x > 0)  adj.push([x-1, y]);
+    if (x < 18) adj.push([x+1, y]);
+    if (y > 0)  adj.push([x, y-1]);
+    if (y < 18) adj.push([x, y+1]);
+    return adj;
+}
+
+function getGroup(board, x, y) {
+    const color = board[x][y];
+    const group = [];
+    const visited = new Set();
+    const stack = [[x, y]];
+    while (stack.length > 0) {
+        const [cx, cy] = stack.pop();
+        const key = cx * 19 + cy;
+        if (visited.has(key)) continue;
+        visited.add(key);
+        if (board[cx][cy] !== color) continue;
+        group.push([cx, cy]);
+        for (const [nx, ny] of getAdjacent(cx, cy)) {
+            if (!visited.has(nx * 19 + ny)) stack.push([nx, ny]);
+        }
+    }
+    return group;
+}
+
+function hasLiberty(board, group) {
+    for (const [x, y] of group) {
+        for (const [nx, ny] of getAdjacent(x, y)) {
+            if (board[nx][ny] === null) return true;
+        }
+    }
+    return false;
+}
+
+function buildBoardState(upToIdx) {
+    const board = Array.from({length: 19}, () => Array(19).fill(null));
+    for (let i = 0; i <= upToIdx; i++) {
+        const m = moves[i];
+        const g = gtpToGrid(m.move);
+        if (!g) continue;  // pass
+        board[g.x][g.y] = m.color;
+        const opp = m.color === 'B' ? 'W' : 'B';
+        // 상대 돌 따냄 체크
+        for (const [nx, ny] of getAdjacent(g.x, g.y)) {
+            if (board[nx][ny] === opp) {
+                const grp = getGroup(board, nx, ny);
+                if (!hasLiberty(board, grp)) {
+                    for (const [gx, gy] of grp) board[gx][gy] = null;
+                }
+            }
+        }
+        // 자충수 처리 (비정상 기보 대비)
+        const selfGrp = getGroup(board, g.x, g.y);
+        if (!hasLiberty(board, selfGrp)) {
+            for (const [gx, gy] of selfGrp) board[gx][gy] = null;
+        }
+    }
+    return board;
+}
+
 /* ── 수 표시 (메인) ── */
 function showMove(idx) {
     if (idx < 0 || idx >= moves.length) return;
@@ -380,20 +444,23 @@ function showMove(idx) {
     const ctx = canvas.getContext('2d');
     drawBoard(ctx);
 
-    // idx번째까지 돌 놓기
-    for (let i = 0; i <= idx; i++) {
-        const m = moves[i];
-        const g = gtpToGrid(m.move);
-        if (!g) continue;
-        drawStone(ctx, g.x, g.y, m.color, i === idx);
+    // 따냄 처리된 보드 상태 계산 후 렌더링
+    const board = buildBoardState(idx);
+    const lastG = gtpToGrid(moves[idx].move);
+    for (let x = 0; x < 19; x++) {
+        for (let y = 0; y < 19; y++) {
+            if (board[x][y]) {
+                const isLast = lastG && x === lastG.x && y === lastG.y;
+                drawStone(ctx, x, y, board[x][y], isLast);
+            }
+        }
     }
 
-    // 최선수 마커 (실제 착점과 다를 때만, 빈 자리일 때만)
+    // 최선수 마커 (빈 자리일 때만)
     const cur = moves[idx];
     if (cur.bestMove && cur.move !== cur.bestMove) {
         const bg = gtpToGrid(cur.bestMove);
-        const occupied = moves.slice(0, idx).some(m => m.move === cur.bestMove);
-        if (bg && !occupied) {
+        if (bg && !board[bg.x][bg.y]) {
             drawBestMarker(ctx, bg.x, bg.y);
         }
     }
