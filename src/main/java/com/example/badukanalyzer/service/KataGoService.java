@@ -155,4 +155,50 @@ public class KataGoService {
     public List<JsonNode> analyzeMoves(List<Move> moves) throws IOException {
         return analyzeMultipleGames(List.of(moves)).getFirst();
     }
+
+    // 단일 기보 전수 분석 - visits=400으로 각 수의 최선수와 형세를 분석
+    public List<JsonNode> analyzeAllMoves(List<Move> moves) throws IOException {
+        ProcessBuilder pb = new ProcessBuilder(kataGoPath, "analysis", "-model", modelPath, "-config", configPath);
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+
+        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
+
+        ArrayNode movesArray = objectMapper.createArrayNode();
+        for (Move move : moves) {
+            ArrayNode entry = movesArray.addArray();
+            entry.add(move.getColor());
+            entry.add(CoordinateConverter.toGtpCoord(move));
+        }
+
+        List<Integer> allTurns = new ArrayList<>();
+        for (int t = 0; t <= moves.size(); t++) allTurns.add(t);
+
+        String queryId = UUID.randomUUID().toString();
+        writer.write(buildQuery(queryId, movesArray, allTurns, 200).toString());
+        writer.newLine();
+        writer.flush();
+        writer.close();
+
+        System.out.println("단일 기보 전수 분석 시작 (" + moves.size() + "수, visits=200)");
+        List<JsonNode> allLines = collectResults(process);
+
+        int timeoutSeconds = Math.max(120, moves.size() * 4 + 60);
+        try {
+            if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                throw new IOException("KataGo 타임아웃 (" + timeoutSeconds + "초)");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            process.destroyForcibly();
+            throw new IOException("KataGo 인터럽트", e);
+        }
+
+        return allLines.stream()
+                .filter(n -> n.has("id") && queryId.equals(n.get("id").asText()))
+                .filter(n -> n.has("turnNumber"))
+                .sorted(java.util.Comparator.comparingInt(n -> n.get("turnNumber").asInt()))
+                .collect(java.util.stream.Collectors.toList());
+    }
 }

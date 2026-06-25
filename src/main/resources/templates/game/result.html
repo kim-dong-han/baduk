@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>복기 분석 결과</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 30px 40px; background: #f0f2f5; color: #333; }
+
+        .nav { margin-bottom: 20px; }
+        .nav a { color: #4a90d9; text-decoration: none; font-size: 14px; }
+
+        .header { margin-bottom: 28px; }
+        .header h1 { font-size: 22px; margin: 0 0 6px; }
+        .header-meta { font-size: 13px; color: #999; display: flex; gap: 16px; }
+
+        .cards { display: flex; gap: 16px; max-width: 860px; margin-bottom: 24px; }
+        .card { flex: 1; background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 5px solid #ccc; }
+        .card.good { border-top-color: #2ecc71; }
+        .card.warn { border-top-color: #f39c12; }
+        .card.bad  { border-top-color: #e74c3c; }
+        .card-phase { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+        .stat-row { display: flex; justify-content: space-between; font-size: 13px; color: #888; margin-bottom: 8px; }
+        .stat-row .val { font-weight: 700; color: #333; }
+        .gauge-label { font-size: 12px; color: #888; margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .gauge-track { background: #eee; border-radius: 99px; height: 8px; margin-bottom: 14px; }
+        .gauge-fill { height: 100%; border-radius: 99px; }
+        .fill-good { background: #2ecc71; }
+        .fill-warn { background: #f39c12; }
+        .fill-bad  { background: #e74c3c; }
+        .card-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+        .badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+        .badge-red { background: #fadbd8; color: #c0392b; }
+        .badge-org { background: #fdebd0; color: #b7770d; }
+        .badge-grn { background: #d5f5e3; color: #1e8449; }
+        .no-data { color: #bbb; font-size: 13px; text-align: center; padding: 20px 0; }
+
+        .section { background: #fff; border-radius: 12px; padding: 24px; max-width: 960px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px; }
+        .section h2 { font-size: 16px; margin: 0 0 6px; }
+        .section-desc { font-size: 12px; color: #999; margin: 0 0 18px; }
+
+        /* 핵심 실수 */
+        .mistakes { display: flex; gap: 14px; flex-wrap: wrap; }
+        .mistake-card { flex: 1; min-width: 180px; background: #fff7f7; border: 1px solid #fad7d7; border-radius: 10px; padding: 16px; cursor: pointer; transition: box-shadow 0.15s; }
+        .mistake-card:hover { box-shadow: 0 3px 12px rgba(231,76,60,0.18); }
+        .mistake-rank { font-size: 11px; color: #e74c3c; font-weight: 700; margin-bottom: 8px; }
+        .mistake-move { font-size: 22px; font-weight: 800; color: #333; margin-bottom: 2px; }
+        .mistake-color { font-size: 12px; color: #888; margin-bottom: 10px; }
+        .mistake-detail { font-size: 13px; color: #555; margin-bottom: 4px; }
+        .mistake-loss { font-size: 18px; font-weight: 700; color: #e74c3c; margin-top: 8px; }
+
+        /* 바둑판 + 테이블 레이아웃 */
+        .board-table-wrap { display: flex; gap: 20px; align-items: flex-start; }
+        .board-area { flex-shrink: 0; }
+        #boardCanvas { display: block; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
+
+        .move-info-panel { margin-top: 12px; background: #f8f9fa; border-radius: 8px; padding: 12px 14px; width: 100%; }
+        .info-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px solid #eee; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #aaa; }
+        .info-placeholder { color: #bbb; font-size: 13px; text-align: center; padding: 12px 0; }
+
+        .nav-controls { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
+        .nav-btn { background: #f0f2f5; border: 1px solid #ddd; border-radius: 6px; padding: 6px 16px; font-size: 18px; cursor: pointer; color: #555; line-height: 1; transition: background 0.15s; }
+        .nav-btn:hover:not(:disabled) { background: #4a90d9; color: #fff; border-color: #4a90d9; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .move-counter { font-size: 13px; color: #666; min-width: 80px; text-align: center; font-weight: 600; }
+
+        /* 수 테이블 */
+        .table-wrap { flex: 1; overflow-y: auto; max-height: 500px; }
+        table { border-collapse: collapse; width: 100%; }
+        th { background: #f8f9fa; color: #555; font-size: 12px; padding: 8px 10px; border-bottom: 2px solid #eee; text-align: center; position: sticky; top: 0; z-index: 1; }
+        td { padding: 7px 10px; text-align: center; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+        tr.move-row { cursor: pointer; transition: background 0.1s; }
+        tr.move-row:hover { background: #f0f7ff !important; }
+        tr.move-row.selected-row { background: #e8f4fd !important; outline: 2px solid #4a90d9; outline-offset: -2px; }
+        tr.grade-d { background: #fff5f5; }
+        tr.grade-c { background: #fffaf4; }
+        .grade-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+        .g-S { background: #f0e6f8; color: #8e44ad; }
+        .g-A { background: #d5f5e3; color: #1e8449; }
+        .g-B { background: #fef9e7; color: #b7770d; }
+        .g-C { background: #fdebd0; color: #d35400; }
+        .g-D { background: #fadbd8; color: #c0392b; }
+        .match-yes { color: #2ecc71; font-weight: 700; }
+        .match-no  { color: #ddd; }
+    </style>
+</head>
+<body>
+
+<div class="nav"><a href="/game">← 목록으로</a></div>
+
+<div class="header">
+    <h1>복기 분석 결과</h1>
+    <div class="header-meta">
+        <span>📄 <span th:text="${result.fileName}"></span></span>
+        <span>🕐 <span th:text="${result.analyzedAt != null ? result.analyzedAt.substring(0,10) : ''}"></span></span>
+        <span>총 <span th:text="${result.totalMoves}"></span>수</span>
+    </div>
+</div>
+
+<!-- 구간별 카드 -->
+<div class="cards">
+    <div th:with="p=${result.opening}"
+         th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'card good' : (p.avgScoreLoss < 3.0 ? 'card warn' : 'card bad')) : 'card'}">
+        <div class="card-phase">초반 <small style="font-size:12px;color:#aaa;font-weight:400;">1~50수</small></div>
+        <div th:if="${p != null and p.moveCount > 0}">
+            <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
+            <div class="gauge-track">
+                <div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}"
+                     th:style="'width:' + ${p.matchRate} + '%'"></div>
+            </div>
+            <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
+            <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
+            <div class="card-badges" style="margin-top:10px;">
+                <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
+                <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
+                <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
+            </div>
+        </div>
+        <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
+    </div>
+
+    <div th:with="p=${result.middle}"
+         th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'card good' : (p.avgScoreLoss < 3.0 ? 'card warn' : 'card bad')) : 'card'}">
+        <div class="card-phase">중반 <small style="font-size:12px;color:#aaa;font-weight:400;">51~150수</small></div>
+        <div th:if="${p != null and p.moveCount > 0}">
+            <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
+            <div class="gauge-track">
+                <div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}"
+                     th:style="'width:' + ${p.matchRate} + '%'"></div>
+            </div>
+            <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
+            <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
+            <div class="card-badges" style="margin-top:10px;">
+                <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
+                <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
+                <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
+            </div>
+        </div>
+        <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
+    </div>
+
+    <div th:with="p=${result.endgame}"
+         th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'card good' : (p.avgScoreLoss < 3.0 ? 'card warn' : 'card bad')) : 'card'}">
+        <div class="card-phase">종반 <small style="font-size:12px;color:#aaa;font-weight:400;">151수~</small></div>
+        <div th:if="${p != null and p.moveCount > 0}">
+            <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
+            <div class="gauge-track">
+                <div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}"
+                     th:style="'width:' + ${p.matchRate} + '%'"></div>
+            </div>
+            <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
+            <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
+            <div class="card-badges" style="margin-top:10px;">
+                <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
+                <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
+                <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
+            </div>
+        </div>
+        <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
+    </div>
+</div>
+
+<!-- 형세 변화 차트 -->
+<div class="section">
+    <h2>형세 변화</h2>
+    <p class="section-desc">위로 올라갈수록 흑 유리, 아래로 내려갈수록 백 유리입니다. 붉은 점은 핵심 실수 구간입니다.</p>
+    <canvas id="scoreChart" height="70"></canvas>
+</div>
+
+<!-- 핵심 실수 Top3 -->
+<div class="section" th:if="${not #lists.isEmpty(result.top3Mistakes)}">
+    <h2>핵심 실수</h2>
+    <p class="section-desc">클릭하면 해당 수의 바둑판 위치를 볼 수 있습니다.</p>
+    <div class="mistakes">
+        <div class="mistake-card" th:each="m, stat : ${result.top3Mistakes}"
+             th:onclick="'jumpToMove(' + ${m.turnNumber - 1} + ')'">
+            <div class="mistake-rank" th:text="'#' + ${stat.count} + ' 실수'"></div>
+            <div class="mistake-move" th:text="${m.turnNumber} + '수'"></div>
+            <div class="mistake-color" th:text="${m.color == 'B' ? '흑' : '백'} + ' · ' + ${m.move}"></div>
+            <div class="mistake-detail">
+                <span style="color:#aaa;">최선수:</span>
+                <strong th:text="${m.bestMove}"></strong>
+            </div>
+            <div class="mistake-loss" th:text="'-' + ${m.scoreLoss} + '집'"></div>
+            <span th:class="'grade-badge g-' + ${m.grade}" th:text="${m.grade}" style="margin-top:6px;display:inline-block;"></span>
+        </div>
+    </div>
+</div>
+
+<!-- 바둑판 + 전체 수 테이블 -->
+<div class="section">
+    <h2>전체 수 분석</h2>
+    <p class="section-desc">수를 클릭하면 바둑판에 해당 시점의 국면이 표시됩니다. <span style="color:#e74c3c;">●</span> 착점 &nbsp; <span style="color:#3498db;">△</span> 최선수</p>
+    <div class="board-table-wrap">
+        <!-- 바둑판 -->
+        <div class="board-area">
+            <canvas id="boardCanvas"></canvas>
+            <div class="nav-controls">
+                <button class="nav-btn" id="btnFirst" onclick="showMove(0)" title="처음으로">«</button>
+                <button class="nav-btn" id="btnPrev"  onclick="prevMove()"  title="이전 수 (←)">‹</button>
+                <span class="move-counter" id="moveCounter">-</span>
+                <button class="nav-btn" id="btnNext"  onclick="nextMove()"  title="다음 수 (→)">›</button>
+                <button class="nav-btn" id="btnLast"  onclick="showMove(moves.length - 1)" title="끝으로">»</button>
+            </div>
+            <div id="moveInfo" class="move-info-panel">
+                <div class="info-placeholder">수를 클릭하거나 화살표 버튼으로 이동하세요</div>
+            </div>
+        </div>
+        <!-- 수 테이블 -->
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>수번</th>
+                        <th>색</th>
+                        <th id="thLoss" title="클릭: 손해 큰 순 정렬 / 다시 클릭: 원래 순서" style="cursor:pointer;user-select:none;" onclick="toggleSortByLoss()">집 손해 ↕</th>
+                        <th>등급</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="m, stat : ${result.moves}"
+                        th:data-idx="${stat.index}"
+                        th:class="${'move-row ' + (m.grade == 'D' ? 'grade-d' : (m.grade == 'C' ? 'grade-c' : ''))}"
+                        th:onclick="'showMove(' + ${stat.index} + ')'">
+                        <td th:text="${m.turnNumber}"></td>
+                        <td>
+                            <span th:if="${m.color == 'B'}" style="color:#333;font-weight:700;">흑</span>
+                            <span th:if="${m.color == 'W'}" style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span th:if="${m.scoreLoss > 0}"
+                                  th:style="${m.scoreLoss >= 5 ? 'color:#e74c3c;font-weight:700;' : (m.scoreLoss >= 3 ? 'color:#e67e22;font-weight:600;' : '')}"
+                                  th:text="${m.scoreLoss}"></span>
+                            <span th:if="${m.scoreLoss <= 0}" style="color:#2ecc71;" th:text="${m.scoreLoss}"></span>
+                        </td>
+                        <td><span th:class="'grade-badge g-' + ${m.grade}" th:text="${m.grade}"></span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script th:inline="javascript">
+const moves = /*[[${result.moves}]]*/ [];
+const top3Turns = /*[[${result.top3Mistakes != null ? result.top3Mistakes.![turnNumber] : {}}]]*/ [];
+let currentIdx = -1;
+
+/* ── 바둑판 상수 ── */
+const CELL = 22;
+const PAD  = 28;
+const BOARD_PX = PAD * 2 + CELL * 18;
+
+const canvas = document.getElementById('boardCanvas');
+canvas.width  = BOARD_PX;
+canvas.height = BOARD_PX;
+canvas.style.width  = BOARD_PX + 'px';
+canvas.style.height = BOARD_PX + 'px';
+
+/* ── GTP → 격자 좌표 (0-indexed) ── */
+function gtpToGrid(gtp) {
+    if (!gtp || gtp === '' || gtp.toLowerCase() === 'pass') return null;
+    const col = gtp[0].toUpperCase();
+    let x = col.charCodeAt(0) - 65;
+    if (x >= 8) x--;            // I 건너뜀
+    const y = parseInt(gtp.substring(1)) - 1;
+    if (isNaN(y) || x < 0 || x > 18 || y < 0 || y > 18) return null;
+    return { x, y };
+}
+
+function px(gx) { return PAD + gx * CELL; }
+function py(gy) { return PAD + (18 - gy) * CELL; }  // Y축 반전 (1=하단)
+
+/* ── 바둑판 배경 + 격자 ── */
+function drawBoard(ctx) {
+    // 배경
+    const bg = ctx.createLinearGradient(0, 0, BOARD_PX, BOARD_PX);
+    bg.addColorStop(0, '#E8B86D');
+    bg.addColorStop(1, '#C9954A');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, BOARD_PX, BOARD_PX);
+
+    // 격자선
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 0.8;
+    for (let i = 0; i < 19; i++) {
+        ctx.beginPath();
+        ctx.moveTo(px(i), py(0));
+        ctx.lineTo(px(i), py(18));
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(px(0), py(i));
+        ctx.lineTo(px(18), py(i));
+        ctx.stroke();
+    }
+
+    // 성점 (화점) - [[...]] 는 Thymeleaf 표현식으로 파싱되므로 루프로 생성
+    const starCoords = [];
+    [3, 9, 15].forEach(a => [3, 9, 15].forEach(b => starCoords.push([a, b])));
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    starCoords.forEach(([gx, gy]) => {
+        ctx.beginPath();
+        ctx.arc(px(gx), py(gy), 3.5, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // 좌표 레이블 (작게)
+    const COLS = 'ABCDEFGHJKLMNOPQRST';
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < 19; i++) {
+        ctx.fillText(COLS[i], px(i), PAD - 14);
+        ctx.fillText(COLS[i], px(i), BOARD_PX - PAD + 14);
+        ctx.fillText(String(i + 1), PAD - 15, py(i));
+        ctx.fillText(String(i + 1), BOARD_PX - PAD + 15, py(i));
+    }
+}
+
+/* ── 돌 그리기 ── */
+function drawStone(ctx, gx, gy, color, isLast) {
+    const cx = px(gx), cy = py(gy);
+    const r = CELL * 0.44;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+
+    if (color === 'B') {
+        const g = ctx.createRadialGradient(cx - r*0.32, cy - r*0.32, r*0.08, cx, cy, r);
+        g.addColorStop(0, '#555');
+        g.addColorStop(1, '#000');
+        ctx.fillStyle = g;
+        ctx.fill();
+    } else {
+        const g = ctx.createRadialGradient(cx - r*0.32, cy - r*0.32, r*0.08, cx, cy, r);
+        g.addColorStop(0, '#fff');
+        g.addColorStop(1, '#ccc');
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+    }
+
+    // 현재 수 표시: 빨간 원
+    if (isLast) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 0.42, 0, Math.PI * 2);
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+}
+
+/* ── 최선수 마커 (파란 삼각형) ── */
+function drawBestMarker(ctx, gx, gy) {
+    const cx = px(gx), cy = py(gy);
+    const r = CELL * 0.36;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx + r * 0.866, cy + r * 0.5);
+    ctx.lineTo(cx - r * 0.866, cy + r * 0.5);
+    ctx.closePath();
+    ctx.strokeStyle = '#3498db';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(52,152,219,0.15)';
+    ctx.fill();
+}
+
+/* ── 수 표시 (메인) ── */
+function showMove(idx) {
+    if (idx < 0 || idx >= moves.length) return;
+    currentIdx = idx;
+
+    const ctx = canvas.getContext('2d');
+    drawBoard(ctx);
+
+    // idx번째까지 돌 놓기
+    for (let i = 0; i <= idx; i++) {
+        const m = moves[i];
+        const g = gtpToGrid(m.move);
+        if (!g) continue;
+        drawStone(ctx, g.x, g.y, m.color, i === idx);
+    }
+
+    // 최선수 마커 (실제 착점과 다를 때만, 빈 자리일 때만)
+    const cur = moves[idx];
+    if (cur.bestMove && cur.move !== cur.bestMove) {
+        const bg = gtpToGrid(cur.bestMove);
+        const occupied = moves.slice(0, idx).some(m => m.move === cur.bestMove);
+        if (bg && !occupied) {
+            drawBestMarker(ctx, bg.x, bg.y);
+        }
+    }
+
+    // 카운터 & 버튼 상태
+    document.getElementById('moveCounter').textContent = `${idx + 1} / ${moves.length}수`;
+    document.getElementById('btnFirst').disabled = idx === 0;
+    document.getElementById('btnPrev').disabled  = idx === 0;
+    document.getElementById('btnNext').disabled  = idx === moves.length - 1;
+    document.getElementById('btnLast').disabled  = idx === moves.length - 1;
+
+    // 정보 패널 업데이트
+    const lossColor = cur.scoreLoss >= 5 ? '#e74c3c'
+                    : cur.scoreLoss >= 3 ? '#e67e22'
+                    : cur.scoreLoss <= 0 ? '#2ecc71' : '#555';
+    const lossText = cur.scoreLoss > 0
+        ? `-${cur.scoreLoss}집`
+        : cur.scoreLoss < 0 ? `+${Math.abs(cur.scoreLoss)}집 (득점)` : '0집';
+
+    document.getElementById('moveInfo').innerHTML = `
+        <div class="info-row"><span class="info-label">수번</span><span><b>${cur.turnNumber}수</b> (${cur.color === 'B' ? '흑' : '백'})</span></div>
+        <div class="info-row"><span class="info-label">집 손해</span><span style="color:${lossColor};font-weight:700;">${lossText}</span></div>
+        <div class="info-row"><span class="info-label">등급</span><span class="grade-badge g-${cur.grade}">${cur.grade}</span></div>
+    `;
+
+    // 테이블 행 하이라이트
+    document.querySelectorAll('.selected-row').forEach(r => r.classList.remove('selected-row'));
+    const row = document.querySelector(`tr[data-idx="${idx}"]`);
+    if (row) {
+        row.classList.add('selected-row');
+        row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+}
+
+function prevMove() { showMove(currentIdx - 1); }
+function nextMove() { showMove(currentIdx + 1); }
+
+/* ── 집 손해 정렬 토글 ── */
+let sortedByLoss = false;
+let originalRows = null;
+
+function toggleSortByLoss() {
+    const tbody = document.querySelector('table tbody');
+    const th = document.getElementById('thLoss');
+
+    if (!sortedByLoss) {
+        originalRows = Array.from(tbody.querySelectorAll('tr'));
+        const sorted = [...originalRows].sort((a, b) => {
+            const ia = parseInt(a.dataset.idx), ib = parseInt(b.dataset.idx);
+            return moves[ib].scoreLoss - moves[ia].scoreLoss;
+        });
+        sorted.forEach(r => tbody.appendChild(r));
+        th.textContent = '집 손해 ↓';
+        sortedByLoss = true;
+    } else {
+        originalRows.forEach(r => tbody.appendChild(r));
+        th.textContent = '집 손해 ↕';
+        sortedByLoss = false;
+    }
+}
+
+/* ── 핵심 실수 카드 클릭 시 테이블+보드로 이동 ── */
+function jumpToMove(idx) {
+    showMove(idx);
+    document.querySelector('.board-table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ── 형세 변화 차트 ── */
+const labels    = moves.map(m => m.turnNumber);
+const scoreData = moves.map(m => m.scoreLeadAfter);
+const pointColors = labels.map(t => top3Turns.includes(t) ? '#e74c3c' : 'transparent');
+const pointRadius = labels.map(t => top3Turns.includes(t) ? 5 : 0);
+
+new Chart(document.getElementById('scoreChart').getContext('2d'), {
+    type: 'line',
+    data: {
+        labels,
+        datasets: [{
+            data: scoreData,
+            borderColor: '#4a90d9',
+            borderWidth: 2,
+            fill: { target: { value: 0 }, above: 'rgba(74,144,217,0.12)', below: 'rgba(231,76,60,0.10)' },
+            tension: 0.3,
+            pointBackgroundColor: pointColors,
+            pointRadius,
+            pointBorderColor: '#e74c3c',
+            pointBorderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    title: ctx => `${ctx[0].label}수`,
+                    label: ctx => {
+                        const v = ctx.raw;
+                        return (v > 0 ? '흑 유리 ' : v < 0 ? '백 유리 ' : '균형 ') + Math.abs(v).toFixed(1) + '집';
+                    }
+                }
+            }
+        },
+        scales: {
+            x: { title: { display: true, text: '수번', color: '#aaa', font: { size: 11 } }, ticks: { maxTicksLimit: 20, color: '#bbb', font: { size: 11 } } },
+            y: { title: { display: true, text: '집 차이', color: '#aaa', font: { size: 11 } }, ticks: { color: '#bbb', font: { size: 11 } }, grid: { color: ctx => ctx.tick.value === 0 ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' } }
+        },
+        onClick: (e, elements) => {
+            if (elements.length > 0) showMove(elements[0].index);
+        }
+    }
+});
+
+/* ── 초기 표시: 첫 번째 실수 수 또는 첫 수 ── */
+document.addEventListener('DOMContentLoaded', () => {
+    if (moves.length > 0) {
+        const initIdx = top3Turns.length > 0
+            ? moves.findIndex(m => m.turnNumber === top3Turns[0])
+            : 0;
+        showMove(initIdx >= 0 ? initIdx : 0);
+    }
+});
+
+/* ── 키보드 방향키 ── */
+document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); prevMove(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); nextMove(); }
+    if (e.key === 'Home')       { e.preventDefault(); showMove(0); }
+    if (e.key === 'End')        { e.preventDefault(); showMove(moves.length - 1); }
+});
+</script>
+</body>
+</html>
