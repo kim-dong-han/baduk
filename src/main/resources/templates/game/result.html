@@ -22,19 +22,20 @@
                 "board  side"
                 "chart  chart"
                 "table  table";
-            align-items: stretch;
+            align-items: start;
         }
         .area-phases { grid-area: phases; }
-        .area-board  { grid-area: board; align-self: start; }
+        .area-board  { grid-area: board; }
         .area-side   { grid-area: side; display: flex; flex-direction: column; gap: 16px; }
         .area-chart  { grid-area: chart; }
         .area-table  { grid-area: table; }
 
-        /* AI 착수 통계(위, 6) : 핵심 실수(아래, 4) = 6:4 높이 비율, 바둑판 높이에 맞춤 */
+        /* AI 착수 통계(위, 6) : 핵심 실수(아래, 4) = 6:4.
+           side 컬럼 높이는 JS가 바둑판 높이에 맞춰 설정 → 바둑판 기준 6:4 분할 */
         .side-ai       { flex: 6; display: flex; flex-direction: column; min-height: 0; }
         .side-mistakes { flex: 4; display: flex; flex-direction: column; min-height: 0; }
-        .ai-chart-holder { flex: 1; min-height: 200px; position: relative; }
-        .side-mistakes .mistakes { flex: 1; min-height: 160px; max-height: none; }
+        .ai-chart-holder { flex: 1; min-height: 0; position: relative; }
+        .side-mistakes .mistakes { flex: 1; min-height: 0; max-height: none; }
 
         /* 좁은 화면: 한 줄씩 세로 스택 + 바둑판 가운데 */
         @media (max-width: 1100px) {
@@ -689,13 +690,28 @@ new Chart(document.getElementById('aiStatChart').getContext('2d'), {
     }
 });
 
+/* ── side 컬럼 높이를 바둑판 높이에 맞춤 (그 안에서 6:4 분할) ── */
+function syncSideHeight() {
+    const board = document.querySelector('.area-board');
+    const side  = document.querySelector('.area-side');
+    if (!board || !side) return;
+    if (window.matchMedia('(max-width: 1100px)').matches) {
+        side.style.height = '';                       // 모바일: 자연 높이
+    } else {
+        side.style.height = board.offsetHeight + 'px'; // 데스크톱: 바둑판 높이에 일치
+    }
+}
+window.addEventListener('resize', syncSideHeight);
+
 /* ── 초기 표시 ── */
 document.addEventListener('DOMContentLoaded', () => {
     if (moves.length > 0) {
         const initIdx = keyMistakes.length > 0 ? (keyMistakes[0].turnNumber - 1) : 0;
         showMove(initIdx >= 0 ? initIdx : 0);
     }
+    syncSideHeight();
 });
+window.addEventListener('load', syncSideHeight);
 
 /* ── 키보드 ── */
 document.addEventListener('keydown', e => {
