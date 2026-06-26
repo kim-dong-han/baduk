@@ -38,3 +38,7 @@ out/
 
 ### Analysis ###
 analysis_logs/
+*.log
+
+### Test/sample records ###
+pro_1_test.sgf
