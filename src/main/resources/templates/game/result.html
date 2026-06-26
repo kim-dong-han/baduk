@@ -11,24 +11,46 @@
         .header h1 { font-size: 22px; margin: 0 0 6px; }
         .header-meta { font-size: 13px; color: #999; display: flex; gap: 16px; }
 
-        /* ── 2컬럼 레이아웃 ── */
-        .page-layout { display: flex; gap: 20px; align-items: flex-start; }
-        .left-col { flex-shrink: 0; width: 636px; max-width: 100%; display: flex; flex-direction: column; gap: 16px; }
-        .right-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+        /* ── 리뷰 그리드 레이아웃 ──
+           구간카드(전체폭) / 바둑판 | 핵심실수+AI통계 / 형세변화(전체폭) / 전체수분석(전체폭) */
+        .review-grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: 636px minmax(0, 1fr);
+            grid-template-areas:
+                "phases phases"
+                "board  side"
+                "chart  chart"
+                "table  table";
+            align-items: start;
+        }
+        .area-phases { grid-area: phases; }
+        .area-board  { grid-area: board; }
+        .area-side   { grid-area: side; display: flex; flex-direction: column; gap: 16px; }
+        .area-chart  { grid-area: chart; }
+        .area-table  { grid-area: table; }
 
-        /* 좁은 화면: 세로 스택 + 바둑판 가운데 */
+        /* 좁은 화면: 한 줄씩 세로 스택 + 바둑판 가운데 */
         @media (max-width: 1100px) {
-            .page-layout { flex-direction: column; }
-            .left-col { width: 100%; }
-            .left-col .card-box { display: flex; flex-direction: column; align-items: center; }
-            .left-col .card-box > * { width: 100%; max-width: 596px; }
+            .review-grid {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "phases"
+                    "board"
+                    "side"
+                    "chart"
+                    "table";
+            }
+            .area-board.card-box { display: flex; flex-direction: column; align-items: center; }
+            .area-board.card-box > * { width: 100%; max-width: 596px; }
         }
 
         /* ── 공통 카드 ── */
         .card-box { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 
         /* ── 구간 카드 (3열 그리드, 좁으면 자동 줄바꿈) ── */
-        .phase-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        .phase-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        @media (max-width: 560px) { .phase-cards { grid-template-columns: 1fr; } }
         .phase-card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 5px solid #ccc; }
         .phase-card.good { border-top-color: #2ecc71; }
         .phase-card.warn { border-top-color: #f39c12; }
@@ -87,7 +109,7 @@
         .move-input:focus { border-color: #4a90d9; }
 
         /* ── 핵심 실수 ── */
-        .mistakes { display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow-y: auto; padding-right: 4px; }
+        .mistakes { display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
         .mistakes::-webkit-scrollbar { width: 5px; }
         .mistakes::-webkit-scrollbar-thumb { background: #ddd; border-radius: 99px; }
         .mistakes-count { font-size: 12px; font-weight: 600; color: #e74c3c; background: #fdecea; border-radius: 99px; padding: 1px 9px; margin-left: 4px; }
@@ -101,8 +123,11 @@
         .mistake-detail { font-size: 12px; color: #555; margin-top: 2px; }
         .mistake-loss { font-size: 16px; font-weight: 700; color: #e74c3c; flex-shrink: 0; }
 
+        /* ── 형세 변화 차트 높이 고정 (전체 폭에서 읽기 좋게) ── */
+        .chart-holder { height: 240px; }
+
         /* ── 수 테이블 ── */
-        .table-wrap { overflow-y: auto; max-height: 480px; }
+        .table-wrap { overflow-y: auto; max-height: 520px; }
         .table-wrap::-webkit-scrollbar { width: 5px; }
         .table-wrap::-webkit-scrollbar-thumb { background: #ddd; border-radius: 99px; }
         table { border-collapse: collapse; width: 100%; }
@@ -114,10 +139,11 @@
         tr.grade-d { background: #fff5f5; }
         tr.grade-c { background: #fffaf4; }
         .grade-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
-        .g-최선 { background: #f0e6f8; color: #8e44ad; }
-        .g-좋음 { background: #d5f5e3; color: #1e8449; }
-        .g-보통 { background: #fef9e7; color: #b7770d; }
-        .g-실수 { background: #fdebd0; color: #d35400; }
+        /* 등급 배지: 초록(좋음)에서 빨강(나쁨)으로 직관적 그라데이션 */
+        .g-최선 { background: #d3f0dd; color: #1e8449; }
+        .g-좋음 { background: #eaf7e1; color: #5a9216; }
+        .g-보통 { background: #fdf3d7; color: #b7770d; }
+        .g-실수 { background: #fde3cf; color: #d35400; }
         .g-악수 { background: #fadbd8; color: #c0392b; }
     </style>
 </head>
@@ -143,97 +169,92 @@
     </div>
 </div>
 
-<div class="page-layout">
+<div class="review-grid">
 
-    <!-- ══ 왼쪽: 바둑판 + 핵심 실수 ══ -->
-    <div class="left-col">
-
-        <!-- 바둑판 -->
-        <div class="card-box">
-            <canvas id="boardCanvas"></canvas>
-            <div class="nav-controls">
-                <button class="nav-btn" id="btnFirst" onclick="showMove(0)"                  title="처음으로">«</button>
-                <button class="nav-btn" id="btnPrev5" onclick="skipMove(-5)"                 title="5수 뒤로 (Shift+←)">‹‹</button>
-                <button class="nav-btn" id="btnPrev"  onclick="prevMove()"                   title="이전 수 (←)">‹</button>
-                <span class="move-counter" id="moveCounter">-</span>
-                <button class="nav-btn" id="btnNext"  onclick="nextMove()"                   title="다음 수 (→)">›</button>
-                <button class="nav-btn" id="btnNext5" onclick="skipMove(5)"                  title="5수 앞으로 (Shift+→)">››</button>
-                <button class="nav-btn" id="btnLast"  onclick="showMove(moves.length - 1)"   title="끝으로">»</button>
+    <!-- ══ 구간별 카드 (전체 폭) ══ -->
+    <div class="phase-cards area-phases">
+        <div th:with="p=${result.opening}"
+             th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'phase-card good' : (p.avgScoreLoss < 3.0 ? 'phase-card warn' : 'phase-card bad')) : 'phase-card'}">
+            <div class="card-phase">초반 <small style="font-size:11px;color:#aaa;font-weight:400;">1~50수</small></div>
+            <div th:if="${p != null and p.moveCount > 0}">
+                <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
+                <div class="gauge-track"><div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}" th:style="'width:' + ${p.matchRate} + '%'"></div></div>
+                <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
+                <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
+                <div class="card-badges" style="margin-top:10px;">
+                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
+                    <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
+                    <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
+                </div>
             </div>
-            <div class="nav-row2">
-                <input class="move-input" id="moveInput" type="number" min="1" placeholder="수번" />
-                <button class="nav-btn sm" onclick="jumpToInput()">이동</button>
-                <button class="nav-btn sm" id="btnSeq" onclick="toggleSequence()">수순</button>
-            </div>
-            <div id="moveInfo" class="move-info-panel">
-                <div class="info-placeholder">수를 클릭하거나 화살표 버튼으로 이동하세요</div>
-            </div>
+            <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
         </div>
+
+        <div th:with="p=${result.middle}"
+             th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'phase-card good' : (p.avgScoreLoss < 3.0 ? 'phase-card warn' : 'phase-card bad')) : 'phase-card'}">
+            <div class="card-phase">중반 <small style="font-size:11px;color:#aaa;font-weight:400;">51~150수</small></div>
+            <div th:if="${p != null and p.moveCount > 0}">
+                <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
+                <div class="gauge-track"><div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}" th:style="'width:' + ${p.matchRate} + '%'"></div></div>
+                <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
+                <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
+                <div class="card-badges" style="margin-top:10px;">
+                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
+                    <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
+                    <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
+                </div>
+            </div>
+            <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
+        </div>
+
+        <div th:with="p=${result.endgame}"
+             th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'phase-card good' : (p.avgScoreLoss < 3.0 ? 'phase-card warn' : 'phase-card bad')) : 'phase-card'}">
+            <div class="card-phase">종반 <small style="font-size:11px;color:#aaa;font-weight:400;">151수~</small></div>
+            <div th:if="${p != null and p.moveCount > 0}">
+                <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
+                <div class="gauge-track"><div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}" th:style="'width:' + ${p.matchRate} + '%'"></div></div>
+                <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
+                <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
+                <div class="card-badges" style="margin-top:10px;">
+                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
+                    <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
+                    <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
+                </div>
+            </div>
+            <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
+        </div>
+    </div>
+
+    <!-- ══ 바둑판 (왼쪽) ══ -->
+    <div class="card-box area-board">
+        <canvas id="boardCanvas"></canvas>
+        <div class="nav-controls">
+            <button class="nav-btn" id="btnFirst" onclick="showMove(0)"                  title="처음으로">«</button>
+            <button class="nav-btn" id="btnPrev5" onclick="skipMove(-5)"                 title="5수 뒤로 (Shift+←)">‹‹</button>
+            <button class="nav-btn" id="btnPrev"  onclick="prevMove()"                   title="이전 수 (←)">‹</button>
+            <span class="move-counter" id="moveCounter">-</span>
+            <button class="nav-btn" id="btnNext"  onclick="nextMove()"                   title="다음 수 (→)">›</button>
+            <button class="nav-btn" id="btnNext5" onclick="skipMove(5)"                  title="5수 앞으로 (Shift+→)">››</button>
+            <button class="nav-btn" id="btnLast"  onclick="showMove(moves.length - 1)"   title="끝으로">»</button>
+        </div>
+        <div class="nav-row2">
+            <input class="move-input" id="moveInput" type="number" min="1" placeholder="수번" />
+            <button class="nav-btn sm" onclick="jumpToInput()">이동</button>
+            <button class="nav-btn sm" id="btnSeq" onclick="toggleSequence()">수순</button>
+        </div>
+        <div id="moveInfo" class="move-info-panel">
+            <div class="info-placeholder">수를 클릭하거나 화살표 버튼으로 이동하세요</div>
+        </div>
+    </div>
+
+    <!-- ══ 핵심 실수 + AI 착수 통계 (오른쪽) ══ -->
+    <div class="area-side">
 
         <!-- 핵심 실수 -->
         <div class="card-box" id="mistakesCard">
             <p class="section-title">핵심 실수 <span class="mistakes-count" id="mistakesCount"></span></p>
             <p class="section-desc">실수·악수로 분류된 수입니다. 클릭하면 바둑판에서 위치를 확인할 수 있습니다.</p>
             <div class="mistakes" id="mistakesList"></div>
-        </div>
-
-    </div>
-
-    <!-- ══ 오른쪽: 구간 카드 + 차트 + 수 테이블 ══ -->
-    <div class="right-col">
-
-        <!-- 구간별 카드 -->
-        <div class="phase-cards">
-            <div th:with="p=${result.opening}"
-                 th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'phase-card good' : (p.avgScoreLoss < 3.0 ? 'phase-card warn' : 'phase-card bad')) : 'phase-card'}">
-                <div class="card-phase">초반 <small style="font-size:11px;color:#aaa;font-weight:400;">1~50수</small></div>
-                <div th:if="${p != null and p.moveCount > 0}">
-                    <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
-                    <div class="gauge-track"><div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}" th:style="'width:' + ${p.matchRate} + '%'"></div></div>
-                    <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
-                    <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
-                    <div class="card-badges" style="margin-top:10px;">
-                        <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
-                        <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
-                        <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
-                    </div>
-                </div>
-                <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
-            </div>
-
-            <div th:with="p=${result.middle}"
-                 th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'phase-card good' : (p.avgScoreLoss < 3.0 ? 'phase-card warn' : 'phase-card bad')) : 'phase-card'}">
-                <div class="card-phase">중반 <small style="font-size:11px;color:#aaa;font-weight:400;">51~150수</small></div>
-                <div th:if="${p != null and p.moveCount > 0}">
-                    <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
-                    <div class="gauge-track"><div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}" th:style="'width:' + ${p.matchRate} + '%'"></div></div>
-                    <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
-                    <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
-                    <div class="card-badges" style="margin-top:10px;">
-                        <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
-                        <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
-                        <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
-                    </div>
-                </div>
-                <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
-            </div>
-
-            <div th:with="p=${result.endgame}"
-                 th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'phase-card good' : (p.avgScoreLoss < 3.0 ? 'phase-card warn' : 'phase-card bad')) : 'phase-card'}">
-                <div class="card-phase">종반 <small style="font-size:11px;color:#aaa;font-weight:400;">151수~</small></div>
-                <div th:if="${p != null and p.moveCount > 0}">
-                    <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
-                    <div class="gauge-track"><div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}" th:style="'width:' + ${p.matchRate} + '%'"></div></div>
-                    <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
-                    <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
-                    <div class="card-badges" style="margin-top:10px;">
-                        <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
-                        <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
-                        <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
-                    </div>
-                </div>
-                <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
-            </div>
         </div>
 
         <!-- AI 착수 통계 -->
@@ -255,51 +276,52 @@
             <canvas id="aiStatChart" height="110"></canvas>
         </div>
 
-        <!-- 형세 변화 차트 -->
-        <div class="card-box">
-            <p class="section-title">형세 변화</p>
-            <p class="section-desc">위로 올라갈수록 흑 유리, 아래로 내려갈수록 백 유리. 붉은 점은 핵심 실수 구간입니다.</p>
-            <canvas id="scoreChart" height="90"></canvas>
-        </div>
-
-        <!-- 전체 수 테이블 -->
-        <div class="card-box">
-            <p class="section-title">전체 수 분석</p>
-            <p class="section-desc">수를 클릭하면 바둑판에 해당 시점의 국면이 표시됩니다. <span style="color:#e74c3c;">●</span> 착점 &nbsp; <span style="color:#3498db;">△</span> 최선수</p>
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>수번</th>
-                            <th>색</th>
-                            <th id="thLoss" title="클릭: 손해 큰 순 정렬 / 다시 클릭: 원래 순서" style="cursor:pointer;user-select:none;" onclick="toggleSortByLoss()">집 손해 ↕</th>
-                            <th>등급</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr th:each="m, stat : ${result.moves}"
-                            th:data-idx="${stat.index}"
-                            th:class="${'move-row ' + (m.grade == '악수' ? 'grade-d' : (m.grade == '실수' ? 'grade-c' : ''))}"
-                            th:onclick="'showMove(' + ${stat.index} + ')'">
-                            <td th:text="${m.turnNumber}"></td>
-                            <td>
-                                <span th:if="${m.color == 'B'}" style="color:#333;font-weight:700;">흑</span>
-                                <span th:if="${m.color == 'W'}" style="color:#888;">백</span>
-                            </td>
-                            <td>
-                                <span th:if="${m.scoreLoss > 0}"
-                                      th:style="${m.scoreLoss >= 5 ? 'color:#e74c3c;font-weight:700;' : (m.scoreLoss >= 3 ? 'color:#e67e22;font-weight:600;' : '')}"
-                                      th:text="${m.scoreLoss}"></span>
-                                <span th:if="${m.scoreLoss <= 0}" style="color:#2ecc71;" th:text="${m.scoreLoss}"></span>
-                            </td>
-                            <td><span th:class="'grade-badge g-' + ${m.grade}" th:text="${m.grade}"></span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
     </div>
+
+    <!-- ══ 형세 변화 (전체 폭) ══ -->
+    <div class="card-box area-chart">
+        <p class="section-title">형세 변화</p>
+        <p class="section-desc">위로 올라갈수록 흑 유리, 아래로 내려갈수록 백 유리. 붉은 점은 핵심 실수 구간입니다.</p>
+        <div class="chart-holder"><canvas id="scoreChart"></canvas></div>
+    </div>
+
+    <!-- ══ 전체 수 분석 (전체 폭) ══ -->
+    <div class="card-box area-table">
+        <p class="section-title">전체 수 분석</p>
+        <p class="section-desc">수를 클릭하면 바둑판에 해당 시점의 국면이 표시됩니다. <span style="color:#e74c3c;">●</span> 착점 &nbsp; <span style="color:#3498db;">△</span> 최선수</p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>수번</th>
+                        <th>색</th>
+                        <th id="thLoss" title="클릭: 손해 큰 순 정렬 / 다시 클릭: 원래 순서" style="cursor:pointer;user-select:none;" onclick="toggleSortByLoss()">집 손해 ↕</th>
+                        <th>등급</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="m, stat : ${result.moves}"
+                        th:data-idx="${stat.index}"
+                        th:class="${'move-row ' + (m.grade == '악수' ? 'grade-d' : (m.grade == '실수' ? 'grade-c' : ''))}"
+                        th:onclick="'showMove(' + ${stat.index} + ')'">
+                        <td th:text="${m.turnNumber}"></td>
+                        <td>
+                            <span th:if="${m.color == 'B'}" style="color:#333;font-weight:700;">흑</span>
+                            <span th:if="${m.color == 'W'}" style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span th:if="${m.scoreLoss > 0}"
+                                  th:style="${m.scoreLoss >= 5 ? 'color:#e74c3c;font-weight:700;' : (m.scoreLoss >= 3 ? 'color:#e67e22;font-weight:600;' : '')}"
+                                  th:text="${m.scoreLoss}"></span>
+                            <span th:if="${m.scoreLoss <= 0}" style="color:#2ecc71;" th:text="${m.scoreLoss}"></span>
+                        </td>
+                        <td><span th:class="'grade-badge g-' + ${m.grade}" th:text="${m.grade}"></span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 
 <script th:inline="javascript">
@@ -581,6 +603,7 @@ new Chart(document.getElementById('scoreChart').getContext('2d'), {
     },
     options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: { display: false },
             tooltip: {
@@ -603,7 +626,6 @@ new Chart(document.getElementById('scoreChart').getContext('2d'), {
 
 /* ── 핵심 실수 목록 렌더 (실수·악수 전체) ── */
 function renderKeyMistakes() {
-    const card  = document.getElementById('mistakesCard');
     const list  = document.getElementById('mistakesList');
     const count = document.getElementById('mistakesCount');
     if (keyMistakes.length === 0) {
