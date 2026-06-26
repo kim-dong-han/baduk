@@ -135,6 +135,11 @@
         .chart-holder { height: 240px; }
 
         /* ── 수 테이블 ── */
+        .table-filters { display: flex; gap: 6px; margin: 0 0 12px; flex-wrap: wrap; }
+        .filter-btn { background: #f0f2f5; border: 1px solid #ddd; border-radius: 6px; padding: 5px 13px; font-size: 12px; cursor: pointer; color: #666; transition: background 0.15s, color 0.15s; }
+        .filter-btn:hover:not(.active) { background: #e4e8ec; }
+        .filter-btn.active { background: #4a90d9; color: #fff; border-color: #4a90d9; }
+        .filter-empty { color: #bbb; font-size: 13px; text-align: center; padding: 24px 0; }
         .table-wrap { overflow-y: auto; max-height: 520px; }
         .table-wrap::-webkit-scrollbar { width: 5px; }
         .table-wrap::-webkit-scrollbar-thumb { background: #ddd; border-radius: 99px; }
@@ -297,6 +302,12 @@
     <div class="card-box area-table">
         <p class="section-title">전체 수 분석</p>
         <p class="section-desc">수를 클릭하면 바둑판에 해당 시점의 국면이 표시됩니다. <span style="color:#e74c3c;">●</span> 착점 &nbsp; <span style="color:#3498db;">△</span> 최선수</p>
+        <div class="table-filters">
+            <button class="filter-btn active" data-filter="all"  onclick="setFilter(this)">전체</button>
+            <button class="filter-btn"        data-filter="loss" onclick="setFilter(this)">집 손해만</button>
+            <button class="filter-btn"        data-filter="key"  onclick="setFilter(this)">실수·악수만</button>
+        </div>
+        <div class="filter-empty" id="filterEmpty" style="display:none;">해당하는 수가 없습니다.</div>
         <div class="table-wrap">
             <table>
                 <thead>
@@ -579,6 +590,22 @@ function toggleSortByLoss() {
         originalRows.forEach(r => tbody.appendChild(r));
         th.textContent = '집 손해 ↕'; sortedByLoss = false;
     }
+}
+
+/* ── 전체 수 분석 테이블 필터 (초반 0집/최선 행이 많아 가독성 저하 → 선택적 표시) ── */
+function setFilter(btn) {
+    const mode = btn.dataset.filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+    let visible = 0;
+    document.querySelectorAll('tr.move-row').forEach(row => {
+        const m = moves[parseInt(row.dataset.idx)];
+        let show = true;
+        if (mode === 'loss') show = m.scoreLoss > 0;
+        else if (mode === 'key') show = m.grade === '실수' || m.grade === '악수';
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    document.getElementById('filterEmpty').style.display = visible === 0 ? '' : 'none';
 }
 
 /* ── 핵심 실수 카드 클릭 ── */
