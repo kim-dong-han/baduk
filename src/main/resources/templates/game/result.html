@@ -13,22 +13,22 @@
 
         /* ── 2컬럼 레이아웃 ── */
         .page-layout { display: flex; gap: 20px; align-items: flex-start; }
-        .left-col { flex-shrink: 0; width: 476px; max-width: 100%; display: flex; flex-direction: column; gap: 16px; }
+        .left-col { flex-shrink: 0; width: 636px; max-width: 100%; display: flex; flex-direction: column; gap: 16px; }
         .right-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 
         /* 좁은 화면: 세로 스택 + 바둑판 가운데 */
-        @media (max-width: 1000px) {
+        @media (max-width: 1100px) {
             .page-layout { flex-direction: column; }
             .left-col { width: 100%; }
             .left-col .card-box { display: flex; flex-direction: column; align-items: center; }
-            .left-col .card-box > * { width: 100%; max-width: 452px; }
+            .left-col .card-box > * { width: 100%; max-width: 596px; }
         }
 
         /* ── 공통 카드 ── */
         .card-box { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 
         /* ── 구간 카드 (3열 그리드, 좁으면 자동 줄바꿈) ── */
-        .phase-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+        .phase-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
         .phase-card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 5px solid #ccc; }
         .phase-card.good { border-top-color: #2ecc71; }
         .phase-card.warn { border-top-color: #f39c12; }
@@ -67,7 +67,7 @@
         .amr-pct { font-size: 13px; font-weight: 700; width: 54px; text-align: right; }
 
         /* ── 바둑판 ── */
-        #boardCanvas { display: block; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
+        #boardCanvas { display: block; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.18); max-width: 100%; height: auto; }
 
         .move-info-panel { margin-top: 12px; background: #f8f9fa; border-radius: 8px; padding: 12px 14px; }
         .info-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px solid #eee; }
@@ -87,7 +87,11 @@
         .move-input:focus { border-color: #4a90d9; }
 
         /* ── 핵심 실수 ── */
-        .mistakes { display: flex; flex-direction: column; gap: 10px; }
+        .mistakes { display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow-y: auto; padding-right: 4px; }
+        .mistakes::-webkit-scrollbar { width: 5px; }
+        .mistakes::-webkit-scrollbar-thumb { background: #ddd; border-radius: 99px; }
+        .mistakes-count { font-size: 12px; font-weight: 600; color: #e74c3c; background: #fdecea; border-radius: 99px; padding: 1px 9px; margin-left: 4px; }
+        .mistakes-empty { color: #bbb; font-size: 13px; text-align: center; padding: 18px 0; }
         .mistake-card { background: #fff7f7; border: 1px solid #fad7d7; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: box-shadow 0.15s; display: flex; align-items: center; gap: 14px; }
         .mistake-card:hover { box-shadow: 0 3px 12px rgba(231,76,60,0.18); }
         .mistake-rank { font-size: 11px; color: #e74c3c; font-weight: 700; flex-shrink: 0; width: 32px; }
@@ -167,22 +171,10 @@
         </div>
 
         <!-- 핵심 실수 -->
-        <div class="card-box" th:if="${not #lists.isEmpty(result.top3Mistakes)}">
-            <p class="section-title">핵심 실수</p>
-            <p class="section-desc">클릭하면 해당 수의 바둑판 위치를 볼 수 있습니다.</p>
-            <div class="mistakes">
-                <div class="mistake-card" th:each="m, stat : ${result.top3Mistakes}"
-                     th:onclick="'jumpToMove(' + ${m.turnNumber - 1} + ')'">
-                    <div class="mistake-rank" th:text="'#' + ${stat.count}"></div>
-                    <div class="mistake-move" th:text="${m.turnNumber} + '수'"></div>
-                    <div class="mistake-body">
-                        <div class="mistake-color" th:text="${m.color == 'B' ? '흑' : '백'} + ' · ' + ${m.move}"></div>
-                        <div class="mistake-detail">최선수: <strong th:text="${m.bestMove}"></strong></div>
-                    </div>
-                    <div class="mistake-loss" th:text="'-' + ${m.scoreLoss} + '집'"></div>
-                    <span th:class="'grade-badge g-' + ${m.grade}" th:text="${m.grade}"></span>
-                </div>
-            </div>
+        <div class="card-box" id="mistakesCard">
+            <p class="section-title">핵심 실수 <span class="mistakes-count" id="mistakesCount"></span></p>
+            <p class="section-desc">실수·악수로 분류된 수입니다. 클릭하면 바둑판에서 위치를 확인할 수 있습니다.</p>
+            <div class="mistakes" id="mistakesList"></div>
         </div>
 
     </div>
@@ -312,15 +304,17 @@
 
 <script th:inline="javascript">
 const moves = /*[[${result.moves}]]*/ [];
-const top3Mistakes = /*[[${result.top3Mistakes}]]*/ [];
 </script>
 <script th:inline="none">
-const top3Turns = top3Mistakes.map(m => m.turnNumber);
+/* 핵심 실수 = 실수·악수로 분류된 모든 수 (집 손해 큰 순) */
+const keyMistakes = moves.filter(m => m.grade === '실수' || m.grade === '악수')
+                         .sort((a, b) => b.scoreLoss - a.scoreLoss);
+const mistakeTurns = new Set(keyMistakes.map(m => m.turnNumber));
 let currentIdx = -1;
 let showSequence = false;
 
 /* ── 바둑판 상수 ── */
-const CELL = 22;
+const CELL = 30;
 const PAD  = 28;
 const BOARD_PX = PAD * 2 + CELL * 18;
 
@@ -519,9 +513,10 @@ function showMove(idx) {
         <div class="info-row"><span class="info-label">등급</span><span class="grade-badge g-${cur.grade}">${cur.grade}</span></div>
     `;
 
+    // 테이블 행 하이라이트만 (바둑판→테이블 자동 스크롤은 하지 않음)
     document.querySelectorAll('.selected-row').forEach(r => r.classList.remove('selected-row'));
     const row = document.querySelector(`tr[data-idx="${idx}"]`);
-    if (row) { row.classList.add('selected-row'); row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    if (row) row.classList.add('selected-row');
 }
 
 function prevMove() { showMove(currentIdx - 1); }
@@ -565,8 +560,8 @@ function jumpToMove(idx) {
 /* ── 형세 변화 차트 ── */
 const labels     = moves.map(m => m.turnNumber);
 const scoreData  = moves.map(m => m.scoreLeadAfter);
-const pointColors = labels.map(t => top3Turns.includes(t) ? '#e74c3c' : 'transparent');
-const pointRadius = labels.map(t => top3Turns.includes(t) ? 5 : 0);
+const pointColors = labels.map(t => mistakeTurns.has(t) ? '#e74c3c' : 'transparent');
+const pointRadius = labels.map(t => mistakeTurns.has(t) ? 4 : 0);
 
 new Chart(document.getElementById('scoreChart').getContext('2d'), {
     type: 'line',
@@ -605,6 +600,31 @@ new Chart(document.getElementById('scoreChart').getContext('2d'), {
         onClick: (e, elements) => { if (elements.length > 0) showMove(elements[0].index); }
     }
 });
+
+/* ── 핵심 실수 목록 렌더 (실수·악수 전체) ── */
+function renderKeyMistakes() {
+    const card  = document.getElementById('mistakesCard');
+    const list  = document.getElementById('mistakesList');
+    const count = document.getElementById('mistakesCount');
+    if (keyMistakes.length === 0) {
+        count.style.display = 'none';
+        list.innerHTML = '<div class="mistakes-empty">실수·악수로 분류된 수가 없습니다. 훌륭해요!</div>';
+        return;
+    }
+    count.textContent = keyMistakes.length + '개';
+    list.innerHTML = keyMistakes.map((m, i) =>
+        `<div class="mistake-card" onclick="jumpToMove(${m.turnNumber - 1})">
+            <div class="mistake-rank">#${i + 1}</div>
+            <div class="mistake-move">${m.turnNumber}수</div>
+            <div class="mistake-body">
+                <div class="mistake-color">${m.color === 'B' ? '흑' : '백'} · ${m.move}</div>
+                <div class="mistake-detail">최선수: <strong>${m.bestMove}</strong></div>
+            </div>
+            <div class="mistake-loss">-${m.scoreLoss}집</div>
+            <span class="grade-badge g-${m.grade}">${m.grade}</span>
+        </div>`).join('');
+}
+renderKeyMistakes();
 
 /* ── AI 착수 통계 ── */
 const GRADES = ['최선', '좋음', '보통', '실수', '악수'];
@@ -645,7 +665,7 @@ new Chart(document.getElementById('aiStatChart').getContext('2d'), {
 /* ── 초기 표시 ── */
 document.addEventListener('DOMContentLoaded', () => {
     if (moves.length > 0) {
-        const initIdx = top3Turns.length > 0 ? moves.findIndex(m => m.turnNumber === top3Turns[0]) : 0;
+        const initIdx = keyMistakes.length > 0 ? (keyMistakes[0].turnNumber - 1) : 0;
         showMove(initIdx >= 0 ? initIdx : 0);
     }
 });
