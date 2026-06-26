@@ -53,6 +53,19 @@
         .section-title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
         .section-desc  { font-size: 12px; color: #999; margin: 0 0 14px; }
 
+        /* ── AI 착수 통계 (흑·백 일치율) ── */
+        .ai-matchrate { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+        .amr-side { display: flex; align-items: center; gap: 8px; }
+        .amr-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+        .amr-dot.black { background: #333; }
+        .amr-dot.white { background: #fff; border: 1px solid #bbb; }
+        .amr-label { font-size: 13px; color: #555; width: 18px; }
+        .amr-bar { flex: 1; background: #eee; border-radius: 99px; height: 14px; overflow: hidden; }
+        .amr-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+        .amr-fill.black { background: #3a3a3a; }
+        .amr-fill.white { background: #9aa0a6; }
+        .amr-pct { font-size: 13px; font-weight: 700; width: 54px; text-align: right; }
+
         /* ── 바둑판 ── */
         #boardCanvas { display: block; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
 
@@ -229,6 +242,25 @@
                 </div>
                 <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
             </div>
+        </div>
+
+        <!-- AI 착수 통계 -->
+        <div class="card-box">
+            <p class="section-title">AI 착수 통계</p>
+            <p class="section-desc">흑·백 각각 AI 최선수와 얼마나 일치했는지, 그리고 수의 품질 분포를 보여줍니다.</p>
+            <div class="ai-matchrate">
+                <div class="amr-side">
+                    <span class="amr-dot black"></span><span class="amr-label">흑</span>
+                    <div class="amr-bar"><div class="amr-fill black" id="amrBlackFill"></div></div>
+                    <span class="amr-pct" id="amrBlackPct">-</span>
+                </div>
+                <div class="amr-side">
+                    <span class="amr-dot white"></span><span class="amr-label">백</span>
+                    <div class="amr-bar"><div class="amr-fill white" id="amrWhiteFill"></div></div>
+                    <span class="amr-pct" id="amrWhitePct">-</span>
+                </div>
+            </div>
+            <canvas id="aiStatChart" height="110"></canvas>
         </div>
 
         <!-- 형세 변화 차트 -->
@@ -571,6 +603,42 @@ new Chart(document.getElementById('scoreChart').getContext('2d'), {
             y: { title: { display: true, text: '집 차이', color: '#aaa', font: { size: 11 } }, ticks: { color: '#bbb', font: { size: 11 } }, grid: { color: ctx => ctx.tick.value === 0 ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' } }
         },
         onClick: (e, elements) => { if (elements.length > 0) showMove(elements[0].index); }
+    }
+});
+
+/* ── AI 착수 통계 ── */
+const GRADES = ['최선', '좋음', '보통', '실수', '악수'];
+function aiStats(color) {
+    const ms = moves.filter(m => m.color === color);
+    const counts = GRADES.map(g => ms.filter(m => m.grade === g).length);
+    const matched = ms.filter(m => m.matchesBest).length;
+    return { total: ms.length, counts, rate: ms.length ? matched / ms.length * 100 : 0 };
+}
+const blkStat = aiStats('B'), whtStat = aiStats('W');
+document.getElementById('amrBlackPct').textContent  = blkStat.rate.toFixed(1) + '%';
+document.getElementById('amrWhitePct').textContent  = whtStat.rate.toFixed(1) + '%';
+document.getElementById('amrBlackFill').style.width = blkStat.rate + '%';
+document.getElementById('amrWhiteFill').style.width = whtStat.rate + '%';
+
+new Chart(document.getElementById('aiStatChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: GRADES,
+        datasets: [
+            { label: '흑', data: blkStat.counts, backgroundColor: '#3a3a3a', borderRadius: 3 },
+            { label: '백', data: whtStat.counts, backgroundColor: '#d0d0d0', borderColor: '#aaa', borderWidth: 1, borderRadius: 3 }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
+            tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}수` } }
+        },
+        scales: {
+            x: { grid: { display: false }, ticks: { color: '#666', font: { size: 12 } } },
+            y: { beginAtZero: true, ticks: { precision: 0, color: '#bbb', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
     }
 });
 
