@@ -13,6 +13,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.IntConsumer;
 
 @Service
 public class KataGoService {
@@ -156,8 +157,8 @@ public class KataGoService {
         return analyzeMultipleGames(List.of(moves)).getFirst();
     }
 
-    // 단일 기보 전수 분석 - visits=400으로 각 수의 최선수와 형세를 분석
-    public List<JsonNode> analyzeAllMoves(List<Move> moves) throws IOException {
+    // 단일 기보 전수 분석 - 진행률 콜백으로 실시간 % 보고
+    public List<JsonNode> analyzeAllMoves(List<Move> moves, IntConsumer progressCallback) throws IOException {
         ProcessBuilder pb = new ProcessBuilder(kataGoPath, "analysis", "-model", modelPath, "-config", configPath);
         pb.redirectErrorStream(true);
         Process process = pb.start();
@@ -173,6 +174,7 @@ public class KataGoService {
 
         List<Integer> allTurns = new ArrayList<>();
         for (int t = 0; t <= moves.size(); t++) allTurns.add(t);
+        int totalTurns = allTurns.size();
 
         String queryId = UUID.randomUUID().toString();
         writer.write(buildQuery(queryId, movesArray, allTurns, 200).toString());
@@ -181,7 +183,29 @@ public class KataGoService {
         writer.close();
 
         System.out.println("단일 기보 전수 분석 시작 (" + moves.size() + "수, visits=200)");
-        List<JsonNode> allLines = collectResults(process);
+
+        // 결과를 한 줄씩 받으면서 progress 갱신
+        List<JsonNode> allLines = new ArrayList<>();
+        int received = 0;
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                if (line.startsWith("{")) {
+                    try {
+                        allLines.add(objectMapper.readTree(line));
+                        received++;
+                        if (progressCallback != null && totalTurns > 0) {
+                            progressCallback.accept(Math.min(99, received * 100 / totalTurns));
+                        }
+                    } catch (Exception e) { System.err.println("JSON 파싱 에러: " + line); }
+                } else {
+                    System.out.println("KataGo: " + line);
+                }
+            }
+        }
 
         int timeoutSeconds = Math.max(120, moves.size() * 4 + 60);
         try {
@@ -200,5 +224,9 @@ public class KataGoService {
                 .filter(n -> n.has("turnNumber"))
                 .sorted(java.util.Comparator.comparingInt(n -> n.get("turnNumber").asInt()))
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    public List<JsonNode> analyzeAllMoves(List<Move> moves) throws IOException {
+        return analyzeAllMoves(moves, null);
     }
 }

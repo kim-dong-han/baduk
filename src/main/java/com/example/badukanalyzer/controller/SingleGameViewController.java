@@ -56,7 +56,7 @@ public class SingleGameViewController {
             return ResponseEntity.ok(Map.of("status", "UNKNOWN"));
         }
         return switch (job.status) {
-            case RUNNING -> ResponseEntity.ok(Map.of("status", "RUNNING"));
+            case RUNNING -> ResponseEntity.ok(Map.of("status", "RUNNING", "progress", String.valueOf(job.progress)));
             case DONE    -> ResponseEntity.ok(Map.of("status", "DONE", "resultId", job.resultId));
             case ERROR   -> ResponseEntity.ok(Map.of("status", "ERROR", "error", job.error != null ? job.error : "알 수 없는 오류"));
         };

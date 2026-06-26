@@ -17,6 +17,7 @@ import java.io.File;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,7 +41,8 @@ public class SingleGameService {
     @Async
     public void analyzeAsync(String jobId, String fileName) {
         try {
-            SingleGameResult result = analyze(fileName);
+            SingleGameResult result = analyze(fileName,
+                    pct -> jobStore.updateProgress(jobId, pct));
             jobStore.put(jobId, AnalysisJobStore.Job.done(result.getId()));
         } catch (Exception e) {
             jobStore.put(jobId, AnalysisJobStore.Job.error(e.getMessage()));
@@ -48,11 +50,15 @@ public class SingleGameService {
     }
 
     public SingleGameResult analyze(String fileName) throws Exception {
+        return analyze(fileName, null);
+    }
+
+    private SingleGameResult analyze(String fileName, IntConsumer progressCallback) throws Exception {
         String filePath = recordDir + "/" + fileName;
         List<Move> moves = parseFile(filePath);
 
         System.out.println("[SingleGame] 분석 시작: " + fileName + " (" + moves.size() + "수)");
-        List<JsonNode> nodes = kataGoService.analyzeAllMoves(moves);
+        List<JsonNode> nodes = kataGoService.analyzeAllMoves(moves, progressCallback);
         System.out.println("[SingleGame] KataGo 결과 수신: " + nodes.size() + "개 노드");
 
         List<MoveDetail> moveDetails = buildMoveDetails(moves, nodes);
