@@ -199,11 +199,13 @@
         <div class="board-area">
             <canvas id="boardCanvas"></canvas>
             <div class="nav-controls">
-                <button class="nav-btn" id="btnFirst" onclick="showMove(0)" title="처음으로">«</button>
-                <button class="nav-btn" id="btnPrev"  onclick="prevMove()"  title="이전 수 (←)">‹</button>
+                <button class="nav-btn" id="btnFirst"   onclick="showMove(0)"          title="처음으로">«</button>
+                <button class="nav-btn" id="btnPrev5"   onclick="skipMove(-5)"         title="5수 뒤로 (Shift+←)">‹5</button>
+                <button class="nav-btn" id="btnPrev"    onclick="prevMove()"           title="이전 수 (←)">‹</button>
                 <span class="move-counter" id="moveCounter">-</span>
-                <button class="nav-btn" id="btnNext"  onclick="nextMove()"  title="다음 수 (→)">›</button>
-                <button class="nav-btn" id="btnLast"  onclick="showMove(moves.length - 1)" title="끝으로">»</button>
+                <button class="nav-btn" id="btnNext"    onclick="nextMove()"           title="다음 수 (→)">›</button>
+                <button class="nav-btn" id="btnNext5"   onclick="skipMove(5)"          title="5수 앞으로 (Shift+→)">5›</button>
+                <button class="nav-btn" id="btnLast"    onclick="showMove(moves.length - 1)" title="끝으로">»</button>
             </div>
             <div id="moveInfo" class="move-info-panel">
                 <div class="info-placeholder">수를 클릭하거나 화살표 버튼으로 이동하세요</div>
@@ -246,7 +248,10 @@
 
 <script th:inline="javascript">
 const moves = /*[[${result.moves}]]*/ [];
-const top3Turns = /*[[${result.top3Mistakes != null ? result.top3Mistakes.![turnNumber] : {}}]]*/ [];
+const top3Mistakes = /*[[${result.top3Mistakes}]]*/ [];
+</script>
+<script th:inline="none">
+const top3Turns = top3Mistakes.map(m => m.turnNumber);
 let currentIdx = -1;
 
 /* ── 바둑판 상수 ── */
@@ -468,8 +473,10 @@ function showMove(idx) {
     // 카운터 & 버튼 상태
     document.getElementById('moveCounter').textContent = `${idx + 1} / ${moves.length}수`;
     document.getElementById('btnFirst').disabled = idx === 0;
+    document.getElementById('btnPrev5').disabled = idx === 0;
     document.getElementById('btnPrev').disabled  = idx === 0;
     document.getElementById('btnNext').disabled  = idx === moves.length - 1;
+    document.getElementById('btnNext5').disabled = idx === moves.length - 1;
     document.getElementById('btnLast').disabled  = idx === moves.length - 1;
 
     // 정보 패널 업데이트
@@ -497,6 +504,7 @@ function showMove(idx) {
 
 function prevMove() { showMove(currentIdx - 1); }
 function nextMove() { showMove(currentIdx + 1); }
+function skipMove(delta) { showMove(Math.max(0, Math.min(moves.length - 1, currentIdx + delta))); }
 
 /* ── 집 손해 정렬 토글 ── */
 let sortedByLoss = false;
@@ -586,8 +594,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* ── 키보드 방향키 ── */
 document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); prevMove(); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); nextMove(); }
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); e.shiftKey ? skipMove(-5) : prevMove(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? skipMove(5)  : nextMove(); }
     if (e.key === 'Home')       { e.preventDefault(); showMove(0); }
     if (e.key === 'End')        { e.preventDefault(); showMove(moves.length - 1); }
 });
