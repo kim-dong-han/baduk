@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Map;
 import java.util.UUID;
@@ -32,11 +33,12 @@ public class SingleGameViewController {
     }
 
     @PostMapping("/analyze")
-    public String analyze(@RequestParam String fileName) {
+    public String analyze(@RequestParam String fileName, RedirectAttributes redirectAttrs) {
         String jobId = UUID.randomUUID().toString();
         jobStore.put(jobId, AnalysisJobStore.Job.running());
         singleGameService.analyzeAsync(jobId, fileName);
-        return "redirect:/game/waiting/" + jobId + "?fileName=" + fileName;
+        redirectAttrs.addAttribute("fileName", fileName);
+        return "redirect:/game/waiting/" + jobId;
     }
 
     @GetMapping("/waiting/{jobId}")
