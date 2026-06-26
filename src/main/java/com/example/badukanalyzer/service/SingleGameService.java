@@ -124,7 +124,7 @@ public class SingleGameService {
         File dir = new File(recordDir);
         File[] files = dir.listFiles((d, name) -> {
             String lower = name.toLowerCase();
-            return !lower.startsWith("pro_") && (lower.endsWith(".gib") || lower.endsWith(".sgf"));
+            return !name.contains("신진서 vs") && (lower.endsWith(".gib") || lower.endsWith(".sgf"));
         });
         if (files == null) return List.of();
         return Arrays.stream(files).map(File::getName).sorted().collect(Collectors.toList());
@@ -134,7 +134,7 @@ public class SingleGameService {
         File dir = new File(recordDir);
         File[] files = dir.listFiles((d, name) -> {
             String lower = name.toLowerCase();
-            return lower.startsWith("pro_") && (lower.endsWith(".gib") || lower.endsWith(".sgf"));
+            return name.contains("신진서 vs") && (lower.endsWith(".gib") || lower.endsWith(".sgf"));
         });
         if (files == null) return List.of();
         return Arrays.stream(files).map(File::getName).sorted().collect(Collectors.toList());
