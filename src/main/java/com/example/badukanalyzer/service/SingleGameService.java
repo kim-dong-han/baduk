@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 public class SingleGameService {
 
     private final KataGoService kataGoService;
+    private final AnalysisJobStore jobStore;
     private final ObjectMapper objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
     @Value("${katago.record-dir}")
@@ -30,8 +32,19 @@ public class SingleGameService {
     @Value("${katago.result-dir}")
     private String resultDir;
 
-    public SingleGameService(KataGoService kataGoService) {
+    public SingleGameService(KataGoService kataGoService, AnalysisJobStore jobStore) {
         this.kataGoService = kataGoService;
+        this.jobStore = jobStore;
+    }
+
+    @Async
+    public void analyzeAsync(String jobId, String fileName) {
+        try {
+            SingleGameResult result = analyze(fileName);
+            jobStore.put(jobId, AnalysisJobStore.Job.done(result.getId()));
+        } catch (Exception e) {
+            jobStore.put(jobId, AnalysisJobStore.Job.error(e.getMessage()));
+        }
     }
 
     public SingleGameResult analyze(String fileName) throws Exception {

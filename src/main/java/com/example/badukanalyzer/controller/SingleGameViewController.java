@@ -1,18 +1,25 @@
 package com.example.badukanalyzer.controller;
 
+import com.example.badukanalyzer.service.AnalysisJobStore;
 import com.example.badukanalyzer.service.SingleGameService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+import java.util.UUID;
 
 @Controller
 @RequestMapping("/game")
 public class SingleGameViewController {
 
     private final SingleGameService singleGameService;
+    private final AnalysisJobStore jobStore;
 
-    public SingleGameViewController(SingleGameService singleGameService) {
+    public SingleGameViewController(SingleGameService singleGameService, AnalysisJobStore jobStore) {
         this.singleGameService = singleGameService;
+        this.jobStore = jobStore;
     }
 
     @GetMapping
@@ -25,15 +32,32 @@ public class SingleGameViewController {
     }
 
     @PostMapping("/analyze")
-    public String analyze(@RequestParam String fileName, Model model) {
-        try {
-            var result = singleGameService.analyze(fileName);
-            return "redirect:/game/result/" + result.getId();
-        } catch (Exception e) {
-            model.addAttribute("error", "분석 실패: " + e.getMessage());
-            try { model.addAttribute("files", singleGameService.listGameFiles()); } catch (Exception ignored) {}
-            return "game/index";
+    public String analyze(@RequestParam String fileName) {
+        String jobId = UUID.randomUUID().toString();
+        jobStore.put(jobId, AnalysisJobStore.Job.running());
+        singleGameService.analyzeAsync(jobId, fileName);
+        return "redirect:/game/waiting/" + jobId + "?fileName=" + fileName;
+    }
+
+    @GetMapping("/waiting/{jobId}")
+    public String waiting(@PathVariable String jobId, @RequestParam String fileName, Model model) {
+        model.addAttribute("jobId", jobId);
+        model.addAttribute("fileName", fileName);
+        return "game/waiting";
+    }
+
+    @GetMapping("/status/{jobId}")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> status(@PathVariable String jobId) {
+        AnalysisJobStore.Job job = jobStore.get(jobId);
+        if (job == null) {
+            return ResponseEntity.ok(Map.of("status", "UNKNOWN"));
         }
+        return switch (job.status) {
+            case RUNNING -> ResponseEntity.ok(Map.of("status", "RUNNING"));
+            case DONE    -> ResponseEntity.ok(Map.of("status", "DONE", "resultId", job.resultId));
+            case ERROR   -> ResponseEntity.ok(Map.of("status", "ERROR", "error", job.error != null ? job.error : "알 수 없는 오류"));
+        };
     }
 
     @GetMapping("/result/{id}")

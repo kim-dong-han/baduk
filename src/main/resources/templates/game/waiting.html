@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>분석 중...</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; background: #f0f2f5; color: #333; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+
+        .card { background: #fff; border-radius: 16px; padding: 48px 56px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 480px; width: 90%; }
+
+        .spinner { border: 5px solid #eee; border-top: 5px solid #4a90d9; border-radius: 50%; width: 56px; height: 56px; animation: spin 1s linear infinite; margin: 0 auto 28px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        h2 { font-size: 20px; margin: 0 0 8px; }
+        .filename { font-size: 14px; color: #888; margin-bottom: 24px; word-break: break-all; }
+
+        .progress-bar-wrap { background: #f0f2f5; border-radius: 99px; height: 6px; margin-bottom: 24px; overflow: hidden; }
+        .progress-bar { height: 100%; background: #4a90d9; border-radius: 99px; width: 0%; transition: width 0.5s ease; }
+
+        .status-msg { font-size: 14px; color: #555; margin-bottom: 8px; }
+        .sub-msg { font-size: 12px; color: #aaa; margin-bottom: 32px; }
+
+        .nav-links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .nav-link { font-size: 13px; color: #4a90d9; text-decoration: none; padding: 8px 16px; border: 1px solid #4a90d9; border-radius: 8px; }
+        .nav-link:hover { background: #4a90d9; color: #fff; }
+
+        .error-state { display: none; }
+        .error-state .icon { font-size: 40px; margin-bottom: 16px; }
+        .error-msg { font-size: 14px; color: #c0392b; background: #ffe0e0; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; word-break: break-all; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <!-- 분석 중 상태 -->
+    <div id="runningState">
+        <div class="spinner"></div>
+        <h2>KataGo 분석 중...</h2>
+        <div class="filename" th:text="${fileName}"></div>
+        <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="status-msg" id="statusMsg">수별로 분석하고 있습니다</div>
+        <div class="sub-msg">분석하는 동안 다른 페이지를 자유롭게 이용하세요</div>
+        <div class="nav-links">
+            <a class="nav-link" href="/analysis/batch">배치 통계 보기</a>
+            <a class="nav-link" href="/game">기보 목록으로</a>
+        </div>
+    </div>
+
+    <!-- 오류 상태 -->
+    <div class="error-state" id="errorState">
+        <div class="icon">⚠</div>
+        <h2>분석 실패</h2>
+        <div class="error-msg" id="errorMsg"></div>
+        <div class="nav-links">
+            <a class="nav-link" href="/game">다시 시도</a>
+        </div>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    const jobId = [[${jobId}]];
+    let elapsed = 0;
+
+    // 경과 시간에 따라 진행 바를 서서히 채움 (95%까지만, 완료 시 100%)
+    function animateProgress() {
+        elapsed += 3;
+        const pct = Math.min(95, (elapsed / 180) * 95);
+        document.getElementById('progressBar').style.width = pct + '%';
+
+        const msgs = ['수별로 분석하고 있습니다', 'KataGo가 최선수를 탐색 중...', '집수 손실을 계산하고 있습니다', '결과를 정리하고 있습니다'];
+        document.getElementById('statusMsg').textContent = msgs[Math.floor(elapsed / 30) % msgs.length];
+    }
+
+    function poll() {
+        fetch('/game/status/' + jobId)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'DONE') {
+                    document.getElementById('progressBar').style.width = '100%';
+                    setTimeout(() => { window.location.href = '/game/result/' + data.resultId; }, 300);
+                } else if (data.status === 'ERROR') {
+                    document.getElementById('runningState').style.display = 'none';
+                    document.getElementById('errorState').style.display = 'block';
+                    document.getElementById('errorMsg').textContent = data.error;
+                } else {
+                    animateProgress();
+                    setTimeout(poll, 3000);
+                }
+            })
+            .catch(() => setTimeout(poll, 5000));
+    }
+
+    setTimeout(poll, 3000);
+</script>
+</body>
+</html>
