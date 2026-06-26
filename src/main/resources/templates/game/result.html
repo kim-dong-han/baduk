@@ -22,13 +22,19 @@
                 "board  side"
                 "chart  chart"
                 "table  table";
-            align-items: start;
+            align-items: stretch;
         }
         .area-phases { grid-area: phases; }
-        .area-board  { grid-area: board; }
+        .area-board  { grid-area: board; align-self: start; }
         .area-side   { grid-area: side; display: flex; flex-direction: column; gap: 16px; }
         .area-chart  { grid-area: chart; }
         .area-table  { grid-area: table; }
+
+        /* AI 착수 통계(위, 6) : 핵심 실수(아래, 4) = 6:4 높이 비율, 바둑판 높이에 맞춤 */
+        .side-ai       { flex: 6; display: flex; flex-direction: column; min-height: 0; }
+        .side-mistakes { flex: 4; display: flex; flex-direction: column; min-height: 0; }
+        .ai-chart-holder { flex: 1; min-height: 200px; position: relative; }
+        .side-mistakes .mistakes { flex: 1; min-height: 160px; max-height: none; }
 
         /* 좁은 화면: 한 줄씩 세로 스택 + 바둑판 가운데 */
         @media (max-width: 1100px) {
@@ -43,6 +49,9 @@
             }
             .area-board.card-box { display: flex; flex-direction: column; align-items: center; }
             .area-board.card-box > * { width: 100%; max-width: 596px; }
+            .side-ai, .side-mistakes { flex: none; }
+            .ai-chart-holder { min-height: 220px; }
+            .side-mistakes .mistakes { max-height: 420px; }
         }
 
         /* ── 공통 카드 ── */
@@ -89,7 +98,7 @@
         .amr-pct { font-size: 13px; font-weight: 700; width: 54px; text-align: right; }
 
         /* ── 바둑판 ── */
-        #boardCanvas { display: block; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.18); max-width: 100%; height: auto; }
+        #boardCanvas { display: block; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.18); max-width: 100%; height: auto; scroll-margin-top: 72px; }
 
         .move-info-panel { margin-top: 12px; background: #f8f9fa; border-radius: 8px; padding: 12px 14px; }
         .info-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px solid #eee; }
@@ -117,10 +126,8 @@
         .mistake-card { background: #fff7f7; border: 1px solid #fad7d7; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: box-shadow 0.15s; display: flex; align-items: center; gap: 14px; }
         .mistake-card:hover { box-shadow: 0 3px 12px rgba(231,76,60,0.18); }
         .mistake-rank { font-size: 11px; color: #e74c3c; font-weight: 700; flex-shrink: 0; width: 32px; }
-        .mistake-move { font-size: 20px; font-weight: 800; color: #333; flex-shrink: 0; width: 44px; }
-        .mistake-body { flex: 1; min-width: 0; }
-        .mistake-color { font-size: 12px; color: #888; }
-        .mistake-detail { font-size: 12px; color: #555; margin-top: 2px; }
+        .mistake-move { font-size: 20px; font-weight: 800; color: #333; flex-shrink: 0; }
+        .mistake-spacer { flex: 1; }
         .mistake-loss { font-size: 16px; font-weight: 700; color: #e74c3c; flex-shrink: 0; }
 
         /* ── 형세 변화 차트 높이 고정 (전체 폭에서 읽기 좋게) ── */
@@ -182,7 +189,7 @@
                 <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
                 <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
                 <div class="card-badges" style="margin-top:10px;">
-                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
+                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'악수 ' + ${p.blunderCount} + '개'"></span>
                     <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
                     <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
                 </div>
@@ -199,7 +206,7 @@
                 <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
                 <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
                 <div class="card-badges" style="margin-top:10px;">
-                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
+                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'악수 ' + ${p.blunderCount} + '개'"></span>
                     <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
                     <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
                 </div>
@@ -216,7 +223,7 @@
                 <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
                 <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
                 <div class="card-badges" style="margin-top:10px;">
-                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'대실수 ' + ${p.blunderCount} + '개'"></span>
+                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'악수 ' + ${p.blunderCount} + '개'"></span>
                     <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
                     <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
                 </div>
@@ -247,18 +254,11 @@
         </div>
     </div>
 
-    <!-- ══ 핵심 실수 + AI 착수 통계 (오른쪽) ══ -->
+    <!-- ══ AI 착수 통계 (위) + 핵심 실수 (아래) ══ -->
     <div class="area-side">
 
-        <!-- 핵심 실수 -->
-        <div class="card-box" id="mistakesCard">
-            <p class="section-title">핵심 실수 <span class="mistakes-count" id="mistakesCount"></span></p>
-            <p class="section-desc">실수·악수로 분류된 수입니다. 클릭하면 바둑판에서 위치를 확인할 수 있습니다.</p>
-            <div class="mistakes" id="mistakesList"></div>
-        </div>
-
         <!-- AI 착수 통계 -->
-        <div class="card-box">
+        <div class="card-box side-ai">
             <p class="section-title">AI 착수 통계</p>
             <p class="section-desc">흑·백 각각 AI 최선수와 얼마나 일치했는지, 그리고 수의 품질 분포를 보여줍니다.</p>
             <div class="ai-matchrate">
@@ -273,7 +273,14 @@
                     <span class="amr-pct" id="amrWhitePct">-</span>
                 </div>
             </div>
-            <canvas id="aiStatChart" height="110"></canvas>
+            <div class="ai-chart-holder"><canvas id="aiStatChart"></canvas></div>
+        </div>
+
+        <!-- 핵심 실수 -->
+        <div class="card-box side-mistakes" id="mistakesCard">
+            <p class="section-title">핵심 실수 <span class="mistakes-count" id="mistakesCount"></span></p>
+            <p class="section-desc">실수·악수로 분류된 수입니다. 클릭하면 바둑판에서 위치를 확인할 수 있습니다.</p>
+            <div class="mistakes" id="mistakesList"></div>
         </div>
 
     </div>
@@ -303,7 +310,7 @@
                     <tr th:each="m, stat : ${result.moves}"
                         th:data-idx="${stat.index}"
                         th:class="${'move-row ' + (m.grade == '악수' ? 'grade-d' : (m.grade == '실수' ? 'grade-c' : ''))}"
-                        th:onclick="'showMove(' + ${stat.index} + ')'">
+                        th:onclick="'jumpToMove(' + ${stat.index} + ')'">
                         <td th:text="${m.turnNumber}"></td>
                         <td>
                             <span th:if="${m.color == 'B'}" style="color:#333;font-weight:700;">흑</span>
@@ -638,10 +645,7 @@ function renderKeyMistakes() {
         `<div class="mistake-card" onclick="jumpToMove(${m.turnNumber - 1})">
             <div class="mistake-rank">#${i + 1}</div>
             <div class="mistake-move">${m.turnNumber}수</div>
-            <div class="mistake-body">
-                <div class="mistake-color">${m.color === 'B' ? '흑' : '백'} · ${m.move}</div>
-                <div class="mistake-detail">최선수: <strong>${m.bestMove}</strong></div>
-            </div>
+            <div class="mistake-spacer"></div>
             <div class="mistake-loss">-${m.scoreLoss}집</div>
             <span class="grade-badge g-${m.grade}">${m.grade}</span>
         </div>`).join('');
@@ -673,6 +677,7 @@ new Chart(document.getElementById('aiStatChart').getContext('2d'), {
     },
     options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
             tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}수` } }
