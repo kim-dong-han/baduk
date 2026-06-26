@@ -105,7 +105,14 @@ public class SingleGameService {
             }
         }
         results.sort(Comparator.comparing(SingleGameResult::getAnalyzedAt).reversed());
-        return results;
+
+        // 같은 기보를 재분석하면 결과 JSON이 누적됨 → 파일명 기준 최신 분석만 남김
+        // (정렬이 최신순이므로 putIfAbsent가 가장 최근 분석을 보존)
+        Map<String, SingleGameResult> latestByFile = new LinkedHashMap<>();
+        for (SingleGameResult r : results) {
+            latestByFile.putIfAbsent(r.getFileName(), r);
+        }
+        return new ArrayList<>(latestByFile.values());
     }
 
     public SingleGameResult getResult(String id) throws Exception {
