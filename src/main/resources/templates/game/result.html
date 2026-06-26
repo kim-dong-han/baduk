@@ -93,11 +93,11 @@
         tr.grade-d { background: #fff5f5; }
         tr.grade-c { background: #fffaf4; }
         .grade-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
-        .g-S { background: #f0e6f8; color: #8e44ad; }
-        .g-A { background: #d5f5e3; color: #1e8449; }
-        .g-B { background: #fef9e7; color: #b7770d; }
-        .g-C { background: #fdebd0; color: #d35400; }
-        .g-D { background: #fadbd8; color: #c0392b; }
+        .g-최선 { background: #f0e6f8; color: #8e44ad; }
+        .g-좋음 { background: #d5f5e3; color: #1e8449; }
+        .g-보통 { background: #fef9e7; color: #b7770d; }
+        .g-실수 { background: #fdebd0; color: #d35400; }
+        .g-악수 { background: #fadbd8; color: #c0392b; }
     </style>
 </head>
 <body>
@@ -241,7 +241,7 @@
                     <tbody>
                         <tr th:each="m, stat : ${result.moves}"
                             th:data-idx="${stat.index}"
-                            th:class="${'move-row ' + (m.grade == 'D' ? 'grade-d' : (m.grade == 'C' ? 'grade-c' : ''))}"
+                            th:class="${'move-row ' + (m.grade == '악수' ? 'grade-d' : (m.grade == '실수' ? 'grade-c' : ''))}"
                             th:onclick="'showMove(' + ${stat.index} + ')'">
                             <td th:text="${m.turnNumber}"></td>
                             <td>

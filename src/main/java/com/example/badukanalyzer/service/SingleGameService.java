@@ -265,11 +265,11 @@ public class SingleGameService {
     }
 
     private String calcGrade(double scoreLoss) {
-        if (scoreLoss < 0.5) return "S";
-        if (scoreLoss < 1.5) return "A";
-        if (scoreLoss < 3.0) return "B";
-        if (scoreLoss < 5.0) return "C";
-        return "D";
+        if (scoreLoss < 0.5) return "최선";
+        if (scoreLoss < 1.5) return "좋음";
+        if (scoreLoss < 3.0) return "보통";
+        if (scoreLoss < 5.0) return "실수";
+        return "악수";
     }
 
     private String calcPhase(int turnNumber) {
