@@ -2,23 +2,23 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>바둑 실력 분석</title>
     <meta th:if="${running}" http-equiv="refresh" content="5">
+    <link rel="stylesheet" href="/css/common.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 30px 40px; background: #f0f2f5; color: #333; }
         h1 { font-size: 24px; margin-bottom: 6px; }
         .subtitle { color: #888; font-size: 14px; margin-bottom: 28px; }
 
-        .summary-banner { background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 24px; max-width: 820px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; gap: 32px; align-items: center; }
+        .summary-banner { background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-wrap: wrap; gap: 24px 32px; align-items: center; }
         .summary-item { text-align: center; }
         .summary-label { font-size: 12px; color: #888; margin-bottom: 4px; }
         .summary-value { font-size: 16px; font-weight: 700; }
         .summary-divider { width: 1px; background: #eee; align-self: stretch; }
 
-        .cards { display: flex; gap: 16px; max-width: 820px; margin-bottom: 24px; }
-        .card { flex: 1; background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 5px solid #ccc; }
+        .cards { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+        .card { flex: 1; min-width: 240px; background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 5px solid #ccc; }
         .card.strong { border-top-color: #2ecc71; }
         .card.normal { border-top-color: #f39c12; }
         .card.weak   { border-top-color: #e74c3c; }
@@ -52,12 +52,12 @@
         .badge.normal { background: #fdebd0; color: #b7770d; }
         .badge.weak   { background: #fadbd8; color: #c0392b; }
 
-        .chart-section { background: #fff; border-radius: 12px; padding: 24px; max-width: 820px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px; }
+        .chart-section { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px; }
         .chart-section h2 { font-size: 16px; margin: 0 0 6px; }
         .chart-desc { font-size: 12px; color: #999; margin: 0 0 18px; }
         .chart-wrap { max-width: 340px; margin: 0 auto; }
 
-        .table-section { background: #fff; border-radius: 12px; padding: 24px; max-width: 820px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px; }
+        .table-section { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px; }
         .table-section h2 { font-size: 16px; margin: 0 0 16px; }
         table { border-collapse: collapse; width: 100%; }
         th { background: #f8f9fa; color: #555; font-size: 13px; padding: 10px 14px; border-bottom: 2px solid #eee; text-align: center; }
@@ -66,13 +66,24 @@
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #4a90d9; border-radius: 50%; width: 36px; height: 36px; animation: spin 1s linear infinite; margin: 0 auto 12px; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading { text-align: center; padding: 60px; }
-        .error-box { background: #ffe0e0; border: 1px solid #e00; padding: 16px; border-radius: 8px; margin-bottom: 20px; max-width: 820px; }
+        .error-box { background: #ffe0e0; border: 1px solid #e00; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
         .empty { color: #aaa; text-align: center; padding: 40px; }
         .refresh-link { font-size: 13px; color: #4a90d9; text-decoration: none; }
-        .tygem-notice { background:#fff; border-radius:8px; padding:14px 20px; margin-bottom:20px; max-width:820px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:4px solid #4a90d9; font-size:13px; color:#555; }
+        .tygem-notice { background:#fff; border-radius:8px; padding:14px 20px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:4px solid #4a90d9; font-size:13px; color:#555; }
     </style>
 </head>
 <body>
+    <nav class="topnav">
+        <div class="topnav-inner">
+            <a class="brand" href="/analysis/batch">⚫ 바둑 분석</a>
+            <div class="topnav-links">
+                <a href="/analysis/batch" class="active">실력 리포트</a>
+                <a href="/game">기보 복기</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="page narrow">
     <h1>바둑 실력 분석</h1>
     <p class="subtitle">KataGo AI 기반 구간별 기력 리포트</p>
 
@@ -272,5 +283,6 @@
         renderAnalysis(proResultsData,  'pro-root',  '신진서 프로 기보 분석', '#8e44ad');
     })();
     </script>
+    </div>
 </body>
 </html>

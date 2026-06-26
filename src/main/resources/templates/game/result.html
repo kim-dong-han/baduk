@@ -2,29 +2,33 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>복기 분석 결과</title>
+    <link rel="stylesheet" href="/css/common.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 24px 32px; background: #f0f2f5; color: #333; }
-
-        .nav { margin-bottom: 16px; }
-        .nav a { color: #4a90d9; text-decoration: none; font-size: 14px; }
-
         .header { margin-bottom: 20px; }
         .header h1 { font-size: 22px; margin: 0 0 6px; }
         .header-meta { font-size: 13px; color: #999; display: flex; gap: 16px; }
 
         /* ── 2컬럼 레이아웃 ── */
         .page-layout { display: flex; gap: 20px; align-items: flex-start; }
-        .left-col { flex-shrink: 0; width: 476px; display: flex; flex-direction: column; gap: 16px; }
+        .left-col { flex-shrink: 0; width: 476px; max-width: 100%; display: flex; flex-direction: column; gap: 16px; }
         .right-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+        /* 좁은 화면: 세로 스택 + 바둑판 가운데 */
+        @media (max-width: 1000px) {
+            .page-layout { flex-direction: column; }
+            .left-col { width: 100%; }
+            .left-col .card-box { display: flex; flex-direction: column; align-items: center; }
+            .left-col .card-box > * { width: 100%; max-width: 452px; }
+        }
 
         /* ── 공통 카드 ── */
         .card-box { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 
-        /* ── 구간 카드 (3열 그리드) ── */
-        .phase-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        /* ── 구간 카드 (3열 그리드, 좁으면 자동 줄바꿈) ── */
+        .phase-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
         .phase-card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 5px solid #ccc; }
         .phase-card.good { border-top-color: #2ecc71; }
         .phase-card.warn { border-top-color: #f39c12; }
@@ -102,7 +106,17 @@
 </head>
 <body>
 
-<div class="nav"><a href="/game">← 목록으로</a></div>
+<nav class="topnav">
+    <div class="topnav-inner">
+        <a class="brand" href="/analysis/batch">⚫ 바둑 분석</a>
+        <div class="topnav-links">
+            <a href="/analysis/batch">실력 리포트</a>
+            <a href="/game" class="active">기보 복기</a>
+        </div>
+    </div>
+</nav>
+
+<div class="page">
 <div class="header">
     <h1>복기 분석 결과</h1>
     <div class="header-meta">
@@ -580,5 +594,6 @@ document.addEventListener('keydown', e => {
     if (e.key === 'End')        { e.preventDefault(); showMove(moves.length - 1); }
 });
 </script>
+</div>
 </body>
 </html>

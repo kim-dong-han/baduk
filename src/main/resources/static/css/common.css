@@ -1,0 +1,70 @@
+/* ════════════════════════════════════════════
+   공통 스타일 — 모든 페이지가 link 하는 베이스
+   ════════════════════════════════════════════ */
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    background: #f0f2f5;
+    color: #333;
+}
+
+/* ── 상단 네비게이션 바 ── */
+.topnav {
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.topnav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    padding: 0 24px;
+    height: 56px;
+}
+.topnav .brand {
+    font-size: 17px;
+    font-weight: 800;
+    color: #333;
+    text-decoration: none;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.topnav-links {
+    display: flex;
+    gap: 4px;
+}
+.topnav-links a {
+    font-size: 14px;
+    color: #777;
+    text-decoration: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background 0.15s, color 0.15s;
+}
+.topnav-links a:hover { background: #f0f2f5; color: #333; }
+.topnav-links a.active { color: #4a90d9; background: #eaf4fd; }
+
+/* ── 페이지 컨테이너 (가운데 정렬로 좌우 여백 균형) ── */
+.page {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 28px 24px 48px;
+}
+.page.narrow { max-width: 960px; }
+
+/* ── 반응형 ── */
+@media (max-width: 700px) {
+    .topnav-inner { gap: 12px; padding: 0 14px; height: 52px; }
+    .topnav .brand { font-size: 15px; }
+    .topnav-links a { padding: 6px 10px; font-size: 13px; }
+    .page { padding: 18px 14px 36px; }
+}
