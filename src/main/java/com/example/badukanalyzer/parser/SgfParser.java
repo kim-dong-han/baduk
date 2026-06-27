@@ -86,6 +86,10 @@ public class SgfParser {
         return m.find() ? m.group(1).trim() : null;
     }
 
+    private static boolean isUpperLetter(char c) {
+        return c >= 'A' && c <= 'Z';
+    }
+
     private static String firstNonBlank(String a, String b) {
         if (a != null && !a.isBlank()) return a;
         if (b != null && !b.isBlank()) return b;
