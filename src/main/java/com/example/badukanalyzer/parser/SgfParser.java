@@ -63,6 +63,34 @@ public class SgfParser {
         return moves;
     }
 
+    /**
+     * SGF 헤더에서 흑/백 대국자명을 추출한다.
+     * 타이젬은 BID(흑)/WID(백)에 닉네임을, PB/PW에는 내부값을 넣는 경우가 있어 BID/WID를 우선한다.
+     * @return [흑, 백] (없으면 해당 항목 null)
+     */
+    public static String[] parsePlayers(String filePath) {
+        try {
+            String content = new String(Files.readAllBytes(Path.of(filePath)), Charset.forName("MS949"));
+            String black = firstNonBlank(tag(content, "BID"), tag(content, "PB"));
+            String white = firstNonBlank(tag(content, "WID"), tag(content, "PW"));
+            return new String[]{black, white};
+        } catch (IOException e) {
+            return new String[]{null, null};
+        }
+    }
+
+    private static String tag(String content, String key) {
+        java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile(key + "\\[([^\\]]*)\\]").matcher(content);
+        return m.find() ? m.group(1).trim() : null;
+    }
+
+    private static String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) return a;
+        if (b != null && !b.isBlank()) return b;
+        return null;
+    }
+
     private String stripVariations(String s) {
         if (s.startsWith("(") && s.endsWith(")")) {
             s = s.substring(1, s.length() - 1);

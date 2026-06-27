@@ -14,6 +14,8 @@ import java.util.List;
 public class SingleGameResult {
     private String id;           // UUID (저장 파일명 기준)
     private String fileName;
+    private String blackPlayer;  // 흑 대국자 (SGF BID/PB)
+    private String whitePlayer;  // 백 대국자 (SGF WID/PW)
     private String analyzedAt;   // ISO-8601 문자열
     private int totalMoves;
 
