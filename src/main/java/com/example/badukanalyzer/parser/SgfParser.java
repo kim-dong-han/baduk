@@ -137,7 +137,10 @@ public class SgfParser {
                 i++;
                 continue;
             }
-            if ((c == 'B' || c == 'W') && i + 1 < s.length() && s.charAt(i + 1) == '[') {
+            // 착수(B[]/W[])만 통과. 단 PB/PW/AB/AW 등 '대문자+B/W' 속성 ID의 B/W는 제외
+            // (앞 글자가 대문자면 속성 ID의 일부 → 착수 아님)
+            if ((c == 'B' || c == 'W') && i + 1 < s.length() && s.charAt(i + 1) == '['
+                    && !(i > 0 && isUpperLetter(s.charAt(i - 1)))) {
                 sb.append(c);
                 i++;
                 int close = findCloseBracket(s, i);

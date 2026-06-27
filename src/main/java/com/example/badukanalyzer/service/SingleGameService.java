@@ -127,7 +127,21 @@ public class SingleGameService {
 
     public SingleGameResult getResult(String id) throws Exception {
         File file = new File(resultDir + "/" + id + ".json");
-        return objectMapper.readValue(file, SingleGameResult.class);
+        SingleGameResult result = objectMapper.readValue(file, SingleGameResult.class);
+
+        // 대국자명 필드 추가 이전에 저장된 결과 보정: 원본 SGF에서 흑/백을 읽어 채우고 재저장
+        if (result.getBlackPlayer() == null && result.getWhitePlayer() == null && result.getFileName() != null) {
+            File src = new File(recordDir + "/" + result.getFileName());
+            if (src.exists()) {
+                String[] players = parsePlayers(src.getPath());
+                if (players[0] != null || players[1] != null) {
+                    result.setBlackPlayer(players[0]);
+                    result.setWhitePlayer(players[1]);
+                    saveResult(result);
+                }
+            }
+        }
+        return result;
     }
 
     public List<String> listGameFiles() {
