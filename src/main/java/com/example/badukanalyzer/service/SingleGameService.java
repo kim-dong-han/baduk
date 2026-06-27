@@ -129,12 +129,16 @@ public class SingleGameService {
         File file = new File(resultDir + "/" + id + ".json");
         SingleGameResult result = objectMapper.readValue(file, SingleGameResult.class);
 
-        // 대국자명 필드 추가 이전에 저장된 결과 보정: 원본 SGF에서 흑/백을 읽어 채우고 재저장
-        if (result.getBlackPlayer() == null && result.getWhitePlayer() == null && result.getFileName() != null) {
+        // 대국자명 보정: 원본 SGF가 있으면 흑/백을 다시 읽어 저장값과 다르면 갱신·재저장.
+        // (대국자명 필드 추가 이전 결과 채우기 + 외국 기사 깨진 이름의 파일명 보정 반영)
+        if (result.getFileName() != null) {
             File src = new File(recordDir + "/" + result.getFileName());
             if (src.exists()) {
                 String[] players = parsePlayers(src.getPath());
-                if (players[0] != null || players[1] != null) {
+                boolean changed =
+                        (players[0] != null && !players[0].equals(result.getBlackPlayer())) ||
+                        (players[1] != null && !players[1].equals(result.getWhitePlayer()));
+                if (changed) {
                     result.setBlackPlayer(players[0]);
                     result.setWhitePlayer(players[1]);
                     saveResult(result);

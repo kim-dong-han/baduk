@@ -70,14 +70,38 @@ public class SgfParser {
      * @return [흑, 백] (없으면 해당 항목 null)
      */
     public static String[] parsePlayers(String filePath) {
+        String black, white;
         try {
             String content = new String(Files.readAllBytes(Path.of(filePath)), Charset.forName("MS949"));
-            String black = firstNonBlank(tag(content, "BID"), tag(content, "PB"));
-            String white = firstNonBlank(tag(content, "WID"), tag(content, "PW"));
-            return new String[]{black, white};
+            black = firstNonBlank(tag(content, "BID"), tag(content, "PB"));
+            white = firstNonBlank(tag(content, "WID"), tag(content, "PW"));
         } catch (IOException e) {
             return new String[]{null, null};
         }
+
+        // 외국(중국) 기사 닉네임은 GBK로 저장돼 MS949 디코딩 시 깨진다.
+        // 파일명의 표시용 핸들로 보정: 파일명 두 이름 중 BID/WID와 정확히 일치하는 쪽을 앵커로
+        // 색을 고정하고, 나머지 핸들을 반대 색에 매칭한다(파일명 순서를 가정하지 않음).
+        String[] ft = filenameNames(filePath);
+        if (ft != null) {
+            String fb = null, fw = null;
+            if      (black != null && black.equals(ft[0])) { fb = ft[0]; fw = ft[1]; }
+            else if (black != null && black.equals(ft[1])) { fb = ft[1]; fw = ft[0]; }
+            else if (white != null && white.equals(ft[0])) { fw = ft[0]; fb = ft[1]; }
+            else if (white != null && white.equals(ft[1])) { fw = ft[1]; fb = ft[0]; }
+            if (fb != null) { black = fb; white = fw; }
+        }
+        return new String[]{black, white};
+    }
+
+    // 타이젬 파일명 "{이름1}(단/급)_{이름2}(단/급)_{시각}.sgf" 에서 두 표시 이름 추출
+    private static String[] filenameNames(String filePath) {
+        String name = Path.of(filePath).getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        if (dot >= 0) name = name.substring(0, dot);
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("^(.*?)\\([^)]*\\)_(.*?)\\([^)]*\\)_\\d+$").matcher(name);
+        return m.matches() ? new String[]{m.group(1), m.group(2)} : null;
     }
 
     private static String tag(String content, String key) {

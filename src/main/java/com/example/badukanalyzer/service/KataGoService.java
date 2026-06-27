@@ -120,8 +120,8 @@ public class KataGoService {
         query.put("id", id);
         query.put("boardXSize", 19);
         query.put("boardYSize", 19);
-        query.put("rules", "chinese");
-        query.put("komi", 7.5);
+        query.put("rules", "korean");   // 타이젬=한국식(집내기, 코미 6.5)
+        query.put("komi", 6.5);
         query.set("moves", movesArray.deepCopy());
         query.set("analyzeTurns", objectMapper.valueToTree(analyzeTurns));
         query.put("maxVisits", maxVisits);

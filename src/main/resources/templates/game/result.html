@@ -608,9 +608,8 @@ function showMove(idx) {
     document.getElementById('wbWhitePct').textContent = (100 - blackWr).toFixed(1) + '% 백';
     const lead = cur.scoreLeadAfter;
     const sd = document.getElementById('scoreDiff');
-    if (lead > 0.5)       sd.innerHTML = `현재 형세: <span class="lead-b">흑 ${lead.toFixed(1)}집 유리</span>`;
-    else if (lead < -0.5) sd.innerHTML = `현재 형세: <span class="lead-w">백 ${Math.abs(lead).toFixed(1)}집 유리</span>`;
-    else                  sd.innerHTML = `현재 형세: 형세 균형 (${lead.toFixed(1)}집)`;
+    if (lead >= 0) sd.innerHTML = `현재 형세: <span class="lead-b">흑 ${lead.toFixed(1)}집 유리</span>`;
+    else           sd.innerHTML = `현재 형세: <span class="lead-w">백 ${Math.abs(lead).toFixed(1)}집 유리</span>`;
 
     // 테이블 행 하이라이트만 (바둑판→테이블 자동 스크롤은 하지 않음)
     document.querySelectorAll('.selected-row').forEach(r => r.classList.remove('selected-row'));
