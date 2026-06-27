@@ -6,24 +6,48 @@
     <title>분석 중...</title>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; background: #f0f2f5; color: #333; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 24px 0; background: #f0f2f5; color: #333; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
 
-        .card { background: #fff; border-radius: 16px; padding: 48px 56px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 480px; width: 90%; }
+        .card { background: #fff; border-radius: 16px; padding: 36px 40px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 460px; width: 92%; }
 
-        .spinner { border: 5px solid #eee; border-top: 5px solid #4a90d9; border-radius: 50%; width: 56px; height: 56px; animation: spin 1s linear infinite; margin: 0 auto 28px; }
+        .spinner { border: 5px solid #eee; border-top: 5px solid #4a90d9; border-radius: 50%; width: 48px; height: 48px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        h2 { font-size: 20px; margin: 0 0 8px; }
-        .filename { font-size: 14px; color: #888; margin-bottom: 24px; word-break: break-all; }
+        h2 { font-size: 19px; margin: 0 0 8px; }
+        .filename { font-size: 13px; color: #888; margin-bottom: 18px; word-break: break-all; }
 
-        .progress-bar-wrap { background: #f0f2f5; border-radius: 99px; height: 6px; margin-bottom: 24px; overflow: hidden; }
+        .progress-bar-wrap { background: #f0f2f5; border-radius: 99px; height: 6px; margin-bottom: 14px; overflow: hidden; }
         .progress-bar { height: 100%; background: #4a90d9; border-radius: 99px; width: 0%; transition: width 0.5s ease; }
+        .status-msg { font-size: 13px; color: #555; margin-bottom: 6px; }
 
-        .status-msg { font-size: 14px; color: #555; margin-bottom: 8px; }
-        .sub-msg { font-size: 12px; color: #aaa; margin-bottom: 32px; }
+        /* 분석 완료 버튼 (DONE 시 표시) */
+        .done-box { display: none; margin: 14px 0 2px; }
+        .done-btn { display: inline-block; background: #2ecc71; color: #fff; font-size: 15px; font-weight: 700; padding: 11px 22px; border: none; border-radius: 10px; cursor: pointer; text-decoration: none; box-shadow: 0 2px 8px rgba(46,204,113,0.4); }
+        .done-btn:hover { background: #27ae60; }
 
-        .nav-links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-        .nav-link { font-size: 13px; color: #4a90d9; text-decoration: none; padding: 8px 16px; border: 1px solid #4a90d9; border-radius: 8px; }
+        .divider { border: none; border-top: 1px solid #eee; margin: 22px 0 16px; }
+
+        /* ── 사활 위젯 ── */
+        .tsume { display: none; }
+        .tsume-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .tsume-title { font-size: 15px; font-weight: 700; }
+        .tsume-meta { font-size: 12px; color: #999; }
+        .tsume-badge { font-size: 11px; font-weight: 700; color: #b7770d; background: #fdf3d7; border-radius: 99px; padding: 2px 9px; margin-left: 6px; }
+        .tsume-prompt { font-size: 13px; color: #555; margin-bottom: 12px; min-height: 18px; }
+        #tsumeCanvas { display: block; margin: 0 auto 10px; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.16); cursor: pointer; touch-action: manipulation; }
+        .tsume-feedback { font-size: 14px; font-weight: 700; min-height: 22px; margin-bottom: 10px; }
+        .fb-correct { color: #1e8449; }
+        .fb-wrong   { color: #c0392b; }
+        .fb-info    { color: #888; font-weight: 400; }
+        .tsume-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+        .tsume-btn { font-size: 13px; color: #555; background: #f0f2f5; border: 1px solid #ddd; border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+        .tsume-btn:hover { background: #e4e8ec; }
+        .tsume-btn.primary { color: #fff; background: #4a90d9; border-color: #4a90d9; }
+        .tsume-btn.primary:hover { background: #3a7bc8; }
+
+        .sub-msg { font-size: 12px; color: #aaa; margin: 18px 0 14px; }
+        .nav-links { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .nav-link { font-size: 13px; color: #4a90d9; text-decoration: none; padding: 7px 14px; border: 1px solid #4a90d9; border-radius: 8px; }
         .nav-link:hover { background: #4a90d9; color: #fff; }
 
         .error-state { display: none; }
@@ -36,15 +60,38 @@
 <div class="card">
     <!-- 분석 중 상태 -->
     <div id="runningState">
-        <div class="spinner"></div>
-        <h2>KataGo 분석 중...</h2>
+        <div class="spinner" id="spinner"></div>
+        <h2 id="runTitle">KataGo 분석 중...</h2>
         <div class="filename" th:text="${fileName}"></div>
         <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
-        <div class="status-msg" id="statusMsg"><span id="progressPct">0</span>% 분석됨</div>
-        <div class="sub-msg">분석하는 동안 다른 페이지를 자유롭게 이용하세요</div>
+        <div class="status-msg"><span id="progressPct">0</span>% 분석됨</div>
+
+        <div class="done-box" id="doneBox">
+            <a class="done-btn" id="doneBtn" href="#">✅ 분석 완료 — 결과 보기</a>
+        </div>
+
+        <hr class="divider">
+
+        <!-- 사활 위젯 -->
+        <div class="tsume" id="tsume">
+            <div class="tsume-head">
+                <div class="tsume-title">🧩 사활 문제<span class="tsume-badge" id="tsumeDiff">쉬움</span></div>
+                <div class="tsume-meta">푼 문제 <b id="tsumeSolved">0</b></div>
+            </div>
+            <div class="tsume-prompt" id="tsumePrompt">문제를 불러오는 중...</div>
+            <canvas id="tsumeCanvas" width="300" height="300"></canvas>
+            <div class="tsume-feedback fb-info" id="tsumeFeedback">돌을 놓을 자리를 클릭하세요</div>
+            <div class="tsume-btns">
+                <button class="tsume-btn" id="btnHint" onclick="tsumeHint()">힌트</button>
+                <button class="tsume-btn" id="btnReveal" onclick="tsumeReveal()">정답 보기</button>
+                <button class="tsume-btn primary" onclick="tsumeNext()">다음 문제 →</button>
+            </div>
+        </div>
+
+        <div class="sub-msg">분석하는 동안 사활 문제로 감각을 풀어 보세요</div>
         <div class="nav-links">
-            <a class="nav-link" href="/analysis/batch">배치 통계 보기</a>
-            <a class="nav-link" href="/game">기보 목록으로</a>
+            <a class="nav-link" href="/analysis/batch">실력 리포트</a>
+            <a class="nav-link" href="/game">기보 목록</a>
         </div>
     </div>
 
@@ -53,41 +100,168 @@
         <div class="icon">⚠</div>
         <h2>분석 실패</h2>
         <div class="error-msg" id="errorMsg"></div>
-        <div class="nav-links">
-            <a class="nav-link" href="/game">다시 시도</a>
-        </div>
+        <div class="nav-links"><a class="nav-link" href="/game">다시 시도</a></div>
     </div>
 </div>
 
 <script th:inline="javascript">
     const jobId = [[${jobId}]];
 
+    /* ───────── 분석 진행률 폴링 ───────── */
+    let resultUrl = null;
     function setProgress(pct) {
         document.getElementById('progressBar').style.width = pct + '%';
         document.getElementById('progressPct').textContent = pct;
     }
-
+    function onDone(resultId) {
+        setProgress(100);
+        resultUrl = '/game/result/' + resultId;
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('runTitle').textContent = '분석 완료!';
+        const dbtn = document.getElementById('doneBtn');
+        dbtn.href = resultUrl;
+        document.getElementById('doneBox').style.display = 'block';
+        // 문제 풀던 중일 수 있으니 자동 이동하지 않고 버튼으로 안내
+    }
     function poll() {
-        fetch('/game/status/' + jobId)
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'DONE') {
-                    setProgress(100);
-                    setTimeout(() => { window.location.href = '/game/result/' + data.resultId; }, 300);
-                } else if (data.status === 'ERROR') {
-                    document.getElementById('runningState').style.display = 'none';
-                    document.getElementById('errorState').style.display = 'block';
-                    document.getElementById('errorMsg').textContent = data.error;
-                } else {
-                    const pct = parseInt(data.progress) || 0;
-                    setProgress(pct);
-                    setTimeout(poll, 2000);
-                }
-            })
-            .catch(() => setTimeout(poll, 5000));
+        fetch('/game/status/' + jobId).then(r => r.json()).then(data => {
+            if (data.status === 'DONE') { onDone(data.resultId); }
+            else if (data.status === 'ERROR') {
+                document.getElementById('runningState').style.display = 'none';
+                document.getElementById('errorState').style.display = 'block';
+                document.getElementById('errorMsg').textContent = data.error;
+            } else {
+                setProgress(parseInt(data.progress) || 0);
+                setTimeout(poll, 2000);
+            }
+        }).catch(() => setTimeout(poll, 5000));
+    }
+    setTimeout(poll, 2000);
+
+    /* ───────── 사활 위젯 ───────── */
+    const COLS = 'ABCDEFGHJKLMNOPQRST';
+    function gtpToGrid(g){ const x = COLS.indexOf(g[0].toUpperCase()); const y = parseInt(g.slice(1)) - 1; return {x, y}; }
+    function gridToGtp(x, y){ return COLS[x] + (y + 1); }
+
+    let problem = null, board = null, solved = 0, finished = false;
+    const canvas = document.getElementById('tsumeCanvas');
+    let geom = null; // {xMin,yMin,xMax,yMax,cell,pad,cols,rows}
+
+    function loadProblem() {
+        fetch('/api/tsumego/random').then(r => r.status === 204 ? null : r.json()).then(p => {
+            if (!p) { document.getElementById('tsume').style.display = 'none'; return; }
+            problem = p; finished = false;
+            document.getElementById('tsume').style.display = 'block';
+            document.getElementById('tsumeDiff').textContent = p.difficulty || '쉬움';
+            document.getElementById('tsumePrompt').textContent = p.prompt || '';
+            setFeedback('돌을 놓을 자리를 클릭하세요', 'fb-info');
+            // 보드 모델: 초기 배치
+            board = {};
+            (p.stones || []).forEach(s => board[s.at] = s.color);
+            setupGeom();
+            draw();
+        }).catch(() => { document.getElementById('tsume').style.display = 'none'; });
     }
 
-    setTimeout(poll, 2000);
+    function setupGeom() {
+        const r = problem.region && problem.region.length === 4 ? problem.region : [0,0,18,18];
+        const [xMin, yMin, xMax, yMax] = r;
+        const cols = xMax - xMin + 1, rows = yMax - yMin + 1;
+        const target = 300, pad = 22;
+        const cell = Math.floor((target - pad * 2) / Math.max(cols, rows));
+        const w = pad * 2 + cell * (cols - 1);
+        const h = pad * 2 + cell * (rows - 1);
+        canvas.width = w; canvas.height = h;
+        geom = { xMin, yMin, xMax, yMax, cell, pad, cols, rows };
+    }
+    function cx(x){ return geom.pad + (x - geom.xMin) * geom.cell; }
+    function cy(y){ return geom.pad + (geom.yMax - y) * geom.cell; }
+
+    function draw() {
+        const ctx = canvas.getContext('2d');
+        const g = ctx.createLinearGradient(0,0,canvas.width,canvas.height);
+        g.addColorStop(0,'#E8B86D'); g.addColorStop(1,'#C9954A');
+        ctx.fillStyle = g; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1;
+        for (let x = geom.xMin; x <= geom.xMax; x++) { ctx.beginPath(); ctx.moveTo(cx(x), cy(geom.yMax)); ctx.lineTo(cx(x), cy(geom.yMin)); ctx.stroke(); }
+        for (let y = geom.yMin; y <= geom.yMax; y++) { ctx.beginPath(); ctx.moveTo(cx(geom.xMin), cy(y)); ctx.lineTo(cx(geom.xMax), cy(y)); ctx.stroke(); }
+
+        // 화점
+        const star = [3,9,15];
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        star.forEach(sx => star.forEach(sy => {
+            if (sx>=geom.xMin&&sx<=geom.xMax&&sy>=geom.yMin&&sy<=geom.yMax) { ctx.beginPath(); ctx.arc(cx(sx),cy(sy),3,0,Math.PI*2); ctx.fill(); }
+        }));
+
+        for (const [at, color] of Object.entries(board)) {
+            const {x,y} = gtpToGrid(at);
+            if (x<geom.xMin||x>geom.xMax||y<geom.yMin||y>geom.yMax) continue;
+            drawStone(ctx, x, y, color);
+        }
+    }
+    function drawStone(ctx, x, y, color, marker) {
+        const px = cx(x), py = cy(y), r = geom.cell * 0.45;
+        ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2);
+        const rg = ctx.createRadialGradient(px-r*0.3,py-r*0.3,r*0.1,px,py,r);
+        if (color==='B'){ rg.addColorStop(0,'#555'); rg.addColorStop(1,'#000'); ctx.fillStyle=rg; ctx.fill(); }
+        else { rg.addColorStop(0,'#fff'); rg.addColorStop(1,'#ccc'); ctx.fillStyle=rg; ctx.fill(); ctx.strokeStyle='#888'; ctx.lineWidth=0.8; ctx.stroke(); }
+        if (marker){ ctx.beginPath(); ctx.arc(px,py,r*0.4,0,Math.PI*2); ctx.strokeStyle=marker; ctx.lineWidth=2.5; ctx.stroke(); }
+    }
+    function markPoint(x, y, color){
+        const ctx = canvas.getContext('2d'); const px=cx(x), py=cy(y), r=geom.cell*0.32;
+        ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.strokeStyle=color; ctx.lineWidth=3; ctx.stroke();
+    }
+
+    function setFeedback(msg, cls){ const el=document.getElementById('tsumeFeedback'); el.textContent=msg; el.className='tsume-feedback '+cls; }
+
+    canvas.addEventListener('click', (e) => {
+        if (!problem || finished) return;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width/rect.width, scaleY = canvas.height/rect.height;
+        const mx = (e.clientX-rect.left)*scaleX, my = (e.clientY-rect.top)*scaleY;
+        // 가장 가까운 교차점
+        let best=null, bd=1e9;
+        for (let x=geom.xMin;x<=geom.xMax;x++) for (let y=geom.yMin;y<=geom.yMax;y++){
+            const d=(cx(x)-mx)**2+(cy(y)-my)**2; if(d<bd){bd=d; best={x,y};}
+        }
+        if (!best || bd > (geom.cell*0.55)**2) return;
+        const gtp = gridToGtp(best.x, best.y);
+        if (board[gtp]) return; // 이미 돌 있음
+
+        if ((problem.answers||[]).includes(gtp)) {
+            playSolution();
+            solved++; document.getElementById('tsumeSolved').textContent = solved;
+            setFeedback('정답입니다! 🎉', 'fb-correct');
+            finished = true;
+        } else {
+            draw(); markPoint(best.x, best.y, '#c0392b');
+            setFeedback('아쉬워요, 다시 시도해 보세요', 'fb-wrong');
+        }
+    });
+
+    function playSolution(){
+        const seq = problem.solution && problem.solution.length ? problem.solution : (problem.answers||[]);
+        let color = problem.toPlay;
+        seq.forEach(mv => { board[mv] = color; color = (color==='B'?'W':'B'); });
+        draw();
+        // 첫 수 강조
+        if (seq[0]){ const {x,y}=gtpToGrid(seq[0]); markPoint(x,y,'#2ecc71'); }
+    }
+    function tsumeReveal(){
+        if (!problem || finished) return;
+        playSolution(); finished = true;
+        setFeedback('정해입니다. 다음 문제에 도전하세요', 'fb-info');
+    }
+    function tsumeHint(){
+        if (!problem || finished) return;
+        const a = (problem.answers||[])[0]; if(!a) return;
+        const {x,y}=gtpToGrid(a); draw(); markPoint(x,y,'rgba(74,144,217,0.7)');
+        setFeedback('이 부근이 급소예요', 'fb-info');
+    }
+    function tsumeNext(){ loadProblem(); }
+
+    loadProblem();
 </script>
 </body>
 </html>
