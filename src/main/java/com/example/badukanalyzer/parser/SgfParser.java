@@ -15,7 +15,9 @@ public class SgfParser {
     private static final String SGF_CHARS = "abcdefghijklmnopqrs";
 
     public List<Move> parse(String filePath) throws IOException {
-        String content = Files.readString(Path.of(filePath));
+        // 타이젬 SGF는 대국자명 등이 CP949(MS949)로 저장됨 → UTF-8로 읽으면 디코딩 예외 발생
+        // (.gib 파서와 동일하게 MS949 사용)
+        String content = new String(Files.readAllBytes(Path.of(filePath)), Charset.forName("MS949"));
         content = content.replaceAll("\\s+", "");
 
         int mainStart = content.indexOf('(');
