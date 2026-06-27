@@ -38,7 +38,8 @@ public class SgfParser {
                 continue;
             }
             if ((content.charAt(i) == 'B' || content.charAt(i) == 'W')
-                    && i + 1 < content.length() && content.charAt(i + 1) == '[') {
+                    && i + 1 < content.length() && content.charAt(i + 1) == '['
+                    && !(i > 0 && isUpperLetter(content.charAt(i - 1)))) {
                 String color = String.valueOf(content.charAt(i));
                 int close = content.indexOf(']', i + 2);
                 if (close < 0) break;
