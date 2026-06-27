@@ -178,6 +178,14 @@ public class SingleGameService {
         return new SgfParser().parse(filePath);
     }
 
+    // 흑/백 대국자명 추출 (현재 SGF 지원, gib는 null)
+    private String[] parsePlayers(String filePath) {
+        if (filePath.toLowerCase().endsWith(".sgf")) {
+            return SgfParser.parsePlayers(filePath);
+        }
+        return new String[]{null, null};
+    }
+
     private List<MoveDetail> buildMoveDetails(List<Move> moves, List<JsonNode> nodes) {
         Map<Integer, JsonNode> byTurn = new HashMap<>();
         for (JsonNode node : nodes) {
