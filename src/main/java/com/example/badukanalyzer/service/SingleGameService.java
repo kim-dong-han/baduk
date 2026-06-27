@@ -78,9 +78,13 @@ public class SingleGameService {
         String id = UUID.randomUUID().toString();
         String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
+        String[] players = parsePlayers(filePath);
+
         SingleGameResult result = SingleGameResult.builder()
                 .id(id)
                 .fileName(fileName)
+                .blackPlayer(players[0])
+                .whitePlayer(players[1])
                 .analyzedAt(now)
                 .totalMoves(moves.size())
                 .moves(moveDetails)
