@@ -3,6 +3,7 @@ package com.example.badukanalyzer.parser;
 import com.example.badukanalyzer.domain.Move;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;

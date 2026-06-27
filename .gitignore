@@ -42,3 +42,7 @@ analysis_logs/
 
 ### Test/sample records ###
 pro_1_test.sgf
+
+### Local tool config ###
+.claude/
+baduk/
