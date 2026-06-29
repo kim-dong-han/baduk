@@ -233,4 +233,40 @@ public class KataGoService {
     public List<JsonNode> analyzeAllMoves(List<Move> moves) throws IOException {
         return analyzeAllMoves(moves, null);
     }
+
+    /** 현재 국면에서 KataGo 최선수 GTP 좌표 반환 (실시간 대국용) */
+    public String getBestMove(List<Move> moves) throws IOException {
+        ProcessBuilder pb = new ProcessBuilder(kataGoPath, "analysis", "-model", modelPath, "-config", configPath);
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+
+        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
+
+        ArrayNode movesArray = objectMapper.createArrayNode();
+        for (Move move : moves) {
+            ArrayNode entry = movesArray.addArray();
+            entry.add(move.getColor());
+            entry.add(CoordinateConverter.toGtpCoord(move));
+        }
+
+        String queryId = "play_" + UUID.randomUUID();
+        ObjectNode query = buildQuery(queryId, movesArray, List.of(moves.size()), 200);
+        writer.write(query.toString());
+        writer.newLine();
+        writer.flush();
+        writer.close();
+
+        List<JsonNode> results = collectResults(process);
+
+        try { process.waitFor(30, TimeUnit.SECONDS); }
+        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+
+        for (JsonNode node : results) {
+            JsonNode mi = node.path("moveInfos");
+            if (mi.isArray() && mi.size() > 0) {
+                return mi.get(0).path("move").asText("pass");
+            }
+        }
+        return "pass";
+    }
 }

@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI 대국</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #1a1a2e; }
+
+        /* ── 레이아웃 ── */
+        .play-layout {
+            display: flex;
+            height: calc(100vh - 52px);
+        }
+        .board-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+        #boardCanvas {
+            display: block;
+            border-radius: 6px;
+            box-shadow: 0 4px 32px rgba(0,0,0,0.6);
+            cursor: crosshair;
+        }
+        #boardCanvas.waiting { cursor: not-allowed; }
+
+        /* ── 우측 패널 ── */
+        .play-panel {
+            width: 240px;
+            min-width: 240px;
+            background: #fff;
+            overflow-y: auto;
+            padding: 20px 16px;
+            box-shadow: -2px 0 16px rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .panel-title { font-size: 18px; font-weight: 800; color: #1a1a2e; margin: 0 0 4px; }
+        .panel-sub   { font-size: 12px; color: #aaa; margin: 0; }
+
+        .info-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+        .info-label { font-size: 11px; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .info-value { font-size: 15px; font-weight: 700; color: #222; }
+
+        .stone-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+        .stone-circle { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; }
+        .stone-circle.black { background: radial-gradient(circle at 35% 32%, #666, #111); }
+        .stone-circle.white { background: radial-gradient(circle at 35% 32%, #fff, #ccc); border: 1px solid #bbb; }
+        .stone-label { font-size: 13px; color: #555; flex: 1; }
+        .stone-cap   { font-size: 14px; font-weight: 700; color: #333; }
+
+        /* 턴 표시 */
+        .turn-card { border-left: 4px solid #4a90d9; }
+        .turn-card.your-turn  { border-left-color: #2ecc71; }
+        .turn-card.ai-turn    { border-left-color: #e74c3c; }
+        .turn-card.game-over  { border-left-color: #aaa; }
+
+        /* AI 생각 중 스피너 */
+        .thinking-row { display: flex; align-items: center; gap: 10px; }
+        .think-spin { width: 18px; height: 18px; border: 3px solid #eee; border-top-color: #4a90d9; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 버튼 */
+        .panel-btn {
+            width: 100%; padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
+            cursor: pointer; border: none; transition: background 0.15s, opacity 0.15s;
+        }
+        .panel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-primary  { background: #4a90d9; color: #fff; }
+        .btn-primary:hover:not(:disabled) { background: #357abd; }
+        .btn-black    { background: #1a1a2e; color: #fff; }
+        .btn-black:hover:not(:disabled)  { background: #333; }
+        .btn-white    { background: #f0f0f0; color: #333; border: 1px solid #ccc; }
+        .btn-white:hover:not(:disabled)  { background: #e0e0e0; }
+        .btn-secondary { background: #f0f2f5; color: #555; border: 1px solid #ddd; }
+        .btn-secondary:hover:not(:disabled) { background: #e4e8ec; }
+        .btn-danger   { background: #fadbd8; color: #c0392b; }
+        .btn-danger:hover:not(:disabled)  { background: #f1948a; color: #fff; }
+
+        .btn-group { display: flex; flex-direction: column; gap: 8px; }
+        .divider { border: none; border-top: 1px solid #eee; margin: 4px 0; }
+
+        /* AI 착수 표시 */
+        .ai-move-badge { display: inline-block; background: #3498db; color: #fff; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+
+        /* 게임 종료 */
+        .gameover-msg { background: #fff7f0; border: 1px solid #fad7a0; border-radius: 10px; padding: 14px; text-align: center; }
+        .gameover-title { font-size: 16px; font-weight: 800; color: #e67e22; margin-bottom: 6px; }
+        .gameover-sub   { font-size: 12px; color: #888; }
+
+        /* 색 선택 */
+        .color-pick { display: flex; gap: 8px; }
+        .color-pick .panel-btn { flex: 1; padding: 14px 8px; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+<nav class="topnav">
+    <div class="topnav-inner">
+        <a class="brand" href="/analysis/batch">⚫ 바둑 분석</a>
+        <div class="topnav-links">
+            <a href="/analysis/batch">실력 리포트</a>
+            <a href="/game">기보 복기</a>
+            <a href="/play" class="active">AI 대국</a>
+        </div>
+    </div>
+</nav>
+
+<div class="play-layout">
+
+    <!-- ══ 바둑판 영역 ══ -->
+    <div class="board-area">
+        <canvas id="boardCanvas"></canvas>
+    </div>
+
+    <!-- ══ 우측 패널 ══ -->
+    <div class="play-panel">
+        <div>
+            <p class="panel-title">AI 대국</p>
+            <p class="panel-sub">KataGo AI와 실시간 대국</p>
+        </div>
+
+        <!-- 게임 시작 전 -->
+        <div id="setupSection">
+            <div class="info-card" style="text-align:center;padding:20px 14px;">
+                <div style="font-size:13px;color:#666;margin-bottom:16px;">돌 색을 선택하세요</div>
+                <div class="color-pick">
+                    <button class="panel-btn btn-black" onclick="startGame('B')">⚫<br><span style="font-size:11px;font-weight:400;">흑 (선)</span></button>
+                    <button class="panel-btn btn-white" onclick="startGame('W')">⚪<br><span style="font-size:11px;font-weight:400;">백 (후)</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 중 -->
+        <div id="gameSection" style="display:none;">
+
+            <!-- 턴 표시 -->
+            <div class="info-card turn-card" id="turnCard">
+                <div class="info-label">현재 차례</div>
+                <div id="turnText" class="info-value">-</div>
+            </div>
+
+            <!-- AI 생각 중 -->
+            <div class="info-card" id="thinkingCard" style="display:none;">
+                <div class="thinking-row">
+                    <div class="think-spin"></div>
+                    <span style="font-size:13px;color:#555;font-weight:600;">AI 생각 중...</span>
+                </div>
+            </div>
+
+            <!-- AI 마지막 착수 -->
+            <div class="info-card" id="aiLastCard" style="display:none;">
+                <div class="info-label">AI 착수</div>
+                <div style="margin-top:4px;"><span class="ai-move-badge" id="aiLastMove">-</span></div>
+            </div>
+
+            <!-- 수 번호 -->
+            <div class="info-card">
+                <div class="info-label">진행</div>
+                <div class="info-value" id="moveCount">0수</div>
+            </div>
+
+            <!-- 집힌 돌 -->
+            <div class="info-card">
+                <div class="info-label">집힌 돌</div>
+                <div class="stone-row">
+                    <div class="stone-circle black"></div>
+                    <span class="stone-label">흑이 잡은 수</span>
+                    <span class="stone-cap" id="blackCaptures">0</span>
+                </div>
+                <div class="stone-row">
+                    <div class="stone-circle white"></div>
+                    <span class="stone-label">백이 잡은 수</span>
+                    <span class="stone-cap" id="whiteCaptures">0</span>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- 액션 버튼 -->
+            <div class="btn-group">
+                <button class="panel-btn btn-secondary" id="btnPass"   onclick="passMove()">패스</button>
+                <button class="panel-btn btn-secondary" id="btnUndo"   onclick="undoMove()">무르기 (2수)</button>
+                <button class="panel-btn btn-danger"    id="btnResign" onclick="resignGame()">불계패</button>
+            </div>
+
+            <hr class="divider">
+            <button class="panel-btn btn-secondary" onclick="resetToSetup()">새 대국</button>
+        </div>
+
+        <!-- 게임 종료 -->
+        <div id="gameOverSection" style="display:none;">
+            <div class="gameover-msg">
+                <div class="gameover-title" id="gameOverTitle">게임 종료</div>
+                <div class="gameover-sub"  id="gameOverSub"></div>
+            </div>
+            <div style="margin-top:12px;">
+                <button class="panel-btn btn-primary" onclick="resetToSetup()">새 대국</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+/* ══════════════════════════════════
+   바둑판 상수 (동적 계산)
+══════════════════════════════════ */
+let CELL, PAD, BOARD_PX;
+const canvas = document.getElementById('boardCanvas');
+const ctx    = canvas.getContext('2d');
+
+function computeLayout() {
+    const navH   = 52, panelW = 240, gap = 20;
+    const availW = window.innerWidth  - panelW - gap;
+    const availH = window.innerHeight - navH   - gap;
+    const bs     = Math.max(300, Math.min(availW, availH));
+    CELL         = Math.floor(bs / 20.5);
+    PAD          = Math.round(CELL * 1.3);
+    BOARD_PX     = PAD * 2 + CELL * 18;
+    canvas.width        = BOARD_PX;
+    canvas.height       = BOARD_PX;
+    canvas.style.width  = BOARD_PX + 'px';
+    canvas.style.height = BOARD_PX + 'px';
+}
+computeLayout();
+window.addEventListener('resize', () => { computeLayout(); redraw(); });
+
+function px(gx) { return PAD + gx * CELL; }
+function py(gy) { return PAD + (18 - gy) * CELL; }
+
+/* ══════════════════════════════════
+   게임 상태
+══════════════════════════════════ */
+let history       = [];  // [{color, gtp}]
+let userColor     = 'B';
+let gameStarted   = false;
+let waitingForAI  = false;
+let isOver        = false;
+let blackCaptures = 0;
+let whiteCaptures = 0;
+let hoverCell     = null;
+let lastAiMove    = null;
+
+/* ══════════════════════════════════
+   좌표 변환
+══════════════════════════════════ */
+const COLS = 'ABCDEFGHJKLMNOPQRST';
+function gridToGtp(gx, gy) { return COLS[gx] + String(gy + 1); }
+function gtpToGrid(gtp) {
+    if (!gtp || gtp.toLowerCase() === 'pass') return null;
+    const c = gtp[0].toUpperCase();
+    let x = c.charCodeAt(0) - 65;
+    if (x >= 8) x--;
+    const y = parseInt(gtp.substring(1)) - 1;
+    if (isNaN(y) || x < 0 || x > 18 || y < 0 || y > 18) return null;
+    return {x, y};
+}
+function getGridFromEvent(e) {
+    const rect   = canvas.getBoundingClientRect();
+    const scale  = BOARD_PX / rect.width;
+    const mx     = (e.clientX - rect.left)  * scale;
+    const my     = (e.clientY - rect.top)   * scale;
+    const gx     = Math.round((mx - PAD) / CELL);
+    const gy     = 18 - Math.round((my - PAD) / CELL);
+    if (gx < 0 || gx > 18 || gy < 0 || gy > 18) return null;
+    return {x: gx, y: gy};
+}
+
+/* ══════════════════════════════════
+   보드 상태 시뮬레이션
+══════════════════════════════════ */
+function emptyBoard() {
+    return Array.from({length: 19}, () => Array(19).fill(null));
+}
+function adjacent(x, y) {
+    const r = [];
+    if (x > 0)  r.push([x-1, y]);
+    if (x < 18) r.push([x+1, y]);
+    if (y > 0)  r.push([x, y-1]);
+    if (y < 18) r.push([x, y+1]);
+    return r;
+}
+function getGroup(board, x, y) {
+    const color = board[x][y], group = [], visited = new Set(), stack = [[x, y]];
+    while (stack.length) {
+        const [cx, cy] = stack.pop();
+        const key = cx * 19 + cy;
+        if (visited.has(key)) continue;
+        visited.add(key);
+        if (board[cx][cy] !== color) continue;
+        group.push([cx, cy]);
+        for (const [nx, ny] of adjacent(cx, cy))
+            if (!visited.has(nx * 19 + ny)) stack.push([nx, ny]);
+    }
+    return group;
+}
+function hasLiberty(board, group) {
+    for (const [x, y] of group)
+        for (const [nx, ny] of adjacent(x, y))
+            if (board[nx][ny] === null) return true;
+    return false;
+}
+function applyMove(board, color, gtp) {
+    const g = gtpToGrid(gtp);
+    if (!g) return 0; // pass
+    if (board[g.x][g.y]) return -1; // occupied
+    board[g.x][g.y] = color;
+    const opp = color === 'B' ? 'W' : 'B';
+    let captured = 0;
+    for (const [nx, ny] of adjacent(g.x, g.y)) {
+        if (board[nx][ny] === opp) {
+            const grp = getGroup(board, nx, ny);
+            if (!hasLiberty(board, grp)) {
+                captured += grp.length;
+                for (const [gx, gy] of grp) board[gx][gy] = null;
+            }
+        }
+    }
+    // 자충수 제거
+    const selfGrp = getGroup(board, g.x, g.y);
+    if (!hasLiberty(board, selfGrp)) for (const [gx, gy] of selfGrp) board[gx][gy] = null;
+    return captured;
+}
+function buildBoard() {
+    const board = emptyBoard();
+    let bc = 0, wc = 0;
+    for (const {color, gtp} of history) {
+        const caps = applyMove(board, color, gtp);
+        if (caps > 0) {
+            if (color === 'B') bc += caps; else wc += caps;
+        }
+    }
+    blackCaptures = bc; whiteCaptures = wc;
+    return board;
+}
+function isLegal(board, color, gx, gy) {
+    if (board[gx][gy]) return false;
+    const tmp = board.map(c => c.slice());
+    tmp[gx][gy] = color;
+    const opp = color === 'B' ? 'W' : 'B';
+    for (const [nx, ny] of adjacent(gx, gy)) {
+        if (tmp[nx][ny] === opp) {
+            const grp = getGroup(tmp, nx, ny);
+            if (!hasLiberty(tmp, grp)) return true; // capture → legal
+        }
+    }
+    return hasLiberty(tmp, getGroup(tmp, gx, gy));
+}
+
+/* ══════════════════════════════════
+   그리기
+══════════════════════════════════ */
+function drawBoard() {
+    const bg = ctx.createLinearGradient(0, 0, BOARD_PX, BOARD_PX);
+    bg.addColorStop(0, '#E8B86D'); bg.addColorStop(1, '#C9954A');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, BOARD_PX, BOARD_PX);
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.8;
+    for (let i = 0; i < 19; i++) {
+        ctx.beginPath(); ctx.moveTo(px(i), py(0));  ctx.lineTo(px(i), py(18)); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px(0), py(i));  ctx.lineTo(px(18), py(i)); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    [3,9,15].forEach(a => [3,9,15].forEach(b => {
+        ctx.beginPath(); ctx.arc(px(a), py(b), CELL * 0.12, 0, Math.PI * 2); ctx.fill();
+    }));
+    const COLNAMES = 'ABCDEFGHJKLMNOPQRST';
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.font = `${Math.round(CELL*0.32)}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let i = 0; i < 19; i++) {
+        ctx.fillText(COLNAMES[i], px(i), PAD - CELL * 0.52);
+        ctx.fillText(COLNAMES[i], px(i), BOARD_PX - PAD + CELL * 0.52);
+        ctx.fillText(String(i+1), PAD - CELL * 0.55, py(i));
+        ctx.fillText(String(i+1), BOARD_PX - PAD + CELL * 0.55, py(i));
+    }
+}
+function drawStone(gx, gy, color, isLast) {
+    const cx = px(gx), cy = py(gy), r = CELL * 0.46;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    if (color === 'B') {
+        const g = ctx.createRadialGradient(cx - r*.32, cy - r*.32, r*.08, cx, cy, r);
+        g.addColorStop(0, '#555'); g.addColorStop(1, '#000');
+        ctx.fillStyle = g;
+    } else {
+        const g = ctx.createRadialGradient(cx - r*.32, cy - r*.32, r*.08, cx, cy, r);
+        g.addColorStop(0, '#fff'); g.addColorStop(1, '#ccc');
+        ctx.fillStyle = g;
+        ctx.fill(); ctx.strokeStyle = '#888'; ctx.lineWidth = 0.8; ctx.stroke();
+    }
+    ctx.fill();
+    if (isLast) {
+        ctx.beginPath(); ctx.arc(cx, cy, r * 0.42, 0, Math.PI * 2);
+        ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = Math.max(1.5, CELL * 0.07); ctx.stroke();
+    }
+}
+function drawHover(gx, gy, color) {
+    const cx = px(gx), cy = py(gy), r = CELL * 0.46;
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = color === 'B' ? '#111' : '#f5f5f5';
+    ctx.fill();
+    if (color === 'W') { ctx.strokeStyle = '#999'; ctx.lineWidth = 0.8; ctx.stroke(); }
+    ctx.restore();
+}
+function redraw() {
+    drawBoard();
+    const board = buildBoard();
+    const lastGtp = history.length > 0 ? history[history.length - 1].gtp : null;
+    const lastG   = lastGtp ? gtpToGrid(lastGtp) : null;
+    for (let x = 0; x < 19; x++)
+        for (let y = 0; y < 19; y++)
+            if (board[x][y]) drawStone(x, y, board[x][y], lastG && x === lastG.x && y === lastG.y);
+
+    // 호버 미리보기
+    if (hoverCell && !board[hoverCell.x][hoverCell.y] && !waitingForAI && !isOver && gameStarted) {
+        const nextColor = history.length % 2 === 0 ? 'B' : 'W';
+        if (nextColor === userColor && isLegal(board, nextColor, hoverCell.x, hoverCell.y)) {
+            drawHover(hoverCell.x, hoverCell.y, nextColor);
+        }
+    }
+
+    // UI 갱신
+    document.getElementById('blackCaptures').textContent = blackCaptures;
+    document.getElementById('whiteCaptures').textContent = whiteCaptures;
+    document.getElementById('moveCount').textContent     = history.length + '수';
+}
+
+/* ══════════════════════════════════
+   클릭 / 호버 이벤트
+══════════════════════════════════ */
+canvas.addEventListener('click', function(e) {
+    if (!gameStarted || waitingForAI || isOver) return;
+    const g = getGridFromEvent(e);
+    if (!g) return;
+    const board = buildBoard();
+    if (!isLegal(board, userColor, g.x, g.y)) return;
+    sendMove(gridToGtp(g.x, g.y));
+});
+
+canvas.addEventListener('mousemove', function(e) {
+    if (!gameStarted || waitingForAI || isOver) return;
+    const g = getGridFromEvent(e);
+    if (!g) {
+        if (hoverCell) { hoverCell = null; redraw(); }
+        return;
+    }
+    if (hoverCell && hoverCell.x === g.x && hoverCell.y === g.y) return;
+    hoverCell = g; redraw();
+});
+canvas.addEventListener('mouseleave', function() {
+    if (hoverCell) { hoverCell = null; redraw(); }
+});
+
+/* ══════════════════════════════════
+   패널 UI 갱신
+══════════════════════════════════ */
+function updateTurnUI() {
+    const tc   = document.getElementById('turnCard');
+    const txt  = document.getElementById('turnText');
+    if (isOver) {
+        tc.className = 'info-card turn-card game-over';
+        txt.textContent = '게임 종료';
+        return;
+    }
+    const nextColor = history.length % 2 === 0 ? 'B' : 'W';
+    const isUser    = nextColor === userColor;
+    tc.className = 'info-card turn-card ' + (isUser ? 'your-turn' : 'ai-turn');
+    const colorLabel = nextColor === 'B' ? '⚫ 흑' : '⚪ 백';
+    txt.textContent  = colorLabel + (isUser ? ' (내 차례)' : ' (AI)');
+}
+function setWaiting(on) {
+    waitingForAI = on;
+    canvas.className = on ? 'waiting' : '';
+    document.getElementById('thinkingCard').style.display = on ? '' : 'none';
+    ['btnPass','btnUndo','btnResign'].forEach(id => {
+        document.getElementById(id).disabled = on;
+    });
+}
+function showAiMove(gtp) {
+    lastAiMove = gtp;
+    const card = document.getElementById('aiLastCard');
+    const lbl  = document.getElementById('aiLastMove');
+    card.style.display = '';
+    lbl.textContent    = gtp === 'pass' ? '패스' : gtp;
+}
+function showGameOver(title, sub) {
+    isOver = true;
+    document.getElementById('gameSection').style.display    = 'none';
+    document.getElementById('gameOverSection').style.display = '';
+    document.getElementById('gameOverTitle').textContent = title;
+    document.getElementById('gameOverSub').textContent   = sub || '';
+    updateTurnUI();
+    redraw();
+}
+
+/* ══════════════════════════════════
+   API 호출
+══════════════════════════════════ */
+function startGame(color) {
+    userColor = color;
+    fetch('/api/play/new', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({userColor: color})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.ok) { alert('오류: ' + data.error); return; }
+        history = []; blackCaptures = 0; whiteCaptures = 0;
+        isOver = false; lastAiMove = null;
+        gameStarted = true;
+
+        document.getElementById('setupSection').style.display    = 'none';
+        document.getElementById('gameOverSection').style.display = 'none';
+        document.getElementById('gameSection').style.display     = '';
+        document.getElementById('aiLastCard').style.display      = 'none';
+
+        if (data.aiMove) {
+            history.push({color: color === 'B' ? 'W' : 'B', gtp: data.aiMove});
+            showAiMove(data.aiMove);
+        }
+        setWaiting(false);
+        updateTurnUI();
+        redraw();
+    })
+    .catch(err => { setWaiting(false); alert('연결 오류: ' + err); });
+
+    // AI가 선착(백 선택)할 때 스피너 표시
+    if (color === 'W') {
+        document.getElementById('setupSection').style.display    = 'none';
+        document.getElementById('gameSection').style.display     = '';
+        document.getElementById('gameOverSection').style.display = 'none';
+        document.getElementById('aiLastCard').style.display      = 'none';
+        gameStarted = true;
+        setWaiting(true);
+        updateTurnUI();
+        redraw();
+    }
+}
+
+function sendMove(gtp) {
+    setWaiting(true); hoverCell = null;
+    history.push({color: userColor, gtp});
+    updateTurnUI(); redraw();
+
+    fetch('/api/play/move', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({gtp})
+    })
+    .then(r => r.json())
+    .then(data => {
+        setWaiting(false);
+        if (!data.ok) { history.pop(); redraw(); alert('착수 불가: ' + data.error); return; }
+
+        if (data.aiMove) {
+            const aiColor = userColor === 'B' ? 'W' : 'B';
+            history.push({color: aiColor, gtp: data.aiMove});
+            showAiMove(data.aiMove);
+        }
+        if (data.gameOver) {
+            showGameOver('더블 패스', '쌍방 패스로 대국이 종료되었습니다.');
+        } else {
+            updateTurnUI();
+        }
+        redraw();
+    })
+    .catch(err => { setWaiting(false); history.pop(); redraw(); alert('오류: ' + err); });
+}
+
+function passMove() {
+    if (waitingForAI || isOver) return;
+    setWaiting(true); hoverCell = null;
+    const color = history.length % 2 === 0 ? 'B' : 'W';
+    history.push({color, gtp: 'pass'});
+    updateTurnUI(); redraw();
+
+    fetch('/api/play/pass', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: '{}'
+    })
+    .then(r => r.json())
+    .then(data => {
+        setWaiting(false);
+        if (!data.ok) { history.pop(); redraw(); return; }
+        if (data.aiMove !== undefined && data.aiMove !== null) {
+            const aiColor = userColor === 'B' ? 'W' : 'B';
+            history.push({color: aiColor, gtp: data.aiMove});
+            showAiMove(data.aiMove);
+        }
+        if (data.gameOver) {
+            showGameOver('더블 패스', '쌍방 패스로 대국이 종료되었습니다.');
+        } else {
+            updateTurnUI();
+        }
+        redraw();
+    })
+    .catch(err => { setWaiting(false); history.pop(); redraw(); alert('오류: ' + err); });
+}
+
+function undoMove() {
+    if (waitingForAI || isOver) return;
+    fetch('/api/play/undo', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+    .then(r => r.json())
+    .then(data => {
+        if (!data.ok) return;
+        history = data.history.map(h => ({color: h.color, gtp: h.gtp}));
+        isOver = false;
+        document.getElementById('aiLastCard').style.display = 'none';
+        updateTurnUI(); redraw();
+    });
+}
+
+function resignGame() {
+    if (waitingForAI || isOver) return;
+    const side = userColor === 'B' ? '흑' : '백';
+    showGameOver(side + ' 불계패', 'AI의 승리입니다.');
+}
+
+function resetToSetup() {
+    gameStarted = false; isOver = false; waitingForAI = false;
+    history = []; blackCaptures = 0; whiteCaptures = 0; hoverCell = null; lastAiMove = null;
+    document.getElementById('setupSection').style.display    = '';
+    document.getElementById('gameSection').style.display     = 'none';
+    document.getElementById('gameOverSection').style.display = 'none';
+    redraw();
+}
+
+/* ── 초기 보드 그리기 ── */
+redraw();
+</script>
+</body>
+</html>

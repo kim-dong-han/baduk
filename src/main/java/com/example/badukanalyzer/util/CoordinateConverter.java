@@ -40,4 +40,15 @@ public class CoordinateConverter {
         int row = y + 1;
         return "" + col + row;
     }
+
+    public static Move fromGtp(String color, String gtp) {
+        if (gtp == null || gtp.isEmpty() || "pass".equalsIgnoreCase(gtp)) {
+            return new Move(color, -1, -1);
+        }
+        char col = Character.toUpperCase(gtp.charAt(0));
+        int x = col - 'A';
+        if (x >= 8) x--;
+        int y = Integer.parseInt(gtp.substring(1)) - 1;
+        return new Move(color, x, y);
+    }
 }
