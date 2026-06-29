@@ -139,18 +139,63 @@
                 document.getElementById('runningState').style.display = 'none';
                 document.getElementById('errorState').style.display = 'block';
                 document.getElementById('errorMsg').textContent = data.error;
+            } else if (data.status === 'UNKNOWN') {
+                // 서버 재시작 등으로 분석 세션이 사라진 경우 — 무한 로딩 방지
+                document.getElementById('runningState').style.display = 'none';
+                const es = document.getElementById('errorState');
+                es.querySelector('h2').textContent = '분석 정보를 찾을 수 없음';
+                document.getElementById('errorMsg').textContent =
+                    '이전 분석 세션이 만료되었습니다(서버 재시작 등). 완료된 결과는 결과 목록에서 확인하세요.';
+                const link = es.querySelector('.nav-link'); if (link) link.textContent = '결과 목록으로';
+                es.style.display = 'block';
             } else {
                 setProgress(parseInt(data.progress) || 0);
                 setTimeout(poll, 2000);
             }
         }).catch(() => setTimeout(poll, 5000));
     }
-    setTimeout(poll, 2000);
+    poll();  // 즉시 1회 확인 (완료 상태면 바로 '완료' 표시)
+    // 뒤로가기(bfcache)로 복원되면 상태 재확인 — 멈춘 로딩 방지
+    window.addEventListener('pageshow', (e) => { if (e.persisted && !resultUrl) poll(); });
 
     /* ───────── 사활 위젯 ───────── */
     const COLS = 'ABCDEFGHJKLMNOPQRST';
     function gtpToGrid(g){ const x = COLS.indexOf(g[0].toUpperCase()); const y = parseInt(g.slice(1)) - 1; return {x, y}; }
     function gridToGtp(x, y){ return COLS[x] + (y + 1); }
+
+    // ── 바둑 기본 규칙: 인접점, 그룹/활로, 착수(따냄·착수금지) ──
+    function neighbors(gtp){
+        const {x,y} = gtpToGrid(gtp); const sz = (problem && problem.boardSize) || 19; const out = [];
+        if (x > 0)      out.push(gridToGtp(x-1, y));
+        if (x < sz-1)   out.push(gridToGtp(x+1, y));
+        if (y > 0)      out.push(gridToGtp(x, y-1));
+        if (y < sz-1)   out.push(gridToGtp(x, y+1));
+        return out;
+    }
+    function groupOf(gtp){
+        const color = board[gtp]; const stones = new Set([gtp]); const stack = [gtp]; const libs = new Set();
+        while (stack.length){
+            for (const n of neighbors(stack.pop())){
+                if (!board[n]) libs.add(n);
+                else if (board[n] === color && !stones.has(n)) { stones.add(n); stack.push(n); }
+            }
+        }
+        return { stones, libs: libs.size };
+    }
+    // 돌 놓기 + 따냄/착수금지 처리. 반환 {ok, captured}
+    function placeMove(gtp, color){
+        board[gtp] = color;
+        const opp = color === 'B' ? 'W' : 'B';
+        let captured = 0;
+        for (const n of neighbors(gtp)){
+            if (board[n] === opp){
+                const g = groupOf(n);
+                if (g.libs === 0){ g.stones.forEach(s => { delete board[s]; captured++; }); }
+            }
+        }
+        if (groupOf(gtp).libs === 0 && captured === 0){ delete board[gtp]; return { ok:false, captured:0 }; } // 착수금지(자살수)
+        return { ok:true, captured };
+    }
 
     let problem = null, board = null, solved = 0, finished = false, step = 0;
     let currentDifficulty = '쉬움';
@@ -247,7 +292,7 @@
     function opponentReply(){
         const seq = curSeq();
         if (step >= seq.length) { finishSolved(); return; }
-        const mv = seq[step]; board[mv] = moveColor(step); step++;
+        const mv = seq[step]; placeMove(mv, moveColor(step)); step++;
         draw();
         const {x,y} = gtpToGrid(mv); markPoint(x, y, 'rgba(40,40,40,0.5)');
         if (step >= seq.length) { finishSolved(); }
@@ -270,7 +315,7 @@
 
         const seq = curSeq();
         if (gtp === seq[step]) {           // 이번 차례의 정해 수와 일치
-            board[gtp] = moveColor(step); step++;
+            placeMove(gtp, moveColor(step)); step++;
             draw(); markPoint(best.x, best.y, '#2ecc71');
             if (step >= seq.length) { finishSolved(); }
             else { setTimeout(opponentReply, 450); }   // 상대가 받아줌
@@ -283,7 +328,7 @@
     function tsumeReveal(){
         if (!problem || finished) return;
         const seq = curSeq();
-        for (let i = step; i < seq.length; i++) { board[seq[i]] = moveColor(i); }
+        for (let i = step; i < seq.length; i++) { placeMove(seq[i], moveColor(i)); }
         step = seq.length; finished = true; draw();
         if (seq[0]){ const {x,y}=gtpToGrid(seq[0]); markPoint(x,y,'#2ecc71'); }
         setFeedback('정해입니다. 다음 문제에 도전하세요', 'fb-info');
