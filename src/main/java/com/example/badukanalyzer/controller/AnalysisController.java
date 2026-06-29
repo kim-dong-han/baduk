@@ -23,6 +23,8 @@ public class AnalysisController {
     public String analyzeBatch(Model model) {
         model.addAttribute("userResults", analysisService.getUserResults());
         model.addAttribute("proResults", analysisService.getProResults());
+        model.addAttribute("userGameCount", analysisService.getUserGameCount());
+        model.addAttribute("proGameCount", analysisService.getProGameCount());
         model.addAttribute("proWinrateTrend", analysisService.getProWinrateTrend());
         model.addAttribute("userWinrateTrend", analysisService.getUserWinrateTrend());
         model.addAttribute("error", analysisService.getErrorMessage());

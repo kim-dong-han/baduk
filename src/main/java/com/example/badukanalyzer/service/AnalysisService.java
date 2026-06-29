@@ -28,6 +28,8 @@ public class AnalysisService {
 
     public List<AnalysisResponse> getUserResults() { return aggregate(false); }
     public List<AnalysisResponse> getProResults()  { return aggregate(true); }
+    public int getUserGameCount() { return countGames(false); }
+    public int getProGameCount()  { return countGames(true); }
     public Object getProWinrateTrend()  { return null; }   // 현재 템플릿 미사용
     public Object getUserWinrateTrend() { return null; }
     public String getErrorMessage()     { return errorMessage; }
@@ -82,6 +84,16 @@ public class AnalysisService {
                     .build());
         }
         return out;
+    }
+
+    private int countGames(boolean pro) {
+        try {
+            return (int) singleGameService.listResults().stream()
+                    .filter(g -> (g.getFileName() != null && g.getFileName().contains(PRO_MARKER)) == pro)
+                    .count();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private double round2(double v) { return Math.round(v * 100)  / 100.0; }

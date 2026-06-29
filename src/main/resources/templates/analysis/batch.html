@@ -100,6 +100,8 @@
         const proResultsData   = /*[[${proResults}]]*/ [];
         const proWinrateTrend  = /*[[${proWinrateTrend}]]*/ null;
         const userWinrateTrend = /*[[${userWinrateTrend}]]*/ null;
+        const userGameCount = /*[[${userGameCount}]]*/ 0;
+        const proGameCount  = /*[[${proGameCount}]]*/ 0;
     </script>
 
     <div id="user-root"></div>
@@ -152,9 +154,10 @@
 
         let chartIdx = 0;
 
-        function renderAnalysis(results, rootId, title, color) {
+        function renderAnalysis(results, rootId, title, color, gameCount) {
             if (!results || results.length === 0) return;
             const root = document.getElementById(rootId);
+            const countTag = gameCount ? ' <span style="font-size:13px;color:#888;font-weight:400;">· ' + gameCount + '판 집계</span>' : '';
             const sorted = [...results].sort((a, b) => b.matchRate - a.matchRate);
             const best = sorted[0], worst = sorted[sorted.length - 1];
             const avgMatch = (results.reduce((s, r) => s + r.matchRate, 0) / results.length).toFixed(1);
@@ -163,7 +166,7 @@
                 ? '<b>' + best.phase + '</b>을 가장 잘 뒀고, <b>' + worst.phase + '</b> 연습이 가장 필요해요.'
                 : '<b>' + best.phase + '</b> 구간 분석 완료 — 기보가 더 쌓이면 전체 리포트가 나와요.';
 
-            root.innerHTML = '<h2 style="font-size:18px;margin:0 0 16px;color:#333;">' + title + '</h2>';
+            root.innerHTML = '<h2 style="font-size:18px;margin:0 0 16px;color:#333;">' + title + countTag + '</h2>';
 
             // 요약 배너
             root.innerHTML += '<div class="summary-banner">'
@@ -276,8 +279,8 @@
             });
         }
 
-        renderAnalysis(userResultsData, 'user-root', '내 기보 분석',          '#4a90d9');
-        renderAnalysis(proResultsData,  'pro-root',  '신진서 프로 기보 분석', '#8e44ad');
+        renderAnalysis(userResultsData, 'user-root', '내 기보 분석',          '#4a90d9', userGameCount);
+        renderAnalysis(proResultsData,  'pro-root',  '신진서 프로 기보 분석', '#8e44ad', proGameCount);
     })();
     </script>
     </div>
