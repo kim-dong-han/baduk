@@ -33,6 +33,10 @@
         .tsume-title { font-size: 15px; font-weight: 700; }
         .tsume-meta { font-size: 12px; color: #999; }
         .tsume-badge { font-size: 11px; font-weight: 700; color: #b7770d; background: #fdf3d7; border-radius: 99px; padding: 2px 9px; margin-left: 6px; }
+        .tsume-diff-sel { display: flex; gap: 6px; margin-bottom: 10px; }
+        .diff-btn { font-size: 12px; color: #777; background: #f0f2f5; border: 1px solid #ddd; border-radius: 99px; padding: 4px 13px; cursor: pointer; }
+        .diff-btn:hover { background: #e4e8ec; }
+        .diff-btn.active { color: #fff; background: #b7770d; border-color: #b7770d; }
         .tsume-prompt { font-size: 13px; color: #555; margin-bottom: 12px; min-height: 18px; }
         #tsumeCanvas { display: block; margin: 0 auto 10px; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.16); cursor: pointer; touch-action: manipulation; }
         .tsume-feedback { font-size: 14px; font-weight: 700; min-height: 22px; margin-bottom: 10px; }
@@ -77,6 +81,11 @@
             <div class="tsume-head">
                 <div class="tsume-title">🧩 사활 문제<span class="tsume-badge" id="tsumeDiff">쉬움</span></div>
                 <div class="tsume-meta">푼 문제 <b id="tsumeSolved">0</b></div>
+            </div>
+            <div class="tsume-diff-sel">
+                <button class="diff-btn active" data-diff="쉬움" onclick="setDifficulty(this)">쉬움</button>
+                <button class="diff-btn" data-diff="보통" onclick="setDifficulty(this)">보통</button>
+                <button class="diff-btn" data-diff="어려움" onclick="setDifficulty(this)">어려움</button>
             </div>
             <div class="tsume-prompt" id="tsumePrompt">문제를 불러오는 중...</div>
             <canvas id="tsumeCanvas" width="300" height="300"></canvas>
@@ -144,11 +153,21 @@
     function gridToGtp(x, y){ return COLS[x] + (y + 1); }
 
     let problem = null, board = null, solved = 0, finished = false;
+    let currentDifficulty = '쉬움';
     const canvas = document.getElementById('tsumeCanvas');
     let geom = null; // {xMin,yMin,xMax,yMax,cell,pad,cols,rows}
 
+    function setDifficulty(btn) {
+        document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentDifficulty = btn.dataset.diff;
+        loadProblem();
+    }
+
     function loadProblem() {
-        fetch('/api/tsumego/random').then(r => r.status === 204 ? null : r.json()).then(p => {
+        let url = '/api/tsumego/random?difficulty=' + encodeURIComponent(currentDifficulty);
+        if (problem && problem.id) url += '&exclude=' + encodeURIComponent(problem.id);
+        fetch(url).then(r => r.status === 204 ? null : r.json()).then(p => {
             if (!p) { document.getElementById('tsume').style.display = 'none'; return; }
             problem = p; finished = false;
             document.getElementById('tsume').style.display = 'block';

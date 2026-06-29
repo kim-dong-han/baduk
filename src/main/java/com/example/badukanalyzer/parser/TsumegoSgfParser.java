@@ -56,7 +56,7 @@ public class TsumegoSgfParser {
 
         return TsumegoProblem.builder()
                 .id(id)
-                .difficulty("쉬움")
+                .difficulty(detectDifficulty(content, id, moveGtp.size()))
                 .toPlay(toPlay)
                 .prompt(prompt.trim())
                 .stones(stones)
@@ -64,6 +64,20 @@ public class TsumegoSgfParser {
                 .solution(moveGtp)
                 .region(computeRegion(grids))
                 .build();
+    }
+
+    // 난이도: ①파일명 접두사(쉬움_/보통_/어려움_ 또는 easy/normal/hard) → ②SGF DIFF[] 속성 → ③정해 수순 길이 휴리스틱
+    private String detectDifficulty(String content, String id, int solutionMoves) {
+        String src = (id == null ? "" : id.toLowerCase());
+        String prop = firstValue(content, "DIFF");
+        if (prop != null) src = src + " " + prop.toLowerCase();
+        if (src.contains("어려움") || src.contains("hard")) return "어려움";
+        if (src.contains("보통") || src.contains("normal")) return "보통";
+        if (src.contains("쉬움") || src.contains("easy")) return "쉬움";
+        // 정해가 길수록 어렵다고 간주 (흑백 합산 수순 기준)
+        if (solutionMoves >= 8) return "어려움";
+        if (solutionMoves >= 4) return "보통";
+        return "쉬움";
     }
 
     private void addStone(List<TsumegoProblem.Stone> stones, List<int[]> grids, String color, String sgf) {

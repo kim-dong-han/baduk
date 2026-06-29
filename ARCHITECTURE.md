@@ -45,8 +45,10 @@ dto/          MoveDetail(bestPv 포함), SingleGameResult, AnalysisResponse, Upl
 ## 사활(Tsumego) 위젯 — 대기 중 학습
 - 목적: 분석 대기(waiting.html) 동안 랜덤 사활 문제를 풀게 해 체감 대기시간↓.
 - 로드: `TsumegoService.load()` `@PostConstruct`로 `classpath*:tsumego/*.sgf` 1회 파싱 → 인메모리.
-- API: `GET /api/tsumego/random`(없으면 204), `GET /api/tsumego/count`.
+- API: `GET /api/tsumego/random?difficulty=&exclude=`(없으면 204), `GET /api/tsumego/count`.
+  - `difficulty`(쉬움/보통/어려움/전체·생략=전체) 필터, `exclude`=직전 문제 id 제외 → "다음 문제"가 항상 바뀜. 후보 없으면 단계적 완화(문제 수 제한 없음).
 - `TsumegoProblem`: stones(초기배치)/answers(정답 첫수,복수)/solution(정해)/region(코너 확대)/difficulty.
+- 난이도 판정(TsumegoSgfParser.detectDifficulty): 파일명 접두사(쉬움_/보통_/어려움_ 또는 easy/normal/hard) → SGF `DIFF[]` → 정해 수순 길이(≥8 어려움/≥4 보통/그외 쉬움).
 - 좌표는 전부 GTP. 정답 미추출 문제는 로드 시 건너뜀.
 
 ## 데이터 흐름 (단일 기보 분석)
