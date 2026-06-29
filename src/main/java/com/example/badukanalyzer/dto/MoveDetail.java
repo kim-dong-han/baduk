@@ -15,7 +15,8 @@ public class MoveDetail {
     private int turnNumber;        // 1-indexed (표시용)
     private String color;          // "B" or "W"
     private String move;           // 실제 착점 (GTP: "D4")
-    private String bestMove;       // KataGo 최선수
+    private String bestMove;        // KataGo 최선수 (1위)
+    private List<String> topMoves; // KataGo 추천수 상위 3개 GTP 좌표 (1·2·3위)
     private List<String> bestPv;   // 최선수 이후 예상 진행 (변화도, GTP 좌표 순서)
 
     private boolean matchesBest;

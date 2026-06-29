@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>복기 분석 결과</title>
     <link rel="stylesheet" href="/css/common.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/js/chart.min.js"></script>
     <style>
         .header { margin-bottom: 20px; }
         .header h1 { font-size: 22px; margin: 0 0 6px; }
@@ -381,7 +381,7 @@
     <!-- ══ 전체 수 분석 (전체 폭) ══ -->
     <div class="card-box area-table">
         <p class="section-title">전체 수 분석</p>
-        <p class="section-desc">수를 클릭하면 바둑판에 해당 시점의 국면이 표시됩니다. <span style="color:#e74c3c;">●</span> 착점 &nbsp; <span style="color:#3498db;">△</span> 최선수</p>
+        <p class="section-desc">수를 클릭하면 바둑판에 해당 시점의 국면이 표시됩니다. <span style="color:#e74c3c;">●</span> 착점 &nbsp; <span style="color:#3498db;">△</span> AI 추천 1위 &nbsp; <span style="color:#5dade2;">△</span> 2위 &nbsp; <span style="color:#a9cce3;">△</span> 3위</p>
         <div class="table-filters">
             <button class="filter-btn active" data-filter="all"  onclick="setFilter(this)">전체</button>
             <button class="filter-btn"        data-filter="key"  onclick="setFilter(this)">실수·악수만</button>
@@ -536,17 +536,22 @@ function drawStone(ctx, gx, gy, color, isLast) {
     }
 }
 
-/* ── 최선수 마커 ── */
-function drawBestMarker(ctx, gx, gy) {
+/* ── AI 추천수 마커 (rank=1 진파랑 / 2 하늘색 / 3 연청) ── */
+const CAND_COLORS   = ['#3498db', '#5dade2', '#a9cce3'];
+const CAND_ALPHAS   = [0.18, 0.12, 0.08];
+const CAND_SIZES    = [0.36, 0.30, 0.25];
+const CAND_WIDTHS   = [2.0, 1.5, 1.2];
+function drawCandidateMarker(ctx, gx, gy, rank) {
     const cx = px(gx), cy = py(gy);
-    const r = CELL * 0.36;
+    const r = CELL * CAND_SIZES[rank - 1];
     ctx.beginPath();
     ctx.moveTo(cx, cy - r);
     ctx.lineTo(cx + r * 0.866, cy + r * 0.5);
     ctx.lineTo(cx - r * 0.866, cy + r * 0.5);
     ctx.closePath();
-    ctx.strokeStyle = '#3498db'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = 'rgba(52,152,219,0.15)'; ctx.fill();
+    ctx.strokeStyle = CAND_COLORS[rank - 1]; ctx.lineWidth = CAND_WIDTHS[rank - 1]; ctx.stroke();
+    const [ri, gi, bi] = rank === 1 ? [52,152,219] : rank === 2 ? [93,173,226] : [169,204,227];
+    ctx.fillStyle = `rgba(${ri},${gi},${bi},${CAND_ALPHAS[rank - 1]})`; ctx.fill();
 }
 
 /* ── 따냄 로직 ── */
@@ -675,10 +680,15 @@ function showMove(idx) {
             for (let y = 0; y < 19; y++)
                 if (board[x][y]) drawStone(ctx, x, y, board[x][y], lastG && x === lastG.x && y === lastG.y);
 
-        if (cur.bestMove && cur.move !== cur.bestMove) {
-            const bg = gtpToGrid(cur.bestMove);
-            if (bg && !board[bg.x][bg.y]) drawBestMarker(ctx, bg.x, bg.y);
-        }
+        // AI 추천수 상위 3개 표시 (신규: topMoves / 구 JSON fallback: bestMove)
+        const candidates = (cur.topMoves && cur.topMoves.length > 0)
+            ? cur.topMoves
+            : (cur.bestMove ? [cur.bestMove] : []);
+        candidates.forEach((mv, i) => {
+            if (!mv || mv === cur.move) return;
+            const g = gtpToGrid(mv);
+            if (g && !board[g.x][g.y]) drawCandidateMarker(ctx, g.x, g.y, i + 1);
+        });
 
         // 수순번호 표시
         if (showSequence) {

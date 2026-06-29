@@ -233,9 +233,14 @@ public class SingleGameService {
             // scoreLoss: rootInfo.scoreLead(최적 기대값)과 실제 착점의 scoreLead 비교
             // rootInfo.scoreLead = 현재 플레이어가 최선으로 뒀을 때 기대 집수 (Black 기준)
             // max(0,...) 클램핑: 노이즈로 인한 음수(득점) 방지
+            List<String> topMoves = new ArrayList<>();
             double scoreLoss;
             if (moveInfos.isArray() && moveInfos.size() > 0) {
                 bestMove = moveInfos.get(0).path("move").asText();
+                // 상위 3개 후보수 GTP 저장
+                for (int j = 0; j < Math.min(3, moveInfos.size()); j++) {
+                    topMoves.add(moveInfos.get(j).path("move").asText());
+                }
                 // 최선수의 예상 진행(PV)을 변화도로 저장 (최대 8수)
                 JsonNode pvNode = moveInfos.get(0).path("pv");
                 if (pvNode.isArray()) {
@@ -274,6 +279,7 @@ public class SingleGameService {
                     .color(move.getColor())
                     .move(actualGtp)
                     .bestMove(bestMove)
+                    .topMoves(topMoves)
                     .bestPv(bestPv)
                     .matchesBest(actualGtp.equalsIgnoreCase(bestMove))
                     .winrateBefore(round3(winrateBefore))
