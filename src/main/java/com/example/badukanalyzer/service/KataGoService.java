@@ -32,6 +32,11 @@ public class KataGoService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // 실시간 대국용 영구 프로세스
+    private Process      playProcess = null;
+    private BufferedWriter playWriter = null;
+    private BufferedReader playReader = null;
+
     public record HybridGameResult(List<JsonNode> winrateNodes, List<JsonNode> qualityNodes) {}
 
     /**
@@ -234,13 +239,19 @@ public class KataGoService {
         return analyzeAllMoves(moves, null);
     }
 
-    /** 현재 국면에서 KataGo 최선수 GTP 좌표 반환 (실시간 대국용) */
-    public String getBestMove(List<Move> moves) throws IOException {
+    /** 실시간 대국용 영구 프로세스 초기화 (죽어 있으면 재시작) */
+    private synchronized void ensurePlayProcess() throws IOException {
+        if (playProcess != null && playProcess.isAlive()) return;
         ProcessBuilder pb = new ProcessBuilder(kataGoPath, "analysis", "-model", modelPath, "-config", configPath);
         pb.redirectErrorStream(true);
-        Process process = pb.start();
+        playProcess = pb.start();
+        playWriter  = new BufferedWriter(new OutputStreamWriter(playProcess.getOutputStream(), StandardCharsets.UTF_8));
+        playReader  = new BufferedReader(new InputStreamReader(playProcess.getInputStream(),   StandardCharsets.UTF_8));
+    }
 
-        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
+    /** 현재 국면에서 KataGo 최선수 GTP 좌표 반환 (실시간 대국용, 영구 프로세스) */
+    public synchronized String getBestMove(List<Move> moves) throws IOException {
+        ensurePlayProcess();
 
         ArrayNode movesArray = objectMapper.createArrayNode();
         for (Move move : moves) {
@@ -249,23 +260,30 @@ public class KataGoService {
             entry.add(CoordinateConverter.toGtpCoord(move));
         }
 
-        String queryId = "play_" + UUID.randomUUID();
-        ObjectNode query = buildQuery(queryId, movesArray, List.of(moves.size()), 200);
-        writer.write(query.toString());
-        writer.newLine();
-        writer.flush();
-        writer.close();
+        String queryId = "play_" + System.currentTimeMillis();
+        ObjectNode query = buildQuery(queryId, movesArray, List.of(moves.size()), 100);
+        playWriter.write(query.toString());
+        playWriter.newLine();
+        playWriter.flush();
 
-        List<JsonNode> results = collectResults(process);
-
-        try { process.waitFor(30, TimeUnit.SECONDS); }
-        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-
-        for (JsonNode node : results) {
-            JsonNode mi = node.path("moveInfos");
-            if (mi.isArray() && mi.size() > 0) {
-                return mi.get(0).path("move").asText("pass");
+        // 해당 queryId 응답만 읽기 (타임아웃 10초)
+        long deadline = System.currentTimeMillis() + 10_000;
+        String line;
+        while (System.currentTimeMillis() < deadline) {
+            if (!playReader.ready()) {
+                try { Thread.sleep(20); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+                continue;
             }
+            line = playReader.readLine();
+            if (line == null) break;
+            try {
+                JsonNode node = objectMapper.readTree(line);
+                if (queryId.equals(node.path("id").asText())) {
+                    JsonNode mi = node.path("moveInfos");
+                    if (mi.isArray() && mi.size() > 0) return mi.get(0).path("move").asText("pass");
+                    return "pass";
+                }
+            } catch (Exception ignored) {}
         }
         return "pass";
     }
