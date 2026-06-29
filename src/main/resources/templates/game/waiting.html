@@ -152,7 +152,7 @@
     function gtpToGrid(g){ const x = COLS.indexOf(g[0].toUpperCase()); const y = parseInt(g.slice(1)) - 1; return {x, y}; }
     function gridToGtp(x, y){ return COLS[x] + (y + 1); }
 
-    let problem = null, board = null, solved = 0, finished = false;
+    let problem = null, board = null, solved = 0, finished = false, step = 0;
     let currentDifficulty = '쉬움';
     const canvas = document.getElementById('tsumeCanvas');
     let geom = null; // {xMin,yMin,xMax,yMax,cell,pad,cols,rows}
@@ -169,7 +169,7 @@
         if (problem && problem.id) url += '&exclude=' + encodeURIComponent(problem.id);
         fetch(url).then(r => r.status === 204 ? null : r.json()).then(p => {
             if (!p) { document.getElementById('tsume').style.display = 'none'; return; }
-            problem = p; finished = false;
+            problem = p; finished = false; step = 0;
             document.getElementById('tsume').style.display = 'block';
             document.getElementById('tsumeDiff').textContent = p.difficulty || '쉬움';
             document.getElementById('tsumePrompt').textContent = p.prompt || '';
@@ -235,6 +235,25 @@
 
     function setFeedback(msg, cls){ const el=document.getElementById('tsumeFeedback'); el.textContent=msg; el.className='tsume-feedback '+cls; }
 
+    // 정해 수순(짝수 인덱스=내 수, 홀수=상대 응수)
+    function curSeq(){ return (problem.solution && problem.solution.length) ? problem.solution : (problem.answers || []); }
+    function moveColor(i){ const opp = problem.toPlay === 'B' ? 'W' : 'B'; return (i % 2 === 0) ? problem.toPlay : opp; }
+    function finishSolved(){
+        finished = true;
+        solved++; document.getElementById('tsumeSolved').textContent = solved;
+        setFeedback('정답입니다! 🎉', 'fb-correct');
+    }
+    // 상대 자동 응수(다음 한 수)
+    function opponentReply(){
+        const seq = curSeq();
+        if (step >= seq.length) { finishSolved(); return; }
+        const mv = seq[step]; board[mv] = moveColor(step); step++;
+        draw();
+        const {x,y} = gtpToGrid(mv); markPoint(x, y, 'rgba(40,40,40,0.5)');
+        if (step >= seq.length) { finishSolved(); }
+        else { setFeedback('좋아요! 다음 수를 두세요', 'fb-info'); }
+    }
+
     canvas.addEventListener('click', (e) => {
         if (!problem || finished) return;
         const rect = canvas.getBoundingClientRect();
@@ -249,33 +268,29 @@
         const gtp = gridToGtp(best.x, best.y);
         if (board[gtp]) return; // 이미 돌 있음
 
-        if ((problem.answers||[]).includes(gtp)) {
-            playSolution();
-            solved++; document.getElementById('tsumeSolved').textContent = solved;
-            setFeedback('정답입니다! 🎉', 'fb-correct');
-            finished = true;
+        const seq = curSeq();
+        if (gtp === seq[step]) {           // 이번 차례의 정해 수와 일치
+            board[gtp] = moveColor(step); step++;
+            draw(); markPoint(best.x, best.y, '#2ecc71');
+            if (step >= seq.length) { finishSolved(); }
+            else { setTimeout(opponentReply, 450); }   // 상대가 받아줌
         } else {
             draw(); markPoint(best.x, best.y, '#c0392b');
             setFeedback('아쉬워요, 다시 시도해 보세요', 'fb-wrong');
         }
     });
 
-    function playSolution(){
-        const seq = problem.solution && problem.solution.length ? problem.solution : (problem.answers||[]);
-        let color = problem.toPlay;
-        seq.forEach(mv => { board[mv] = color; color = (color==='B'?'W':'B'); });
-        draw();
-        // 첫 수 강조
-        if (seq[0]){ const {x,y}=gtpToGrid(seq[0]); markPoint(x,y,'#2ecc71'); }
-    }
     function tsumeReveal(){
         if (!problem || finished) return;
-        playSolution(); finished = true;
+        const seq = curSeq();
+        for (let i = step; i < seq.length; i++) { board[seq[i]] = moveColor(i); }
+        step = seq.length; finished = true; draw();
+        if (seq[0]){ const {x,y}=gtpToGrid(seq[0]); markPoint(x,y,'#2ecc71'); }
         setFeedback('정해입니다. 다음 문제에 도전하세요', 'fb-info');
     }
     function tsumeHint(){
         if (!problem || finished) return;
-        const a = (problem.answers||[])[0]; if(!a) return;
+        const seq = curSeq(); const a = seq[step]; if(!a) return;
         const {x,y}=gtpToGrid(a); draw(); markPoint(x,y,'rgba(74,144,217,0.7)');
         setFeedback('이 부근이 급소예요', 'fb-info');
     }
