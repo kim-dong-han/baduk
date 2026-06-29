@@ -1,5 +1,5 @@
-(;GM[1]FF[4]SZ[9]PL[B]
-AB[hd][id][de][ee][fe][ge][he][df][dg][dh][fh][di][gi]
-AW[ef][ff][hf][if][eg][eh][ei][fi][hi]
-C[흑 차례 — 상대 돌을 잡으세요]
-;B[gf])
+(;GM[1]FF[4]SZ[9]PL[W]
+AB[aa][ba][ia][ab][gb][hb][ib][ac][gc][ad][ed][fd][gd][ae][be][ee][bf][cf][df][ef]
+AW[bb][fb][bc][dc][ec][fc][bd][dd][ce][de]
+C[백 차례 — 돌을 살리세요]
+;W[cb];B[ea];W[da];B[ca];W[eb];B[db];W[da])
