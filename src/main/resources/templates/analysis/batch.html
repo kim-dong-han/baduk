@@ -6,7 +6,7 @@
     <title>바둑 실력 분석</title>
     <meta th:if="${running}" http-equiv="refresh" content="5">
     <link rel="stylesheet" href="/css/common.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/js/chart.min.js"></script>
     <style>
         /* h1, .subtitle, .badge 베이스는 common.css 공통 규칙 사용 */
         .summary-banner { background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-wrap: wrap; gap: 24px 32px; align-items: center; }
@@ -153,6 +153,7 @@
         }
 
         let chartIdx = 0;
+        const pendingCharts = [];
 
         function renderAnalysis(results, rootId, title, color, gameCount) {
             if (!results || results.length === 0) return;
@@ -260,27 +261,37 @@
                 + '<tbody>' + tableRows + '</tbody></table>'
                 + '</div>';
 
-            // 레이더 차트 초기화
-            new Chart(document.getElementById(cid).getContext('2d'), {
-                type: 'radar',
-                data: {
-                    labels: results.map(function(r) { return r.phase; }),
-                    datasets: [{
-                        label: 'AI 유사도 (%)',
-                        data: results.map(function(r) { return r.matchRate; }),
-                        backgroundColor: color + '33', borderColor: color,
-                        borderWidth: 2, pointBackgroundColor: color
-                    }]
-                },
-                options: {
-                    scales: { r: { min: 0, max: 100, ticks: { stepSize: 25 } } },
-                    plugins: { legend: { display: false } }
-                }
+            // 차트 초기화는 나중에 일괄 실행 (한 섹션 실패가 다른 섹션을 막지 않도록)
+            pendingCharts.push({ cid, results, color });
+        }
+
+        function initCharts() {
+            if (typeof Chart === 'undefined') return;
+            pendingCharts.forEach(function(c) {
+                try {
+                    new Chart(document.getElementById(c.cid).getContext('2d'), {
+                        type: 'radar',
+                        data: {
+                            labels: c.results.map(function(r) { return r.phase; }),
+                            datasets: [{
+                                label: 'AI 유사도 (%)',
+                                data: c.results.map(function(r) { return r.matchRate; }),
+                                backgroundColor: c.color + '33', borderColor: c.color,
+                                borderWidth: 2, pointBackgroundColor: c.color
+                            }]
+                        },
+                        options: {
+                            scales: { r: { min: 0, max: 100, ticks: { stepSize: 25 } } },
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                } catch(e) { console.warn('chart init failed', e); }
             });
         }
 
         renderAnalysis(userResultsData, 'user-root', '내 기보 분석',          '#4a90d9', userGameCount);
         renderAnalysis(proResultsData,  'pro-root',  '신진서 프로 기보 분석', '#8e44ad', proGameCount);
+        initCharts();
     })();
     </script>
     </div>
