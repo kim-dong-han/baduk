@@ -27,6 +27,9 @@ public class KataGoService {
     @Value("${katago.config}")
     private String configPath;
 
+    @Value("${katago.analysis-visits:1000}")
+    private int analysisVisits;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public record HybridGameResult(List<JsonNode> winrateNodes, List<JsonNode> qualityNodes) {}
@@ -177,12 +180,12 @@ public class KataGoService {
         int totalTurns = allTurns.size();
 
         String queryId = UUID.randomUUID().toString();
-        writer.write(buildQuery(queryId, movesArray, allTurns, 200).toString());
+        writer.write(buildQuery(queryId, movesArray, allTurns, analysisVisits).toString());
         writer.newLine();
         writer.flush();
         writer.close();
 
-        System.out.println("단일 기보 전수 분석 시작 (" + moves.size() + "수, visits=200)");
+        System.out.println("단일 기보 전수 분석 시작 (" + moves.size() + "수, visits=" + analysisVisits + ")");
 
         // 결과를 한 줄씩 받으면서 progress 갱신
         List<JsonNode> allLines = new ArrayList<>();
@@ -207,7 +210,8 @@ public class KataGoService {
             }
         }
 
-        int timeoutSeconds = Math.max(120, moves.size() * 4 + 60);
+        // visits가 클수록 수당 분석이 오래 걸리므로 타임아웃도 비례 확대
+        int timeoutSeconds = Math.max(120, moves.size() * Math.max(4, analysisVisits / 100) + 60);
         try {
             if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
