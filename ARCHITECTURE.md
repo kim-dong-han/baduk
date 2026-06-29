@@ -40,16 +40,18 @@ dto/          MoveDetail(bestPv 포함), SingleGameResult, AnalysisResponse, Upl
 ```
 화면 템플릿: `resources/templates/game/{index,result,waiting}.html`, `analysis/batch.html`
 공통 CSS: `resources/static/css/common.css` (topnav/.page/reset/media query)
-사활 문제: `resources/tsumego/*.sgf` (번들. 파일 추가 시 자동 인식, 재시작 필요)
+사활 문제: `resources/tsumego/*.sgf` (번들 60개=쉬움/보통/어려움 각 20. 파일 추가 시 자동 인식, 재시작 필요)
 
 ## 사활(Tsumego) 위젯 — 대기 중 학습
 - 목적: 분석 대기(waiting.html) 동안 랜덤 사활 문제를 풀게 해 체감 대기시간↓.
 - 로드: `TsumegoService.load()` `@PostConstruct`로 `classpath*:tsumego/*.sgf` 1회 파싱 → 인메모리.
 - API: `GET /api/tsumego/random?difficulty=&exclude=`(없으면 204), `GET /api/tsumego/count`.
   - `difficulty`(쉬움/보통/어려움/전체·생략=전체) 필터, `exclude`=직전 문제 id 제외 → "다음 문제"가 항상 바뀜. 후보 없으면 단계적 완화(문제 수 제한 없음).
-- `TsumegoProblem`: stones(초기배치)/answers(정답 첫수,복수)/solution(정해)/region(코너 확대)/difficulty.
+- `TsumegoProblem`: boardSize/stones(초기배치)/answers(정답 첫수,복수)/solution(정해)/region(코너 확대)/difficulty.
 - 난이도 판정(TsumegoSgfParser.detectDifficulty): 파일명 접두사(쉬움_/보통_/어려움_ 또는 easy/normal/hard) → SGF `DIFF[]` → 정해 수순 길이(≥8 어려움/≥4 보통/그외 쉬움).
+- **보드 크기 지원**: SGF `SZ[]`를 읽어 5~19로반 처리(좌표·region·화점 모두 크기 기준). 번들 문제는 5~11로 코너/소반 사활.
 - 좌표는 전부 GTP. 정답 미추출 문제는 로드 시 건너뜀.
+- 번들 60개 출처: d180cf/problems(조치훈 사활사전 등) 위치를 가져와 **로컬 KataGo로 정답 검증**(정답이 최선수와 1.5집 이내인 것만 채택) 후 난이도 3등분해 생성. ETL: scratchpad/build_tsumego.ps1(일회성).
 
 ## 데이터 흐름 (단일 기보 분석)
 ```

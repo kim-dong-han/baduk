@@ -19,9 +19,14 @@ public class TsumegoSgfParser {
 
     private static final String COLS = "ABCDEFGHJKLMNOPQRST";
 
+    private int boardSize = 19;
+
     public TsumegoProblem parse(String content, String id) {
         List<TsumegoProblem.Stone> stones = new ArrayList<>();
         List<int[]> grids = new ArrayList<>();   // region 계산용 [x,y]
+
+        Matcher szM = Pattern.compile("SZ\\[(\\d+)\\]").matcher(content);
+        boardSize = szM.find() ? Math.max(2, Math.min(19, Integer.parseInt(szM.group(1)))) : 19;
 
         for (String v : propValues(content, "AB")) addStone(stones, grids, "B", v);
         for (String v : propValues(content, "AW")) addStone(stones, grids, "W", v);
@@ -56,6 +61,7 @@ public class TsumegoSgfParser {
 
         return TsumegoProblem.builder()
                 .id(id)
+                .boardSize(boardSize)
                 .difficulty(detectDifficulty(content, id, moveGtp.size()))
                 .toPlay(toPlay)
                 .prompt(prompt.trim())
@@ -113,35 +119,36 @@ public class TsumegoSgfParser {
         return branch < 0 ? content.substring(start) : content.substring(start, branch);
     }
 
-    private static String sgfToGtp(String s) {
+    private String sgfToGtp(String s) {
         if (s == null || s.length() < 2) return null;
         int col = s.charAt(0) - 'a';
         int rowIdx = s.charAt(1) - 'a';
-        if (col < 0 || col > 18 || rowIdx < 0 || rowIdx > 18) return null;
-        return "" + COLS.charAt(col) + (19 - rowIdx);
+        if (col < 0 || col >= boardSize || rowIdx < 0 || rowIdx >= boardSize) return null;
+        return "" + COLS.charAt(col) + (boardSize - rowIdx);
     }
 
-    // SGF → 격자 [x(0..18 좌→우), y(0..18 하단기준)]
-    private static int[] sgfToGrid(String s) {
+    // SGF → 격자 [x(좌→우), y(하단기준)], 0 .. boardSize-1
+    private int[] sgfToGrid(String s) {
         if (s == null || s.length() < 2) return null;
         int col = s.charAt(0) - 'a';
         int rowIdx = s.charAt(1) - 'a';
-        if (col < 0 || col > 18 || rowIdx < 0 || rowIdx > 18) return null;
-        return new int[]{col, 18 - rowIdx};
+        if (col < 0 || col >= boardSize || rowIdx < 0 || rowIdx >= boardSize) return null;
+        return new int[]{col, (boardSize - 1) - rowIdx};
     }
 
     // 바운딩 박스 + 1칸 여유, 가장자리 근처(≤2)는 변까지 스냅
     private int[] computeRegion(List<int[]> grids) {
-        if (grids.isEmpty()) return new int[]{0, 0, 18, 18};
-        int xMin = 18, yMin = 18, xMax = 0, yMax = 0;
+        int max = boardSize - 1;
+        if (grids.isEmpty()) return new int[]{0, 0, max, max};
+        int xMin = max, yMin = max, xMax = 0, yMax = 0;
         for (int[] g : grids) {
             xMin = Math.min(xMin, g[0]); xMax = Math.max(xMax, g[0]);
             yMin = Math.min(yMin, g[1]); yMax = Math.max(yMax, g[1]);
         }
         xMin = (xMin <= 2) ? 0 : xMin - 1;
         yMin = (yMin <= 2) ? 0 : yMin - 1;
-        xMax = (xMax >= 16) ? 18 : xMax + 1;
-        yMax = (yMax >= 16) ? 18 : yMax + 1;
+        xMax = (xMax >= max - 2) ? max : xMax + 1;
+        yMax = (yMax >= max - 2) ? max : yMax + 1;
         return new int[]{xMin, yMin, xMax, yMax};
     }
 }

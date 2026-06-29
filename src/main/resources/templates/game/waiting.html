@@ -206,8 +206,9 @@
         for (let x = geom.xMin; x <= geom.xMax; x++) { ctx.beginPath(); ctx.moveTo(cx(x), cy(geom.yMax)); ctx.lineTo(cx(x), cy(geom.yMin)); ctx.stroke(); }
         for (let y = geom.yMin; y <= geom.yMax; y++) { ctx.beginPath(); ctx.moveTo(cx(geom.xMin), cy(y)); ctx.lineTo(cx(geom.xMax), cy(y)); ctx.stroke(); }
 
-        // 화점
-        const star = [3,9,15];
+        // 화점 (반상 크기별)
+        const sz = (problem && problem.boardSize) || 19;
+        const star = sz >= 19 ? [3,9,15] : sz >= 13 ? [3,6,9] : sz >= 9 ? [2,4,6] : sz >= 7 ? [2,4] : [];
         ctx.fillStyle = 'rgba(0,0,0,0.65)';
         star.forEach(sx => star.forEach(sy => {
             if (sx>=geom.xMin&&sx<=geom.xMax&&sy>=geom.yMin&&sy<=geom.yMax) { ctx.beginPath(); ctx.arc(cx(sx),cy(sy),3,0,Math.PI*2); ctx.fill(); }

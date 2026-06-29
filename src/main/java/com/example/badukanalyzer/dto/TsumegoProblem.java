@@ -13,6 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class TsumegoProblem {
     private String id;
+    private int boardSize;            // 반상 크기 (5~19)
     private String difficulty;        // 쉬움 / 보통 / 어려움
     private String toPlay;            // "B" or "W"
     private String prompt;            // 문제 지시문
