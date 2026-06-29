@@ -381,7 +381,7 @@
     <!-- ══ 전체 수 분석 (전체 폭) ══ -->
     <div class="card-box area-table">
         <p class="section-title">전체 수 분석</p>
-        <p class="section-desc">수를 클릭하면 바둑판에 해당 시점의 국면이 표시됩니다. <span style="color:#e74c3c;">●</span> 착점 &nbsp; <span style="color:#3498db;">△</span> AI 추천 1위 &nbsp; <span style="color:#5dade2;">△</span> 2위 &nbsp; <span style="color:#a9cce3;">△</span> 3위</p>
+        <p class="section-desc">수를 클릭하면 바둑판에 해당 시점의 국면이 표시됩니다. <span style="color:#e74c3c;">●</span> 착점 &nbsp; <span style="background:#1a5276;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:50%;">1</span> <span style="background:#2471a3;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:50%;">2</span> <span style="background:#5dade2;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:50%;">3</span> AI 추천수</p>
         <div class="table-filters">
             <button class="filter-btn active" data-filter="all"  onclick="setFilter(this)">전체</button>
             <button class="filter-btn"        data-filter="key"  onclick="setFilter(this)">실수·악수만</button>
@@ -536,22 +536,22 @@ function drawStone(ctx, gx, gy, color, isLast) {
     }
 }
 
-/* ── AI 추천수 마커 (rank=1 진파랑 / 2 하늘색 / 3 연청) ── */
-const CAND_COLORS   = ['#3498db', '#5dade2', '#a9cce3'];
-const CAND_ALPHAS   = [0.18, 0.12, 0.08];
-const CAND_SIZES    = [0.36, 0.30, 0.25];
-const CAND_WIDTHS   = [2.0, 1.5, 1.2];
+/* ── AI 추천수 마커: 순위 숫자+원 (1=진파랑 / 2=파랑 / 3=하늘색) ── */
+const CAND_BG    = ['#1a5276', '#2471a3', '#5dade2'];
+const CAND_SIZES = [0.40, 0.36, 0.32];
 function drawCandidateMarker(ctx, gx, gy, rank) {
     const cx = px(gx), cy = py(gy);
     const r = CELL * CAND_SIZES[rank - 1];
     ctx.beginPath();
-    ctx.moveTo(cx, cy - r);
-    ctx.lineTo(cx + r * 0.866, cy + r * 0.5);
-    ctx.lineTo(cx - r * 0.866, cy + r * 0.5);
-    ctx.closePath();
-    ctx.strokeStyle = CAND_COLORS[rank - 1]; ctx.lineWidth = CAND_WIDTHS[rank - 1]; ctx.stroke();
-    const [ri, gi, bi] = rank === 1 ? [52,152,219] : rank === 2 ? [93,173,226] : [169,204,227];
-    ctx.fillStyle = `rgba(${ri},${gi},${bi},${CAND_ALPHAS[rank - 1]})`; ctx.fill();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = CAND_BG[rank - 1];
+    ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+    const fs = Math.round(r * 1.25);
+    ctx.font = `bold ${fs}px sans-serif`;
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(rank), cx, cy);
 }
 
 /* ── 따냄 로직 ── */
