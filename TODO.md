@@ -11,12 +11,11 @@
 - 페이지별 `<style>` 중복(card box-shadow 등) 추가 정리 — 보수적 보류
 
 ## 최근 완료 (최신순, 5건 유지)
+- 사활(Tsumego) 위젯: 대기 중 랜덤 문제 풀이, `/api/tsumego/*` + `resources/tsumego/*.sgf` (원격 병합)
+- 파일 목록 인라인 진행바 + 최선수 변화도(bestPv) (836fd5c)
 - 분석 대기 페이지 실시간 진행률 % 표시 (ed1da4b)
 - 한글 파일명 redirect UnmappableCharacterException 수정 (e836128)
-- 프로 기보 감지: 파일명 `신진서 vs` 기준으로 변경 (29fa38b)
-- /game 결과 목록: 기보별 최신 분석만 표시 (f66b4dc)
-- 공통 CSS를 common.css로 분리 (0a1c3b5)
+- 원격/로컬 히스토리 분기 → rebase로 정리, 동기화 완료
 
 ## 주의/미해결
-- 원격(origin/main)과 로컬 히스토리 분기됨 → push 거부 중. 정리 필요.
 - 기존 저장 JSON 일부 구 등급(S/A/B/C/D) → 재분석해야 새 등급 반영.

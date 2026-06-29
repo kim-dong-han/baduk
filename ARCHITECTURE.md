@@ -24,20 +24,30 @@ controller/   요청 매핑만. 로직 없음.
   AnalysisController        /analysis/batch (배치 화면)
   UploadController          /upload/gib     (업로드)
   TygemController           /tygem/**       (타이젬 연동)
+  TsumegoController         /api/tsumego/** (대기 중 사활 문제)
 service/      비즈니스 로직.
   SingleGameService    단일 기보 분석 파이프라인 (등급/구간/저장)
   KataGoService        subprocess 통신, 쿼리 생성, 진행률 콜백
   AnalysisService      배치 분석
-  AnalysisJobStore     ConcurrentHashMap 기반 비동기 Job/진행률
+  AnalysisJobStore     ConcurrentHashMap 기반 비동기 Job/진행률 (Job.fileName, getRunningJobs)
+  TsumegoService       사활 문제 로드(@PostConstruct)·랜덤 제공, 인메모리 List
   GibService/SgfService, TygemCrawlerService, TygemFileWatcherService
-parser/       GibParser, SgfParser  → List<Move>
+parser/       GibParser, SgfParser → List<Move> / TsumegoSgfParser → TsumegoProblem
 converter/    SgfConverter
 util/         CoordinateConverter (SGF 좌표 ↔ GTP 좌표)
 domain/       Move, Game, AnalysisResult
-dto/          MoveDetail, SingleGameResult, AnalysisResponse, UploadResponse
+dto/          MoveDetail(bestPv 포함), SingleGameResult, AnalysisResponse, UploadResponse, TsumegoProblem
 ```
 화면 템플릿: `resources/templates/game/{index,result,waiting}.html`, `analysis/batch.html`
 공통 CSS: `resources/static/css/common.css` (topnav/.page/reset/media query)
+사활 문제: `resources/tsumego/*.sgf` (번들. 파일 추가 시 자동 인식, 재시작 필요)
+
+## 사활(Tsumego) 위젯 — 대기 중 학습
+- 목적: 분석 대기(waiting.html) 동안 랜덤 사활 문제를 풀게 해 체감 대기시간↓.
+- 로드: `TsumegoService.load()` `@PostConstruct`로 `classpath*:tsumego/*.sgf` 1회 파싱 → 인메모리.
+- API: `GET /api/tsumego/random`(없으면 204), `GET /api/tsumego/count`.
+- `TsumegoProblem`: stones(초기배치)/answers(정답 첫수,복수)/solution(정해)/region(코너 확대)/difficulty.
+- 좌표는 전부 GTP. 정답 미추출 문제는 로드 시 건너뜀.
 
 ## 데이터 흐름 (단일 기보 분석)
 ```
