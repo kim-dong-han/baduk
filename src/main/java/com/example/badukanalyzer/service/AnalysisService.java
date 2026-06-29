@@ -1,244 +1,89 @@
 package com.example.badukanalyzer.service;
 
-import com.example.badukanalyzer.domain.Move;
 import com.example.badukanalyzer.dto.AnalysisResponse;
-import com.example.badukanalyzer.parser.GibParser;
-import com.example.badukanalyzer.parser.SgfParser;
-import com.example.badukanalyzer.util.CoordinateConverter;
-import com.fasterxml.jackson.databind.JsonNode;
-import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
+import com.example.badukanalyzer.dto.MoveDetail;
+import com.example.badukanalyzer.dto.SingleGameResult;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
+/**
+ * 실력 리포트(/analysis/batch) 데이터 공급.
+ * KataGo를 다시 돌리지 않고, /game 복기에서 이미 저장된 결과(GameResults/*.json)를
+ * 내 기보 vs 프로(파일명 "신진서 vs") 그룹으로 나눠 구간별로 집계한다.
+ */
 @Service
 public class AnalysisService {
 
-    private final KataGoService kataGoService;
+    private static final String[] PHASES = {"초반", "중반", "종반"};
+    private static final String PRO_MARKER = "신진서 vs";
 
-    @Value("${katago.record-dir}")
-    private String recordDir;
-
-    @Value("${katago.batch-analysis-enabled:false}")
-    private boolean batchAnalysisEnabled;
-
-    public record WinrateTrend(int[] turns, double[] values) {}
-
-    private volatile List<AnalysisResponse> userResults;
-    private volatile List<AnalysisResponse> proResults;
-    private volatile WinrateTrend proWinrateTrend;
-    private volatile WinrateTrend userWinrateTrend;
+    private final SingleGameService singleGameService;
     private volatile String errorMessage;
-    private volatile boolean running;
 
-    public AnalysisService(KataGoService kataGoService) {
-        this.kataGoService = kataGoService;
+    public AnalysisService(SingleGameService singleGameService) {
+        this.singleGameService = singleGameService;
     }
 
-    @PostConstruct
-    public synchronized void startBackgroundAnalysis() {
-        if (!batchAnalysisEnabled) {
-            System.out.println("배치 분석 비활성화 (batch-analysis-enabled: false)");
-            return;
-        }
-        if (running) return;
-        running = true;
-        Thread.ofVirtual().name("batch-analysis").start(() -> {
-            try {
-                userResults = List.of();
-                proResults = analyzeByPrefix("pro_", 50);
-            } catch (Exception e) {
-                errorMessage = e.getMessage();
-            } finally {
-                running = false;
-            }
-        });
-    }
+    public List<AnalysisResponse> getUserResults() { return aggregate(false); }
+    public List<AnalysisResponse> getProResults()  { return aggregate(true); }
+    public Object getProWinrateTrend()  { return null; }   // 현재 템플릿 미사용
+    public Object getUserWinrateTrend() { return null; }
+    public String getErrorMessage()     { return errorMessage; }
+    public boolean isRunning()          { return false; }  // 즉시 집계라 백그라운드 작업 없음
 
-    public List<AnalysisResponse> getUserResults() { return userResults; }
-    public List<AnalysisResponse> getProResults()  { return proResults; }
-    public WinrateTrend getProWinrateTrend()       { return proWinrateTrend; }
-    public WinrateTrend getUserWinrateTrend()      { return userWinrateTrend; }
-    public String getErrorMessage()                { return errorMessage; }
-    public boolean isRunning()                     { return running; }
-
-    private List<AnalysisResponse> analyzeByPrefix(String prefix, int maxFiles) throws Exception {
-        File dir = new File(recordDir);
-        File[] files = dir.listFiles((d, name) -> {
-            String lower = name.toLowerCase();
-            boolean matchesPrefix = prefix.isEmpty() ? !lower.startsWith("pro_") : lower.startsWith(prefix);
-            return matchesPrefix && (lower.endsWith(".gib") || lower.endsWith(".sgf"));
-        });
-
-        if (files == null || files.length == 0) {
-            System.out.println((prefix.isEmpty() ? "내 기보" : "프로 기보") + " 파일 없음");
+    private List<AnalysisResponse> aggregate(boolean pro) {
+        List<SingleGameResult> games;
+        try {
+            games = singleGameService.listResults();   // 파일명 기준 최신 분석만(중복 제거)
+            errorMessage = null;
+        } catch (Exception e) {
+            errorMessage = "분석 결과를 읽지 못했습니다: " + e.getMessage();
             return List.of();
         }
 
-        GibParser gibParser = new GibParser();
-        SgfParser sgfParser = new SgfParser();
-        List<List<Move>> allMoves = new ArrayList<>();
-        List<String> fileNames = new ArrayList<>();
+        List<AnalysisResponse> out = new ArrayList<>();
+        for (String phase : PHASES) {
+            int total = 0, match = 0, ex = 0, gd = 0, nm = 0, bd = 0, bl = 0;
+            double scoreLossSum = 0, wrLossSum = 0;
 
-        int count = 0;
-        for (File file : files) {
-            if (count++ >= maxFiles) break;
-            System.out.println("파싱: " + file.getName());
-            String path = file.getAbsolutePath();
-            allMoves.add(path.toLowerCase().endsWith(".gib") ? gibParser.parse(path) : sgfParser.parse(path));
-            fileNames.add(file.getName());
-        }
-        if (allMoves.isEmpty()) return List.of();
+            for (SingleGameResult g : games) {
+                boolean isPro = g.getFileName() != null && g.getFileName().contains(PRO_MARKER);
+                if (isPro != pro || g.getMoves() == null) continue;
 
-        String label = prefix.isEmpty() ? "내 기보" : "프로 기보";
-        System.out.println(label + " KataGo 하이브리드 분석 시작 (" + allMoves.size() + "개)");
-        long t0 = System.currentTimeMillis();
-        List<KataGoService.HybridGameResult> hybridResults = kataGoService.analyzeMultipleGamesHybrid(allMoves);
-        System.out.println(label + " 분석 완료 (" + (System.currentTimeMillis() - t0) / 1000.0 + "초)");
-
-        WinrateTrend trend = computeWinrateTrend(hybridResults);
-        if (prefix.isEmpty()) userWinrateTrend = trend;
-        else proWinrateTrend = trend;
-
-        // 구간별 지표를 분리해서 수집
-        List<WrMetric>      allOpeningWr = new ArrayList<>(), allMiddleWr = new ArrayList<>(), allEndgameWr = new ArrayList<>();
-        List<QualityMetric> allOpeningQ  = new ArrayList<>(), allMiddleQ  = new ArrayList<>(), allEndgameQ  = new ArrayList<>();
-
-        for (int i = 0; i < allMoves.size(); i++) {
-            System.out.println("결과 처리: " + fileNames.get(i));
-            collectWinrateMetrics(hybridResults.get(i).winrateNodes(), allOpeningWr, allMiddleWr, allEndgameWr);
-            collectQualityMetrics(hybridResults.get(i).qualityNodes(), allMoves.get(i), allOpeningQ, allMiddleQ, allEndgameQ);
-        }
-
-        List<AnalysisResponse> result = new ArrayList<>();
-        if (!allOpeningWr.isEmpty()) result.add(calculateSummary("초반", allOpeningWr, allOpeningQ));
-        if (!allMiddleWr.isEmpty())  result.add(calculateSummary("중반", allMiddleWr,  allMiddleQ));
-        if (!allEndgameWr.isEmpty()) result.add(calculateSummary("종반", allEndgameWr, allEndgameQ));
-        return result;
-    }
-
-    // 매 수 winrate 수집 (형세 변동 전용)
-    private void collectWinrateMetrics(List<JsonNode> nodes, List<WrMetric> opening, List<WrMetric> middle, List<WrMetric> endgame) {
-        double prevWr = 0.5, prevScore = 0.0;
-        List<JsonNode> sorted = nodes.stream()
-                .filter(n -> n.has("rootInfo") && n.has("turnNumber"))
-                .sorted(java.util.Comparator.comparingInt(n -> n.get("turnNumber").asInt()))
-                .toList();
-
-        for (JsonNode node : sorted) {
-            int turn = node.get("turnNumber").asInt();
-            double wr    = node.get("rootInfo").get("winrate").asDouble();
-            double score = node.get("rootInfo").get("scoreLead").asDouble();
-
-            WrMetric m = new WrMetric(Math.abs(wr - prevWr), Math.abs(score - prevScore));
-            if      (turn <= 50)  opening.add(m);
-            else if (turn <= 150) middle.add(m);
-            else                  endgame.add(m);
-
-            prevWr = wr; prevScore = score;
-        }
-    }
-
-    // 10수마다 일치율 수집 (matchScore 전용)
-    private void collectQualityMetrics(List<JsonNode> nodes, List<Move> actualMoves,
-                                       List<QualityMetric> opening, List<QualityMetric> middle, List<QualityMetric> endgame) {
-        for (JsonNode node : nodes) {
-            if (!node.has("rootInfo") || !node.has("turnNumber")) continue;
-            int turn = node.get("turnNumber").asInt();
-            boolean isBlackTurn = (turn % 2 == 0);
-
-            double matchScore = 0.6;
-            if (turn < actualMoves.size() && node.has("moveInfos") && node.get("moveInfos").size() > 0) {
-                String actualGtp = CoordinateConverter.toGtpCoord(actualMoves.get(turn));
-                double topWr = node.get("moveInfos").get(0).get("winrate").asDouble();
-                double actualWr = -1;
-                for (JsonNode mi : node.get("moveInfos")) {
-                    if (actualGtp.equalsIgnoreCase(mi.get("move").asText())) {
-                        actualWr = mi.get("winrate").asDouble();
-                        break;
-                    }
-                }
-                if (actualWr >= 0) {
-                    if (isBlackTurn) {
-                        matchScore = topWr > 0 ? Math.min(1.0, actualWr / topWr) : 0.6;
-                    } else {
-                        double denom = 1.0 - topWr;
-                        matchScore = denom > 0.01 ? Math.min(1.0, (1.0 - actualWr) / denom) : 0.6;
+                for (MoveDetail m : g.getMoves()) {
+                    if (!phase.equals(m.getPhase())) continue;
+                    total++;
+                    if (m.isMatchesBest()) match++;
+                    scoreLossSum += m.getScoreLoss();
+                    wrLossSum    += m.getWinrateLoss();
+                    switch (m.getGrade() == null ? "" : m.getGrade()) {
+                        case "최선" -> ex++;
+                        case "좋음" -> gd++;
+                        case "보통" -> nm++;
+                        case "실수" -> bd++;
+                        case "악수" -> bl++;
                     }
                 }
             }
+            if (total == 0) continue;
 
-            QualityMetric m = new QualityMetric(matchScore);
-            if      (turn <= 50)  opening.add(m);
-            else if (turn <= 150) middle.add(m);
-            else                  endgame.add(m);
+            out.add(AnalysisResponse.builder()
+                    .phase(phase)
+                    .matchRate(round2(match * 100.0 / total))
+                    .winRateLoss(round3(wrLossSum / total))
+                    .scoreLoss(round2(scoreLossSum / total))
+                    .excellentRate(round2(ex * 100.0 / total))
+                    .goodRate(round2(gd * 100.0 / total))
+                    .normalRate(round2(nm * 100.0 / total))
+                    .badRate(round2(bd * 100.0 / total))
+                    .blunderRate(round2(bl * 100.0 / total))
+                    .build());
         }
+        return out;
     }
 
-    private AnalysisResponse calculateSummary(String phase, List<WrMetric> wrMetrics, List<QualityMetric> qMetrics) {
-        double avgWrLoss    = wrMetrics.stream().mapToDouble(m -> m.wrLoss).average().orElse(0);
-        double avgScoreLoss = wrMetrics.stream().mapToDouble(m -> m.scoreLoss).average().orElse(0);
-
-        if (qMetrics.isEmpty()) {
-            return AnalysisResponse.builder().phase(phase)
-                    .matchRate(0).winRateLoss(round3(avgWrLoss)).scoreLoss(round2(avgScoreLoss))
-                    .excellentRate(0).goodRate(0).normalRate(0).badRate(0).blunderRate(0).build();
-        }
-
-        int total = qMetrics.size();
-        double avgMatch  = qMetrics.stream().mapToDouble(m -> m.matchScore).average().orElse(0);
-        long excellent   = qMetrics.stream().filter(m -> m.matchScore >= 0.95).count();
-        long good        = qMetrics.stream().filter(m -> m.matchScore >= 0.80 && m.matchScore < 0.95).count();
-        long normal      = qMetrics.stream().filter(m -> m.matchScore >= 0.60 && m.matchScore < 0.80).count();
-        long bad         = qMetrics.stream().filter(m -> m.matchScore >= 0.35 && m.matchScore < 0.60).count();
-        long blunder     = qMetrics.stream().filter(m -> m.matchScore <  0.35).count();
-
-        return AnalysisResponse.builder()
-                .phase(phase)
-                .matchRate(Math.round(avgMatch * 10000) / 100.0)
-                .winRateLoss(round3(avgWrLoss))
-                .scoreLoss(round2(avgScoreLoss))
-                .excellentRate(Math.round(excellent * 10000.0 / total) / 100.0)
-                .goodRate(Math.round(good      * 10000.0 / total) / 100.0)
-                .normalRate(Math.round(normal   * 10000.0 / total) / 100.0)
-                .badRate(Math.round(bad         * 10000.0 / total) / 100.0)
-                .blunderRate(Math.round(blunder * 10000.0 / total) / 100.0)
-                .build();
-    }
-
-    private double round3(double v) { return Math.round(v * 1000) / 1000.0; }
     private double round2(double v) { return Math.round(v * 100)  / 100.0; }
-
-    private WinrateTrend computeWinrateTrend(List<KataGoService.HybridGameResult> hybridResults) {
-        Map<Integer, List<Double>> turnMap = new TreeMap<>();
-        for (KataGoService.HybridGameResult h : hybridResults) {
-            for (JsonNode node : h.winrateNodes()) {
-                if (!node.has("rootInfo") || !node.has("turnNumber")) continue;
-                int turn = node.get("turnNumber").asInt();
-                double wr = Math.abs(node.get("rootInfo").get("winrate").asDouble() * 100 - 50);
-                turnMap.computeIfAbsent(turn, k -> new ArrayList<>()).add(wr);
-            }
-        }
-        int minGames = Math.max(1, hybridResults.size() / 5);
-        List<Integer> turns = new ArrayList<>();
-        List<Double> values = new ArrayList<>();
-        for (Map.Entry<Integer, List<Double>> e : turnMap.entrySet()) {
-            if (e.getValue().size() >= minGames) {
-                turns.add(e.getKey());
-                values.add(e.getValue().stream().mapToDouble(d -> d).average().orElse(50.0));
-            }
-        }
-        return new WinrateTrend(
-            turns.stream().mapToInt(Integer::intValue).toArray(),
-            values.stream().mapToDouble(Double::doubleValue).toArray()
-        );
-    }
-
-    private record WrMetric(double wrLoss, double scoreLoss) {}
-    private record QualityMetric(double matchScore) {}
+    private double round3(double v) { return Math.round(v * 1000) / 1000.0; }
 }

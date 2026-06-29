@@ -11,7 +11,8 @@
 - 페이지별 `<style>` 중복(card box-shadow 등) 추가 정리 — 보수적 보류
 
 ## 최근 완료 (최신순, 5건 유지)
-- 형세 정확도: 단일분석 visits 200→2000(설정화 katago.analysis-visits). 전투 국면 형세 오류 해결(KataGo 재검증, 5000서 방송값 수렴)
+- 실력 리포트 동작: AnalysisService를 기존 복기결과(GameResults/*.json) 집계로 재작성(재분석 X). 내기보 vs 프로(신진서 vs) 구간별. 타이젬 워처는 새 기보 단일분석 트리거
+- 형세 정확도: 단일분석 visits 설정화(katago.analysis-visits, 기본 200 유지). 원인=전투국면 visits 부족(5000서 방송값 수렴), 파싱/좌표/부호는 정상
 - 사활 바둑 기본규칙(따냄/착수금지) + waiting 무한로딩 수정(UNKNOWN 처리·즉시폴링·pageshow)
 - 사활 인터랙티브 풀이: 정답 두면 상대가 한 수씩 응수, 정해 끝까지 주고받기 (waiting.html)
 - 사활 문제 정해 수순 전체 포함(최대 12수), 60개 재생성

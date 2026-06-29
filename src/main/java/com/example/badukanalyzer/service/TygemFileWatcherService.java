@@ -22,14 +22,14 @@ public class TygemFileWatcherService {
     @Value("${katago.record-dir}")
     private String recordDir;
 
-    private final AnalysisService analysisService;
+    private final SingleGameService singleGameService;
     private WatchService watchService;
     private final Map<WatchKey, Path> keyToDir = new HashMap<>();
     private Thread watchThread;
     private volatile boolean running = false;
 
-    public TygemFileWatcherService(AnalysisService analysisService) {
-        this.analysisService = analysisService;
+    public TygemFileWatcherService(SingleGameService singleGameService) {
+        this.singleGameService = singleGameService;
     }
 
     @PostConstruct
@@ -127,8 +127,12 @@ public class TygemFileWatcherService {
             Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
             log.info("New Tygem game copied: {} -> {}", source.getFileName(), target);
 
-            // 새 기보 감지 시 분석 재실행
-            analysisService.startBackgroundAnalysis();
+            // 새 기보를 단일 분석 → 결과 JSON 생성 (실력 리포트가 자동 집계)
+            try {
+                singleGameService.analyze(source.getFileName().toString());
+            } catch (Exception e) {
+                log.error("New Tygem game analysis failed: {}", e.getMessage());
+            }
         } catch (IOException e) {
             log.error("Failed to copy Tygem game file: {}", e.getMessage());
         } catch (InterruptedException e) {

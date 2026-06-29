@@ -16,8 +16,8 @@ katago:
   timeout-seconds: 300
   batch-analysis-enabled: false
   # 단일 기보 분석의 수당 탐색량. 낮으면 빠르지만 전투 국면 형세가 부정확
-  # (200=부정확, 1000=양호, 5000=방송 수준 정확하나 느림). 변경 후 서버 재시작 필요.
-  analysis-visits: 2000
+  # (200=빠름·기본, 1000=양호, 5000=방송 수준 정확하나 매우 느림). 변경 후 서버 재시작 필요.
+  analysis-visits: 200
 
 tygem:
   gibo-dir: C:/Program Files (x86)/타이젬바둑 2.0/Gibo

@@ -28,7 +28,7 @@ controller/   요청 매핑만. 로직 없음.
 service/      비즈니스 로직.
   SingleGameService    단일 기보 분석 파이프라인 (등급/구간/저장)
   KataGoService        subprocess 통신, 쿼리 생성, 진행률 콜백
-  AnalysisService      배치 분석
+  AnalysisService      실력 리포트 집계 — 저장된 복기 결과(GameResults/*.json)를 내기보/프로(신진서 vs)·구간별로 합산(재분석 안 함)
   AnalysisJobStore     ConcurrentHashMap 기반 비동기 Job/진행률 (Job.fileName, getRunningJobs)
   TsumegoService       사활 문제 로드(@PostConstruct)·랜덤 제공, 인메모리 List
   GibService/SgfService, TygemCrawlerService, TygemFileWatcherService
