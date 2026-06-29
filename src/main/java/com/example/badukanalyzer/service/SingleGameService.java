@@ -227,6 +227,7 @@ public class SingleGameService {
 
             String actualGtp = CoordinateConverter.toGtpCoord(move);
             String bestMove = "";
+            List<String> bestPv = new ArrayList<>();
             JsonNode moveInfos = before.path("moveInfos");
 
             // scoreLoss: rootInfo.scoreLead(최적 기대값)과 실제 착점의 scoreLead 비교
@@ -235,6 +236,14 @@ public class SingleGameService {
             double scoreLoss;
             if (moveInfos.isArray() && moveInfos.size() > 0) {
                 bestMove = moveInfos.get(0).path("move").asText();
+                // 최선수의 예상 진행(PV)을 변화도로 저장 (최대 8수)
+                JsonNode pvNode = moveInfos.get(0).path("pv");
+                if (pvNode.isArray()) {
+                    for (JsonNode p : pvNode) {
+                        bestPv.add(p.asText());
+                        if (bestPv.size() >= 8) break;
+                    }
+                }
                 double actualScoreLead = Double.NaN;
                 for (JsonNode mi : moveInfos) {
                     if (actualGtp.equalsIgnoreCase(mi.path("move").asText())) {
@@ -265,6 +274,7 @@ public class SingleGameService {
                     .color(move.getColor())
                     .move(actualGtp)
                     .bestMove(bestMove)
+                    .bestPv(bestPv)
                     .matchesBest(actualGtp.equalsIgnoreCase(bestMove))
                     .winrateBefore(round3(winrateBefore))
                     .winrateAfter(round3(winrateAfter))

@@ -58,6 +58,16 @@
         .pill.bad  { background: #fadbd8; color: #c0392b; }
         .view-btn { font-size: 13px; color: #4a90d9; text-decoration: none; padding: 6px 14px; border: 1px solid #4a90d9; border-radius: 6px; white-space: nowrap; flex-shrink: 0; }
         .view-btn:hover { background: #4a90d9; color: #fff; }
+
+        /* ── 파일 목록 인라인 진행바 ── */
+        .file-name-wrap { flex: 1; min-width: 0; }
+        .inline-progress { display: none; margin-top: 5px; align-items: center; gap: 6px; }
+        .inline-progress.active { display: flex; }
+        .inline-bar-wrap { flex: 1; height: 4px; background: #e0e8f0; border-radius: 2px; overflow: hidden; }
+        .inline-bar-fill { height: 100%; width: 0%; background: #4a90d9; border-radius: 2px; transition: width 0.5s; }
+        .inline-pct { font-size: 11px; color: #4a90d9; font-weight: 700; white-space: nowrap; }
+        .analyzing-badge { display: none; font-size: 11px; background: #ddeeff; color: #2271b3; padding: 2px 8px; border-radius: 99px; font-weight: 600; white-space: nowrap; animation: pulse 1.5s ease-in-out infinite; }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
     </style>
 </head>
 <body>
@@ -99,8 +109,15 @@
              th:class="${resultMap != null and resultMap.containsKey(f) ? 'file-item analyzed' : 'file-item'}"
              onclick="selectFile(this)">
             <span class="file-icon">♟</span>
-            <span class="file-name" th:text="${f}"></span>
+            <div class="file-name-wrap">
+                <span class="file-name" th:text="${f}"></span>
+                <div class="inline-progress">
+                    <div class="inline-bar-wrap"><div class="inline-bar-fill"></div></div>
+                    <span class="inline-pct">0%</span>
+                </div>
+            </div>
             <span th:if="${resultMap != null and resultMap.containsKey(f)}" class="analyzed-badge">분석 완료</span>
+            <span class="analyzing-badge">분석 중</span>
         </div>
     </div>
 
@@ -112,8 +129,15 @@
              th:class="${resultMap != null and resultMap.containsKey(f) ? 'file-item analyzed' : 'file-item'}"
              onclick="selectFile(this)">
             <span class="file-icon">🎯</span>
-            <span class="file-name" th:text="${f}"></span>
+            <div class="file-name-wrap">
+                <span class="file-name" th:text="${f}"></span>
+                <div class="inline-progress">
+                    <div class="inline-bar-wrap"><div class="inline-bar-fill"></div></div>
+                    <span class="inline-pct">0%</span>
+                </div>
+            </div>
             <span th:if="${resultMap != null and resultMap.containsKey(f)}" class="analyzed-badge">분석 완료</span>
+            <span class="analyzing-badge">분석 중</span>
         </div>
     </div>
 
@@ -172,6 +196,51 @@ function selectFile(el) {
     document.getElementById('selectedLabel').innerHTML = '선택: <span>' + fileName + '</span>';
     document.getElementById('submitBtn').disabled = false;
 }
+
+// 실행 중인 분석 진행률 폴링
+let prevRunningFiles = new Set();
+
+function pollRunningJobs() {
+    fetch('/game/running-jobs')
+        .then(r => r.json())
+        .then(jobs => {
+            const currentFiles = new Set(jobs.map(j => j.fileName));
+
+            // 이전에 분석 중이었지만 지금은 아닌 항목 → 페이지 새로고침(완료 배지 반영)
+            if (prevRunningFiles.size > 0) {
+                for (const fn of prevRunningFiles) {
+                    if (!currentFiles.has(fn)) {
+                        location.reload();
+                        return;
+                    }
+                }
+            }
+            prevRunningFiles = currentFiles;
+
+            // 모든 file-item 초기화
+            document.querySelectorAll('.file-item').forEach(el => {
+                el.querySelector('.inline-progress').classList.remove('active');
+                el.querySelector('.analyzing-badge').style.display = 'none';
+            });
+
+            // 진행 중인 항목 업데이트
+            jobs.forEach(job => {
+                const el = Array.from(document.querySelectorAll('.file-item'))
+                    .find(e => e.dataset.file === job.fileName);
+                if (!el) return;
+                const prog = el.querySelector('.inline-progress');
+                prog.classList.add('active');
+                prog.querySelector('.inline-bar-fill').style.width = job.progress + '%';
+                prog.querySelector('.inline-pct').textContent = job.progress + '%';
+                el.querySelector('.analyzing-badge').style.display = '';
+            });
+
+            setTimeout(pollRunningJobs, 2000);
+        })
+        .catch(() => setTimeout(pollRunningJobs, 5000));
+}
+
+pollRunningJobs();
 </script>
 </div>
 </body>

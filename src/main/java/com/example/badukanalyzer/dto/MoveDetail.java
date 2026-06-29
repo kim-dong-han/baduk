@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -14,6 +16,7 @@ public class MoveDetail {
     private String color;          // "B" or "W"
     private String move;           // 실제 착점 (GTP: "D4")
     private String bestMove;       // KataGo 최선수
+    private List<String> bestPv;   // 최선수 이후 예상 진행 (변화도, GTP 좌표 순서)
 
     private boolean matchesBest;
 

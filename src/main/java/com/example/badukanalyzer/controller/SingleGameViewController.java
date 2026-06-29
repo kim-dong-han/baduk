@@ -8,6 +8,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,7 +36,7 @@ public class SingleGameViewController {
     @PostMapping("/analyze")
     public String analyze(@RequestParam String fileName, RedirectAttributes redirectAttrs) {
         String jobId = UUID.randomUUID().toString();
-        jobStore.put(jobId, AnalysisJobStore.Job.running());
+        jobStore.put(jobId, AnalysisJobStore.Job.running(fileName));
         singleGameService.analyzeAsync(jobId, fileName);
         redirectAttrs.addAttribute("fileName", fileName);
         return "redirect:/game/waiting/" + jobId;
@@ -60,6 +61,15 @@ public class SingleGameViewController {
             case DONE    -> ResponseEntity.ok(Map.of("status", "DONE", "resultId", job.resultId));
             case ERROR   -> ResponseEntity.ok(Map.of("status", "ERROR", "error", job.error != null ? job.error : "알 수 없는 오류"));
         };
+    }
+
+    @GetMapping("/running-jobs")
+    @ResponseBody
+    public ResponseEntity<List<Map<String, Object>>> runningJobs() {
+        List<Map<String, Object>> list = jobStore.getRunningJobs().stream()
+                .map(j -> Map.<String, Object>of("fileName", j.fileName, "progress", j.progress))
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/result/{id}")
