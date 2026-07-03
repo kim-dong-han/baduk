@@ -33,4 +33,18 @@ public class MoveDetail {
     private String phase;          // 초반 / 중반 / 종반
 
     private List<Double> ownership; // AI 집(영역) 예측 361칸(19x19), +값=흑·−값=백. 착점 후 국면 기준. 구 JSON은 null
+
+    private List<Candidate> candidates; // AI 후보수 상위 N개 상세(hover용). 구 JSON은 null
+
+    /** 후보수 1개 상세 — hover 시 승률·집차·예상 진행 표시 (승률·집차는 흑 기준) */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Candidate {
+        private String move;         // GTP 좌표
+        private double winrate;      // 흑 승률 0~1
+        private double scoreLead;    // 흑 기준 집 차
+        private List<String> pv;     // 이 수 이후 예상 진행 (GTP, 최대 6수)
+    }
 }

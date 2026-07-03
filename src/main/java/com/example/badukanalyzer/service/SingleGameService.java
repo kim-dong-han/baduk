@@ -234,12 +234,25 @@ public class SingleGameService {
             // rootInfo.scoreLead = 현재 플레이어가 최선으로 뒀을 때 기대 집수 (Black 기준)
             // max(0,...) 클램핑: 노이즈로 인한 음수(득점) 방지
             List<String> topMoves = new ArrayList<>();
+            List<MoveDetail.Candidate> candidates = new ArrayList<>();
             double scoreLoss;
             if (moveInfos.isArray() && moveInfos.size() > 0) {
                 bestMove = moveInfos.get(0).path("move").asText();
-                // 상위 3개 후보수 GTP 저장
+                // 상위 3개 후보수: 좌표 + hover 상세(승률·집차·예상 진행)
                 for (int j = 0; j < Math.min(3, moveInfos.size()); j++) {
-                    topMoves.add(moveInfos.get(j).path("move").asText());
+                    JsonNode mi = moveInfos.get(j);
+                    topMoves.add(mi.path("move").asText());
+                    List<String> cpv = new ArrayList<>();
+                    JsonNode cpvNode = mi.path("pv");
+                    if (cpvNode.isArray()) {
+                        for (JsonNode p : cpvNode) { cpv.add(p.asText()); if (cpv.size() >= 6) break; }
+                    }
+                    candidates.add(MoveDetail.Candidate.builder()
+                            .move(mi.path("move").asText())
+                            .winrate(round3(mi.path("winrate").asDouble()))
+                            .scoreLead(round2(mi.path("scoreLead").asDouble()))
+                            .pv(cpv)
+                            .build());
                 }
                 // 최선수의 예상 진행(PV)을 변화도로 저장 (최대 8수)
                 JsonNode pvNode = moveInfos.get(0).path("pv");
@@ -291,6 +304,7 @@ public class SingleGameService {
                     .grade(calcGrade(scoreLoss))
                     .phase(calcPhase(turnNumber))
                     .ownership(extractOwnership(after))  // 착점 후(turn i+1) 국면의 집 예측
+                    .candidates(candidates)              // AI 후보수 상세 (hover용)
                     .build());
         }
         return details;

@@ -300,6 +300,7 @@
         <div class="score-diff" id="scoreDiff">수를 이동하면 현재 형세가 표시됩니다</div>
 
         <canvas id="boardCanvas"></canvas>
+        <div id="candTooltip" style="display:none;position:fixed;z-index:200;background:rgba(26,26,46,0.95);color:#fff;font-size:12px;line-height:1.55;padding:8px 11px;border-radius:8px;pointer-events:none;box-shadow:0 3px 12px rgba(0,0,0,0.3);white-space:nowrap;"></div>
         <!-- 실시간 AI 승률 바 -->
         <div id="winrateBar" class="wr-bar-section" style="display:none;">
             <div class="wr-bar-header">
@@ -440,6 +441,8 @@ let showSequence = false;
 let showVariation = false;
 let showOwnership = false;
 let scoreChartInst, winrateChartInst;
+let candMarkers = [];      // 현재 화면의 후보수 마커 위치+상세 (hover 판정용)
+let hoveredCandIdx = -1;   // 현재 hover 중인 후보 인덱스
 
 /* ── 현재 수 커서 플러그인 ── */
 const cursorPlugin = {
@@ -655,13 +658,13 @@ function drawGhostStone(ctx, gx, gy, color, num, isFirst) {
     ctx.fillText(String(num), cx, cy);
 }
 
-/* 최선수 이후 예상 진행을 base 국면 위에 번호 매겨 표시 */
-function drawVariation(ctx, baseBoard, cur) {
+/* 예상 진행(pv)을 base 국면 위에 번호 매겨 표시 (startColor부터 교대) */
+function drawPvSequence(ctx, baseBoard, startColor, pv) {
     const board = baseBoard.map(col => col.slice());
-    let color = cur.color;
+    let color = startColor;
     const drawn = [];
-    for (let k = 0; k < cur.bestPv.length; k++) {
-        const g = gtpToGrid(cur.bestPv[k]);
+    for (let k = 0; k < pv.length; k++) {
+        const g = gtpToGrid(pv[k]);
         if (!g) { color = color === 'B' ? 'W' : 'B'; continue; }
         if (board[g.x][g.y]) { color = color === 'B' ? 'W' : 'B'; continue; }
         board[g.x][g.y] = color;
@@ -677,6 +680,10 @@ function drawVariation(ctx, baseBoard, cur) {
     }
     drawn.forEach(s => drawGhostStone(ctx, s.x, s.y, s.color, s.num, s.num === 1));
 }
+/* 최선수 이후 예상 진행 (변화도 토글) */
+function drawVariation(ctx, baseBoard, cur) {
+    drawPvSequence(ctx, baseBoard, cur.color, cur.bestPv);
+}
 
 /* ── 수 표시 ── */
 function showMove(idx) {
@@ -685,6 +692,7 @@ function showMove(idx) {
 
     const ctx = canvas.getContext('2d');
     drawBoard(ctx);
+    candMarkers = [];  // 후보 마커는 아래에서 다시 채움 (hover 판정 초기화)
 
     const cur = moves[idx];
     const variationActive = showVariation && cur.bestPv && cur.bestPv.length > 0 && cur.move !== cur.bestMove;
@@ -706,14 +714,19 @@ function showMove(idx) {
             for (let y = 0; y < 19; y++)
                 if (board[x][y]) drawStone(ctx, x, y, board[x][y], lastG && x === lastG.x && y === lastG.y);
 
-        // AI 추천수 상위 3개 표시 (신규: topMoves / 구 JSON fallback: bestMove)
-        const candidates = (cur.topMoves && cur.topMoves.length > 0)
-            ? cur.topMoves
-            : (cur.bestMove ? [cur.bestMove] : []);
-        candidates.forEach((mv, i) => {
-            if (!mv || mv === cur.move) return;
-            const g = gtpToGrid(mv);
-            if (g && !board[g.x][g.y]) drawCandidateMarker(ctx, g.x, g.y, i + 1);
+        // AI 추천수 상위 3개 표시. 상세(candidates)가 있으면 hover 대상으로 기록,
+        // 없으면 좌표만(topMoves) / 최후 bestMove
+        const candList = (cur.candidates && cur.candidates.length > 0)
+            ? cur.candidates
+            : ((cur.topMoves && cur.topMoves.length > 0) ? cur.topMoves.map(m => ({ move: m }))
+               : (cur.bestMove ? [{ move: cur.bestMove }] : []));
+        candList.forEach((c, i) => {
+            if (!c.move || c.move === cur.move) return;
+            const g = gtpToGrid(c.move);
+            if (g && !board[g.x][g.y]) {
+                drawCandidateMarker(ctx, g.x, g.y, i + 1);
+                if (typeof c.winrate === 'number') candMarkers.push({ gx: g.x, gy: g.y, rank: i + 1, cand: c });
+            }
         });
 
         // 수순번호 표시
@@ -761,6 +774,7 @@ function showMove(idx) {
         ${variationActive ? '<div style="margin-top:8px;font-size:12px;color:#3498db;">바둑판에 표시된 번호는 최선수 이후 예상 진행입니다.</div>' : ''}
         ${showOwnership && !variationActive ? '<div style="margin-top:8px;font-size:12px;color:#888;">■ 검정=흑 집 · □ 흰색=백 집 (칸이 클수록 확실). AI 예측 영역입니다.</div>' : ''}
         ${showOwnership && variationActive ? '<div style="margin-top:8px;font-size:12px;color:#aaa;">변화도 표시 중엔 집 예측이 숨겨집니다.</div>' : ''}
+        ${!variationActive && cur.candidates && cur.candidates.length ? '<div style="margin-top:8px;font-size:12px;color:#888;">바둑판의 ①②③에 마우스를 올리면 후보수의 승률·예상 진행을 볼 수 있어요.</div>' : ''}
     `;
 
     // 실시간 승률 바 + 현재 집 차이 (winrateAfter·scoreLeadAfter = 흑 기준)
@@ -831,6 +845,69 @@ function replayFromHere() {
     sessionStorage.setItem('replaySetup', JSON.stringify(payload));
     location.href = '/play';
 }
+
+/* ── 후보수(①②③) hover 상세 ──
+   마커에 올리면 그 수의 예상 진행을 유령돌로 그리고, 승률·형세를 툴팁으로 표시 */
+function mouseToGrid(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scale = BOARD_PX / rect.width;      // 반응형 축소 대비
+    const mx = (e.clientX - rect.left) * scale;
+    const my = (e.clientY - rect.top)  * scale;
+    const gx = Math.round((mx - PAD) / CELL);
+    const gy = 18 - Math.round((my - PAD) / CELL);
+    return { gx, gy };
+}
+function renderCandidateHover(marker) {
+    const ctx = canvas.getContext('2d');
+    const cur = moves[currentIdx];
+    drawBoard(ctx);
+    const base = buildBoardState(currentIdx - 1);   // 현재 수 두기 직전 국면
+    const prevG = currentIdx > 0 ? gtpToGrid(moves[currentIdx - 1].move) : null;
+    for (let x = 0; x < 19; x++)
+        for (let y = 0; y < 19; y++)
+            if (base[x][y]) drawStone(ctx, x, y, base[x][y], prevG && x === prevG.x && y === prevG.y);
+    const pv = (marker.cand.pv && marker.cand.pv.length) ? marker.cand.pv : [marker.cand.move];
+    drawPvSequence(ctx, base, cur.color, pv);
+}
+function showCandTooltip(marker, e) {
+    const c = marker.cand;
+    const tip = document.getElementById('candTooltip');
+    const wr = (typeof c.winrate === 'number') ? (c.winrate * 100).toFixed(1) + '%' : '-';
+    let score = '-';
+    if (typeof c.scoreLead === 'number')
+        score = c.scoreLead >= 0 ? `흑 +${c.scoreLead.toFixed(1)}집` : `백 +${Math.abs(c.scoreLead).toFixed(1)}집`;
+    tip.innerHTML = `<b>${marker.rank}순위 · ${c.move}</b><br>흑 승률 ${wr}<br>예상 형세 ${score}`;
+    tip.style.display = 'block';
+    positionCandTooltip(e);
+}
+function positionCandTooltip(e) {
+    const tip = document.getElementById('candTooltip');
+    let x = e.clientX + 14, y = e.clientY + 14;
+    const w = tip.offsetWidth || 150, h = tip.offsetHeight || 60;
+    if (x + w > window.innerWidth)  x = e.clientX - w - 14;
+    if (y + h > window.innerHeight) y = e.clientY - h - 14;
+    tip.style.left = x + 'px';
+    tip.style.top  = y + 'px';
+}
+function clearCandHover() {
+    hoveredCandIdx = -1;
+    const tip = document.getElementById('candTooltip');
+    if (tip) tip.style.display = 'none';
+    if (currentIdx >= 0) showMove(currentIdx);
+}
+canvas.addEventListener('mousemove', function(e) {
+    if (currentIdx < 0 || candMarkers.length === 0) { if (hoveredCandIdx !== -1) clearCandHover(); return; }
+    const { gx, gy } = mouseToGrid(e);
+    const hit = candMarkers.findIndex(m => m.gx === gx && m.gy === gy);
+    if (hit !== hoveredCandIdx) {
+        hoveredCandIdx = hit;
+        if (hit >= 0) { renderCandidateHover(candMarkers[hit]); showCandTooltip(candMarkers[hit], e); }
+        else { const t = document.getElementById('candTooltip'); if (t) t.style.display = 'none'; showMove(currentIdx); }
+    } else if (hit >= 0) {
+        positionCandTooltip(e);
+    }
+});
+canvas.addEventListener('mouseleave', function() { if (hoveredCandIdx !== -1) clearCandHover(); });
 
 /* ── 집 손해 정렬 토글 ── */
 let sortedByLoss = false, originalRows = null;
