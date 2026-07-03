@@ -11,7 +11,6 @@
 - 초점: **세부 페이지 콘텐츠 고도화**.
 
 ## 예정 / 후보 (페이지 콘텐츠, 우선순위 ⭐)
-- ⭐ **집(영역) 히트맵** — 쿼리에 `includeOwnership:true` 추가 → 매 수 361칸 소유 예측을 바둑판에 반투명 오버레이 (result 페이지). 저비용·고임팩트, 엔진 이해도 어필.
 - ⭐ **"이 수부터 AI와 다시 두기"** — result 특정 수 → `/play`로 국면 이관. 복기+대국 연결, 라우팅 위주.
 - ⭐ **About/기술 페이지** — 아키텍처 다이어그램·스택·직접 구현물(SGF/GIB 파서, KataGo IPC, 하이브리드 쿼리). 면접 어필.
 - 후보수 hover 상세(승률/집차/PV 유령돌), 내 수 vs 최선수 변화도 나란히
@@ -21,6 +20,7 @@
 - `.card` box-shadow 통합은 HTML 공용 클래스 필요해 보수적 보류 유지
 
 ## 최근 완료 (최신순, 5건 유지)
+- ⭐ AI 집(영역) 히트맵: 쿼리에 `includeOwnership:true` → MoveDetail.ownership(361, 착점후 국면) 저장 → result.html "집예측" 토글로 반투명 오버레이(+흑/−백, reportAnalysisWinratesAs=BLACK). 재분석 필요. 로컬 재분석 1판으로 방향·부호 검증 완료. 주의: ownership로 결과 JSON 커짐(200수 ~0.6-1MB) → listResults 인덱스 로드 다소 무거워질 수 있음(추후 lazy-load 최적화 후보)
 - 페이지별 `<style>` 중복 추가 정리: byte-identical 3건만 common.css로 이동 — `table{border-collapse;width}`(batch/result), `.gauge-label`(batch/result), `@keyframes spin`(batch/play). waiting.html은 common.css 미연결이라 제외. 서버 재기동 후 batch/index/result/play 4페이지 하드리프레시로 검증, 회귀 없음
 - CSS 중복정리(common.css, h1/subtitle/badge) 시각 검증 완료: 서버 기동 후 batch/index/result 3페이지 스크린샷 확인, 회귀 없음
 - AI 대국 페이지(`/play`) 신규 추가 + KataGo persistent process로 착수 속도 개선

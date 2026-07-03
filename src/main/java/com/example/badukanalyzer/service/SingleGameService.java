@@ -290,6 +290,7 @@ public class SingleGameService {
                     .scoreLoss(round2(scoreLoss))
                     .grade(calcGrade(scoreLoss))
                     .phase(calcPhase(turnNumber))
+                    .ownership(extractOwnership(after))  // 착점 후(turn i+1) 국면의 집 예측
                     .build());
         }
         return details;
@@ -335,6 +336,15 @@ public class SingleGameService {
         if (turnNumber <= 50)  return "초반";
         if (turnNumber <= 150) return "중반";
         return "종반";
+    }
+
+    // KataGo ownership 배열(361, y*19+x) → 2자리 반올림 List. 없으면 null(구 JSON/미요청)
+    private List<Double> extractOwnership(JsonNode node) {
+        JsonNode own = node.path("ownership");
+        if (!own.isArray() || own.isEmpty()) return null;
+        List<Double> list = new ArrayList<>(own.size());
+        for (JsonNode v : own) list.add(round2(v.asDouble()));
+        return list;
     }
 
     private double round2(double v) { return Math.round(v * 100)  / 100.0; }

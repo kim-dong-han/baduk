@@ -124,6 +124,10 @@ public class KataGoService {
     }
 
     private ObjectNode buildQuery(String id, ArrayNode movesArray, List<Integer> analyzeTurns, int maxVisits) {
+        return buildQuery(id, movesArray, analyzeTurns, maxVisits, false);
+    }
+
+    private ObjectNode buildQuery(String id, ArrayNode movesArray, List<Integer> analyzeTurns, int maxVisits, boolean includeOwnership) {
         ObjectNode query = objectMapper.createObjectNode();
         query.put("id", id);
         query.put("boardXSize", 19);
@@ -133,6 +137,7 @@ public class KataGoService {
         query.set("moves", movesArray.deepCopy());
         query.set("analyzeTurns", objectMapper.valueToTree(analyzeTurns));
         query.put("maxVisits", maxVisits);
+        if (includeOwnership) query.put("includeOwnership", true);  // 집(영역) 예측 361칸 반환
         return query;
     }
 
@@ -185,7 +190,7 @@ public class KataGoService {
         int totalTurns = allTurns.size();
 
         String queryId = UUID.randomUUID().toString();
-        writer.write(buildQuery(queryId, movesArray, allTurns, analysisVisits).toString());
+        writer.write(buildQuery(queryId, movesArray, allTurns, analysisVisits, true).toString());
         writer.newLine();
         writer.flush();
         writer.close();

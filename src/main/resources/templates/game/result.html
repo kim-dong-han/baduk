@@ -328,6 +328,7 @@
             <button class="nav-btn sm" onclick="jumpToInput()">이동</button>
             <button class="nav-btn sm" id="btnSeq" onclick="toggleSequence()">수순</button>
             <button class="nav-btn sm" id="btnVar" onclick="toggleVariation()" title="최선수를 뒀을 때의 예상 진행">변화도</button>
+            <button class="nav-btn sm" id="btnTerr" onclick="toggleOwnership()" title="AI가 예측한 집(영역)">집예측</button>
         </div>
 
         <div id="moveInfo" class="move-info-panel">
@@ -431,6 +432,7 @@ const mistakeTurns = new Set(keyMistakes.map(m => m.turnNumber));
 let currentIdx = -1;
 let showSequence = false;
 let showVariation = false;
+let showOwnership = false;
 let scoreChartInst, winrateChartInst;
 
 /* ── 현재 수 커서 플러그인 ── */
@@ -605,6 +607,24 @@ function buildBoardState(upToIdx) {
     return board;
 }
 
+/* ── AI 집(영역) 예측 히트맵 ──
+   ownership[y*19+x], +값=흑·−값=백 (KataGo reportAnalysisWinratesAs=BLACK).
+   확신할수록 큰 사각형, 접전(≈0)은 생략. 돌보다 먼저 그려 돌이 덮게 함. */
+function drawOwnership(ctx, ownership) {
+    for (let gx = 0; gx < 19; gx++) {
+        for (let gy = 0; gy < 19; gy++) {
+            const v = ownership[(18 - gy) * 19 + gx];
+            if (v == null) continue;
+            const a = Math.abs(v);
+            if (a < 0.15) continue;
+            const side = CELL * 0.82 * a;
+            ctx.fillStyle = v > 0 ? `rgba(0,0,0,${(0.55 * a).toFixed(3)})`
+                                  : `rgba(255,255,255,${(0.85 * a).toFixed(3)})`;
+            ctx.fillRect(px(gx) - side / 2, py(gy) - side / 2, side, side);
+        }
+    }
+}
+
 /* ── 변화도(예상 진행) 반투명 돌 ── */
 function drawGhostStone(ctx, gx, gy, color, num, isFirst) {
     const cx = px(gx), cy = py(gy);
@@ -673,6 +693,8 @@ function showMove(idx) {
         drawVariation(ctx, base, cur);
     } else {
         const board = buildBoardState(idx);
+        // AI 집 예측 히트맵 (돌보다 먼저 → 돌이 위를 덮음)
+        if (showOwnership && cur.ownership && cur.ownership.length === 361) drawOwnership(ctx, cur.ownership);
         const lastG = gtpToGrid(cur.move);
         for (let x = 0; x < 19; x++)
             for (let y = 0; y < 19; y++)
@@ -731,6 +753,8 @@ function showMove(idx) {
         <div class="info-row"><span class="info-label">등급</span><span class="grade-badge g-${cur.grade}">${cur.grade}</span></div>
         ${bestHtml}
         ${variationActive ? '<div style="margin-top:8px;font-size:12px;color:#3498db;">바둑판에 표시된 번호는 최선수 이후 예상 진행입니다.</div>' : ''}
+        ${showOwnership && !variationActive ? '<div style="margin-top:8px;font-size:12px;color:#888;">■ 검정=흑 집 · □ 흰색=백 집 (칸이 클수록 확실). AI 예측 영역입니다.</div>' : ''}
+        ${showOwnership && variationActive ? '<div style="margin-top:8px;font-size:12px;color:#aaa;">변화도 표시 중엔 집 예측이 숨겨집니다.</div>' : ''}
     `;
 
     // 실시간 승률 바 + 현재 집 차이 (winrateAfter·scoreLeadAfter = 흑 기준)
@@ -783,6 +807,12 @@ function toggleSequence() {
 function toggleVariation() {
     showVariation = !showVariation;
     document.getElementById('btnVar').classList.toggle('active', showVariation);
+    if (currentIdx >= 0) showMove(currentIdx);
+}
+
+function toggleOwnership() {
+    showOwnership = !showOwnership;
+    document.getElementById('btnTerr').classList.toggle('active', showOwnership);
     if (currentIdx >= 0) showMove(currentIdx);
 }
 
