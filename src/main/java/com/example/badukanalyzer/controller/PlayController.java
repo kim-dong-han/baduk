@@ -93,6 +93,22 @@ public class PlayController {
         return result;
     }
 
+    @PostMapping("/api/play/pass")
+    @ResponseBody
+    public Map<String, Object> passMove() {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            String aiMove = playService.playUserMove("pass");  // pass 처리(2연속 pass면 종료)
+            result.put("ok", true);
+            result.put("aiMove", aiMove);
+            result.put("gameOver", playService.isGameOver());
+        } catch (Exception e) {
+            result.put("ok", false);
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
     @PostMapping("/api/play/undo")
     @ResponseBody
     public Map<String, Object> undoMove() {
