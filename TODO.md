@@ -6,8 +6,19 @@
 ## 진행 중
 - (없음)
 
-## 예정 / 후보
-- `.card` 계열 box-shadow 패턴(batch/index/result 다수) — selector마다 padding·border-top 등이 달라 진짜 중복 아님. 통합하려면 HTML에 공용 클래스 추가 필요해 보수적 보류 유지.
+## 방향 (2026-07-03 확정)
+- **배포 중단** — 개인 GPU 연산 부담. 이 저장소=포트폴리오, 엔진 로컬, b28 고정. 배포판은 추후 별도 저장소. (PROJECT.md 프로젝트 성격 참조)
+- 초점: **세부 페이지 콘텐츠 고도화**.
+
+## 예정 / 후보 (페이지 콘텐츠, 우선순위 ⭐)
+- ⭐ **집(영역) 히트맵** — 쿼리에 `includeOwnership:true` 추가 → 매 수 361칸 소유 예측을 바둑판에 반투명 오버레이 (result 페이지). 저비용·고임팩트, 엔진 이해도 어필.
+- ⭐ **"이 수부터 AI와 다시 두기"** — result 특정 수 → `/play`로 국면 이관. 복기+대국 연결, 라우팅 위주.
+- ⭐ **About/기술 페이지** — 아키텍처 다이어그램·스택·직접 구현물(SGF/GIB 파서, KataGo IPC, 하이브리드 쿼리). 면접 어필.
+- 후보수 hover 상세(승률/집차/PV 유령돌), 내 수 vs 최선수 변화도 나란히
+- 실력 리포트 "반복 약점" 자동 코멘트, 오답노트/북마크
+- 분석 메타 패널(net·visits·소요시간·수), 샘플 기보 갤러리(정적 데모 결합)
+- **면접용 정적 데모**: 결과 뷰어+실력 리포트만 정적 배포(GitHub Pages) + README 데모 영상
+- `.card` box-shadow 통합은 HTML 공용 클래스 필요해 보수적 보류 유지
 
 ## 최근 완료 (최신순, 5건 유지)
 - 페이지별 `<style>` 중복 추가 정리: byte-identical 3건만 common.css로 이동 — `table{border-collapse;width}`(batch/result), `.gauge-label`(batch/result), `@keyframes spin`(batch/play). waiting.html은 common.css 미연결이라 제외. 서버 재기동 후 batch/index/result/play 4페이지 하드리프레시로 검증, 회귀 없음
