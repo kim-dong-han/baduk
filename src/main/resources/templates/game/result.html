@@ -68,14 +68,13 @@
         .card-phase { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
         .stat-row { display: flex; justify-content: space-between; font-size: 13px; color: #888; margin-bottom: 8px; }
         .stat-row .val { font-weight: 700; color: #333; }
-        .gauge-label { font-size: 12px; color: #888; margin-bottom: 4px; display: flex; justify-content: space-between; }
         .gauge-track { background: #eee; border-radius: 99px; height: 8px; margin-bottom: 14px; }
         .gauge-fill { height: 100%; border-radius: 99px; }
         .fill-good { background: #2ecc71; }
         .fill-warn { background: #f39c12; }
         .fill-bad  { background: #e74c3c; }
         .card-badges { display: flex; gap: 6px; flex-wrap: wrap; }
-        /* .badge 베이스는 common.css 공통 규칙 사용 */
+        /* .badge, .gauge-label, table, @keyframes spin 베이스는 common.css 공통 규칙 사용 */
         .badge-red { background: #fadbd8; color: #c0392b; }
         .badge-org { background: #fdebd0; color: #b7770d; }
         .badge-grn { background: #d5f5e3; color: #1e8449; }
@@ -180,7 +179,6 @@
         .table-wrap { overflow-y: auto; max-height: 520px; }
         .table-wrap::-webkit-scrollbar { width: 5px; }
         .table-wrap::-webkit-scrollbar-thumb { background: #ddd; border-radius: 99px; }
-        table { border-collapse: collapse; width: 100%; }
         th { background: #f8f9fa; color: #555; font-size: 12px; padding: 8px 10px; border-bottom: 2px solid #eee; text-align: center; position: sticky; top: 0; z-index: 1; }
         td { padding: 7px 10px; text-align: center; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
         tr.move-row { cursor: pointer; transition: background 0.1s; }
