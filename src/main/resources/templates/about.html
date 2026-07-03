@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>소개 · 바둑 분석</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .hero { background: linear-gradient(135deg, #1a1a2e, #2b2b52); color: #fff; border-radius: 16px; padding: 34px 30px; margin-bottom: 26px; }
+        .hero h1 { font-size: 26px; margin: 0 0 8px; color: #fff; }
+        .hero p  { font-size: 14px; color: #c7c9e0; margin: 0 0 16px; line-height: 1.6; max-width: 720px; }
+        .badges { display: flex; flex-wrap: wrap; gap: 7px; }
+        .badge-tech { font-size: 12px; background: rgba(255,255,255,0.12); color: #eef; border-radius: 99px; padding: 4px 11px; font-weight: 600; }
+
+        .section-h { font-size: 18px; font-weight: 800; margin: 30px 0 14px; color: #2b2b52; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+        .fcard { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 4px solid #4a90d9; }
+        .fcard .ico { font-size: 22px; margin-bottom: 8px; }
+        .fcard h3 { font-size: 15px; margin: 0 0 6px; }
+        .fcard p  { font-size: 13px; color: #666; margin: 0 0 10px; line-height: 1.55; }
+        .fcard a  { font-size: 13px; color: #4a90d9; text-decoration: none; font-weight: 600; }
+        .fcard a:hover { text-decoration: underline; }
+
+        /* 아키텍처 다이어그램 */
+        .arch { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow-x: auto; }
+        .arch-flow { display: flex; align-items: center; gap: 10px; min-width: 640px; }
+        .node { background: #f4f6fb; border: 1px solid #e2e7f0; border-radius: 10px; padding: 12px 14px; text-align: center; flex-shrink: 0; }
+        .node .t { font-size: 13px; font-weight: 700; color: #2b2b52; }
+        .node .s { font-size: 11px; color: #999; margin-top: 3px; }
+        .node.engine { background: #1a1a2e; border-color: #1a1a2e; }
+        .node.engine .t { color: #fff; }
+        .node.engine .s { color: #9aa0c8; }
+        .node.store { background: #eef7ef; border-color: #cfe8d2; }
+        .arrow { color: #b8c0d0; font-size: 20px; flex-shrink: 0; }
+        .arch-note { font-size: 12px; color: #999; margin-top: 14px; }
+
+        /* 기술 스택 표 */
+        .stack { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
+        .stack table { border-collapse: collapse; width: 100%; }
+        .stack td { padding: 11px 16px; border-bottom: 1px solid #f2f2f2; font-size: 13px; }
+        .stack tr:last-child td { border-bottom: none; }
+        .stack td:first-child { color: #888; width: 130px; font-weight: 600; }
+        .stack td:last-child { color: #333; }
+
+        /* 엔지니어링 하이라이트 */
+        .hl { background: #fff; border-radius: 12px; padding: 8px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .hl-item { padding: 15px 0; border-bottom: 1px solid #f2f2f2; }
+        .hl-item:last-child { border-bottom: none; }
+        .hl-item h4 { font-size: 14px; margin: 0 0 5px; color: #2b2b52; }
+        .hl-item p  { font-size: 13px; color: #666; margin: 0; line-height: 1.6; }
+        .hl-item code { background: #f0f2f5; border-radius: 4px; padding: 1px 6px; font-size: 12px; color: #c0392b; }
+
+        .note-box { background: #fff8ec; border: 1px solid #fbe4bd; border-radius: 12px; padding: 18px 22px; font-size: 13px; color: #7a5a1e; line-height: 1.7; }
+        .note-box b { color: #8a5a0a; }
+    </style>
+</head>
+<body>
+    <nav class="topnav">
+        <div class="topnav-inner">
+            <a class="brand" href="/analysis/batch">⚫ 바둑 분석</a>
+            <div class="topnav-links">
+                <a href="/analysis/batch">실력 리포트</a>
+                <a href="/game">기보 복기</a>
+                <a href="/play">AI 대국</a>
+                <a href="/about" class="active">소개</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="page narrow">
+
+        <div class="hero">
+            <h1>바둑 기보 AI 분석기</h1>
+            <p>업로드한 내 바둑 기보를 KataGo(AlphaGo 계열 오픈소스 엔진)로 분석해, 초반·중반·종반 구간별 실력을 수치화하고
+               프로 기보와 비교합니다. AI 최선수·집 예측·실수 지점을 직관적으로 복기하고, 그 국면에서 AI와 직접 이어 둘 수 있습니다.</p>
+            <div class="badges">
+                <span class="badge-tech">Java 21</span>
+                <span class="badge-tech">Spring Boot 4</span>
+                <span class="badge-tech">Thymeleaf</span>
+                <span class="badge-tech">KataGo b28</span>
+                <span class="badge-tech">Canvas 2D</span>
+                <span class="badge-tech">Selenium</span>
+            </div>
+        </div>
+
+        <div class="section-h">주요 기능</div>
+        <div class="grid">
+            <div class="fcard">
+                <div class="ico">📊</div>
+                <h3>실력 리포트</h3>
+                <p>여러 기보를 집계해 구간별 AI 유사도·집 손해·수 품질 분포를 보여주고, 프로 기보와 비교합니다.</p>
+                <a href="/analysis/batch">열기 →</a>
+            </div>
+            <div class="fcard">
+                <div class="ico">🔍</div>
+                <h3>한 판 복기</h3>
+                <p>수별 최선수·집 손해·등급(최선~악수), AI 집(영역) 예측 히트맵, 형세·승률 변화 그래프.</p>
+                <a href="/game">열기 →</a>
+            </div>
+            <div class="fcard">
+                <div class="ico">♟️</div>
+                <h3>AI 대국 · 이어두기</h3>
+                <p>KataGo와 실시간 대국. 복기 중 특정 국면에서 "이 수부터 다시 두기"로 이어서 둘 수 있습니다.</p>
+                <a href="/play">열기 →</a>
+            </div>
+            <div class="fcard">
+                <div class="ico">🧩</div>
+                <h3>사활 문제</h3>
+                <p>분석 대기 중 랜덤 사활 문제 풀이. KataGo로 정답을 검증한 60문제(난이도 3단계) 내장.</p>
+                <a href="/game">대기 화면에서 →</a>
+            </div>
+        </div>
+
+        <div class="section-h">시스템 구조</div>
+        <div class="arch">
+            <div class="arch-flow">
+                <div class="node"><div class="t">브라우저</div><div class="s">Thymeleaf · Canvas</div></div>
+                <span class="arrow">→</span>
+                <div class="node"><div class="t">Controller</div><div class="s">요청 매핑</div></div>
+                <span class="arrow">→</span>
+                <div class="node"><div class="t">Service</div><div class="s">분석·등급·집계</div></div>
+                <span class="arrow">→</span>
+                <div class="node engine"><div class="t">KataGo</div><div class="s">로컬 subprocess</div></div>
+                <span class="arrow">→</span>
+                <div class="node store"><div class="t">JSON 파일</div><div class="s">결과 영속</div></div>
+            </div>
+            <div class="arch-note">DB 없이 로컬 파일 시스템이 영속 계층. KataGo는 별도 프로세스로 JSON 쿼리(stdin)·결과(stdout)를 주고받습니다.</div>
+        </div>
+
+        <div class="section-h">기술 스택</div>
+        <div class="stack">
+            <table>
+                <tr><td>언어</td><td>Java 21</td></tr>
+                <tr><td>프레임워크</td><td>Spring Boot 4.1 (MVC, @Async)</td></tr>
+                <tr><td>뷰</td><td>Thymeleaf + 바닐라 JS, HTML Canvas 2D 렌더링</td></tr>
+                <tr><td>AI 엔진</td><td>KataGo v1.16.5 · kata1-b28c512nbt (로컬)</td></tr>
+                <tr><td>차트</td><td>Chart.js (형세·승률·레이더)</td></tr>
+                <tr><td>크롤링</td><td>Selenium + webdrivermanager (타이젬 기보 수집)</td></tr>
+                <tr><td>빌드</td><td>Gradle Wrapper</td></tr>
+                <tr><td>저장</td><td>파일 기반 (`{uuid}.json`) — RDB 미사용</td></tr>
+            </table>
+        </div>
+
+        <div class="section-h">직접 구현한 부분</div>
+        <div class="hl">
+            <div class="hl-item">
+                <h4>KataGo Analysis Engine 연동</h4>
+                <p>엔진의 analysis 모드와 <code>ProcessBuilder</code>로 통신 — 기보 전체를 JSON 쿼리로 보내고 수별 승률·집·최선수·예상수순을 파싱. 실시간 대국은 영구 프로세스를 재사용해 매 착수 지연을 줄였습니다.</p>
+            </div>
+            <div class="hl-item">
+                <h4>GIB / SGF 파서 & 좌표 변환</h4>
+                <p>타이젬 <code>.gib</code>와 <code>.sgf</code>를 직접 파싱해 착수 목록으로 변환. SGF 좌표 ↔ GTP 좌표 변환, 보드 크기(<code>SZ</code>)·대국자·핸디캡까지 처리합니다.</p>
+            </div>
+            <div class="hl-item">
+                <h4>하이브리드 분석 쿼리</h4>
+                <p>형세 변동은 매 수 <code>visits=1</code>, 실력 지표는 10수마다 <code>visits=30</code> — 한 세션에서 두 종류 쿼리를 섞어 정확도와 속도를 절충했습니다.</p>
+            </div>
+            <div class="hl-item">
+                <h4>집(영역) 예측 히트맵</h4>
+                <p><code>includeOwnership</code>로 받은 361칸 소유 예측을 바둑판에 확신도 비례 오버레이. 흑/백 관점을 <code>reportAnalysisWinratesAs=BLACK</code>에 맞춰 정규화했습니다.</p>
+            </div>
+            <div class="hl-item">
+                <h4>복기 ↔ 대국 연결</h4>
+                <p>복기 국면을 그대로 대국으로 넘겨 이어 두기. 차례 판정을 수순 파리티가 아닌 "마지막 수의 반대 색"으로 계산해 백선착·접바둑 국면도 정확히 처리합니다.</p>
+            </div>
+            <div class="hl-item">
+                <h4>사활 문제 생성 파이프라인</h4>
+                <p>공개 사활 SGF를 로컬 KataGo로 정답 검증(최선수와 1.5집 이내만 채택)하고 정해 수순 길이로 난이도를 3등분해 60문제를 생성했습니다.</p>
+            </div>
+        </div>
+
+        <div class="section-h">설계 결정 & 한계</div>
+        <div class="note-box">
+            <b>개인 포트폴리오 프로젝트</b>입니다. KataGo는 GPU 연산 부담이 커서 상용 배포 대신 <b>엔진을 로컬에서만</b> 구동하고 강한 신경망(b28)을 고정으로 씁니다.
+            분석 결과는 DB 대신 <b>JSON 파일</b>로 저장해 구조를 단순화했습니다. 실시간 분석·대국은 로컬 실행이 필요하지만,
+            이미 계산된 복기 결과·실력 리포트는 연산 없이 열람 가능해 정적 데모로 분리할 수 있습니다.
+        </div>
+
+        <p style="text-align:center; margin:34px 0 10px; font-size:13px; color:#aaa;">
+            개인 프로젝트 · KataGo 기반 바둑 분석 웹앱
+        </p>
+
+    </div>
+</body>
+</html>
