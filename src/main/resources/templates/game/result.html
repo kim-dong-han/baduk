@@ -334,6 +334,10 @@
         <div id="moveInfo" class="move-info-panel">
             <div class="info-placeholder">수를 클릭하거나 화살표 버튼으로 이동하세요</div>
         </div>
+        <button id="btnReplay" onclick="replayFromHere()" title="이 국면에서 KataGo와 직접 이어 둡니다"
+                style="width:100%;margin-top:12px;padding:11px;border:none;border-radius:10px;background:#2ecc71;color:#fff;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(46,204,113,0.35);">
+            ▶ 이 수부터 AI와 다시 두기
+        </button>
     </div>
 
     <!-- ══ AI 착수 통계 (위) + 핵심 실수 (아래) ══ -->
@@ -814,6 +818,16 @@ function toggleOwnership() {
     showOwnership = !showOwnership;
     document.getElementById('btnTerr').classList.toggle('active', showOwnership);
     if (currentIdx >= 0) showMove(currentIdx);
+}
+
+/* ── 이 수부터 AI와 다시 두기: 선택 수 직전 국면을 /play로 넘겨 이어 두기 ──
+   유저는 그 수를 둔 쪽을 잡아, 그 자리에서 다른 수를 시도할 수 있다. */
+function replayFromHere() {
+    const idx = currentIdx < 0 ? 0 : currentIdx;
+    const setup = moves.slice(0, idx).map(m => [m.color, m.move]);  // 선택 수 직전까지
+    const payload = { moves: setup, userColor: moves[idx].color, fromTurn: moves[idx].turnNumber };
+    sessionStorage.setItem('replaySetup', JSON.stringify(payload));
+    location.href = '/play';
 }
 
 /* ── 집 손해 정렬 토글 ── */

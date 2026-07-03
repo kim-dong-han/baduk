@@ -6,6 +6,7 @@ import com.example.badukanalyzer.util.CoordinateConverter;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,38 @@ public class PlayController {
             result.put("ok", true);
             result.put("aiMove", aiMove);
             result.put("gameOver", false);
+        } catch (Exception e) {
+            result.put("ok", false);
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
+    /** 복기 화면에서 넘어온 국면으로 이어두기 시작. body: {userColor, moves:[[color,gtp],...]} */
+    @PostMapping("/api/play/from")
+    @ResponseBody
+    public Map<String, Object> newGameFrom(@RequestBody Map<String, Object> body) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            String userColor = String.valueOf(body.getOrDefault("userColor", "B"));
+            Object rawMoves = body.getOrDefault("moves", List.of());
+            List<Move> setup = new ArrayList<>();
+            for (Object o : (List<?>) rawMoves) {
+                List<?> pair = (List<?>) o;               // [color, gtp]
+                String color = String.valueOf(pair.get(0));
+                String gtp   = String.valueOf(pair.get(1));
+                setup.add(CoordinateConverter.fromGtp(color, gtp));
+            }
+            playService.newGameFrom(setup, userColor);
+            String aiMove = playService.getAiMoveIfTurn();  // 유저 차례면 null
+            List<Map<String, String>> hist = playService.getHistory().stream()
+                .map(m -> Map.of("color", m.getColor(), "gtp", CoordinateConverter.toGtpCoord(m)))
+                .collect(Collectors.toList());
+            result.put("ok", true);
+            result.put("history", hist);
+            result.put("aiMove", aiMove);
+            result.put("userColor", playService.getUserColor());
+            result.put("gameOver", playService.isGameOver());
         } catch (Exception e) {
             result.put("ok", false);
             result.put("error", e.getMessage());
