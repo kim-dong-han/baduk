@@ -58,7 +58,9 @@ public class SingleGameService {
         List<Move> moves = parseFile(filePath);
 
         System.out.println("[SingleGame] 분석 시작: " + fileName + " (" + moves.size() + "수)");
+        long startedAt = System.currentTimeMillis();
         List<JsonNode> nodes = kataGoService.analyzeAllMoves(moves, progressCallback);
+        long durationMs = System.currentTimeMillis() - startedAt;
         System.out.println("[SingleGame] KataGo 결과 수신: " + nodes.size() + "개 노드");
 
         List<MoveDetail> moveDetails = buildMoveDetails(moves, nodes);
@@ -87,6 +89,9 @@ public class SingleGameService {
                 .whitePlayer(players[1])
                 .analyzedAt(now)
                 .totalMoves(moves.size())
+                .engineNet(kataGoService.getNetName())
+                .analysisVisits(kataGoService.getAnalysisVisits())
+                .analysisDurationMs(durationMs)
                 .moves(moveDetails)
                 .top3Mistakes(top3Mistakes)
                 .top3GoodMoves(top3GoodMoves)

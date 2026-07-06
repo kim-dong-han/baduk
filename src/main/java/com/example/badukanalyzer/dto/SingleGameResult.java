@@ -19,6 +19,11 @@ public class SingleGameResult {
     private String analyzedAt;   // ISO-8601 문자열
     private int totalMoves;
 
+    // 분석 메타 (구 JSON은 null/0 → 화면에서 '-' 처리)
+    private String engineNet;      // KataGo 네트워크 이름
+    private Integer analysisVisits; // 수당 visits
+    private Long analysisDurationMs; // 분석 소요(ms)
+
     private List<MoveDetail> moves;       // 전체 수 상세
     private List<MoveDetail> top3Mistakes;  // scoreLoss 낙폭 Top3
     private List<MoveDetail> top3GoodMoves; // scoreLoss 이득 Top3

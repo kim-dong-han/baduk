@@ -32,6 +32,20 @@ public class KataGoService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /** 단일 기보 전수 분석에 쓰는 visits (분석 메타 패널 표기용). */
+    public int getAnalysisVisits() { return analysisVisits; }
+
+    /** 모델 파일명에서 네트워크 이름만 뽑아 반환. 짧은 블록 우선(예: b28c512nbt), 없으면 파일명. */
+    public String getNetName() {
+        if (modelPath == null || modelPath.isBlank()) return "unknown";
+        String f = new java.io.File(modelPath).getName()
+                .replaceFirst("\\.bin\\.gz$", "").replaceFirst("\\.txt\\.gz$", "");
+        for (String tok : f.split("-")) {
+            if (tok.matches("b\\d+c\\d+.*")) return tok;   // bNNcNN(nbt) 블록만
+        }
+        return f;
+    }
+
     // 실시간 대국용 영구 프로세스
     private Process      playProcess = null;
     private BufferedWriter playWriter = null;

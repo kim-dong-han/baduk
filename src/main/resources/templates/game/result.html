@@ -234,6 +234,9 @@
         <span>📄 <span th:text="${result.fileName}"></span></span>
         <span>🕐 <span th:text="${result.analyzedAt != null ? result.analyzedAt.substring(0,10) : ''}"></span></span>
         <span>총 <span th:text="${result.totalMoves}"></span>수</span>
+        <span th:if="${result.engineNet != null}" title="KataGo 네트워크">🧠 <span th:text="${result.engineNet}"></span></span>
+        <span th:if="${result.analysisVisits != null and result.analysisVisits > 0}" title="수당 탐색 횟수(클수록 정밀)">🔎 <span th:text="${result.analysisVisits}"></span> visits/수</span>
+        <span th:if="${result.analysisDurationMs != null and result.analysisDurationMs > 0}" title="이 기보 분석에 걸린 시간">⏱ <span th:text="${#numbers.formatDecimal(result.analysisDurationMs / 1000.0, 1, 1)}"></span>초</span>
     </div>
 </div>
 
