@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>복기 분석 결과</title>
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/chart.min.js"></script>
+    <style>
+        .header { margin-bottom: 20px; }
+        .header h1 { font-size: 22px; margin: 0 0 6px; }
+        .header-meta { font-size: 13px; color: #999; display: flex; gap: 16px; }
+
+        /* ── 리뷰 그리드 레이아웃 ──
+           구간카드(전체폭) / 바둑판 | 핵심실수+AI통계 / 형세변화(전체폭) / 전체수분석(전체폭) */
+        .review-grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: 636px minmax(0, 1fr);
+            grid-template-areas:
+                "phases phases"
+                "board  side"
+                "chart  chart"
+                "table  table";
+            align-items: start;
+        }
+        .area-phases { grid-area: phases; }
+        .area-board  { grid-area: board; }
+        .area-side   { grid-area: side; display: flex; flex-direction: column; gap: 16px; }
+        .area-chart  { grid-area: chart; }
+        .area-table  { grid-area: table; }
+
+        /* AI 착수 통계(위, 6) : 핵심 실수(아래, 4) = 6:4.
+           side 컬럼 높이는 JS가 바둑판 높이에 맞춰 설정 → 바둑판 기준 6:4 분할 */
+        .side-ai       { flex: 6; display: flex; flex-direction: column; min-height: 0; }
+        .side-mistakes { flex: 4; display: flex; flex-direction: column; min-height: 0; }
+        .ai-chart-holder { flex: 1; min-height: 0; position: relative; }
+        .side-mistakes .mistakes { flex: 1; min-height: 0; max-height: none; }
+
+        /* 좁은 화면: 한 줄씩 세로 스택 + 바둑판 가운데 */
+        @media (max-width: 1100px) {
+            .review-grid {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "phases"
+                    "board"
+                    "side"
+                    "chart"
+                    "table";
+            }
+            .area-board.card-box { display: flex; flex-direction: column; align-items: center; }
+            .area-board.card-box > * { width: 100%; max-width: 596px; }
+            .side-ai, .side-mistakes { flex: none; }
+            .ai-chart-holder { min-height: 220px; }
+            .side-mistakes .mistakes { max-height: 420px; }
+        }
+
+        /* ── 공통 카드 ── */
+        .card-box { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+        /* ── 구간 카드 (3열 그리드, 좁으면 자동 줄바꿈) ── */
+        .phase-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        @media (max-width: 560px) { .phase-cards { grid-template-columns: 1fr; } }
+        .phase-card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 5px solid #ccc; }
+        .phase-card.good { border-top-color: #2ecc71; }
+        .phase-card.warn { border-top-color: #f39c12; }
+        .phase-card.bad  { border-top-color: #e74c3c; }
+        .card-phase { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+        .stat-row { display: flex; justify-content: space-between; font-size: 13px; color: #888; margin-bottom: 8px; }
+        .stat-row .val { font-weight: 700; color: #333; }
+        .gauge-track { background: #eee; border-radius: 99px; height: 8px; margin-bottom: 14px; }
+        .gauge-fill { height: 100%; border-radius: 99px; }
+        .fill-good { background: #2ecc71; }
+        .fill-warn { background: #f39c12; }
+        .fill-bad  { background: #e74c3c; }
+        .card-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+        /* .badge, .gauge-label, table, @keyframes spin 베이스는 common.css 공통 규칙 사용 */
+        .badge-red { background: #fadbd8; color: #c0392b; }
+        .badge-org { background: #fdebd0; color: #b7770d; }
+        .badge-grn { background: #d5f5e3; color: #1e8449; }
+        .no-data { color: #bbb; font-size: 13px; text-align: center; padding: 16px 0; }
+
+        /* ── 섹션 공통 ── */
+        .section-title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+        .section-desc  { font-size: 12px; color: #999; margin: 0 0 14px; }
+
+        /* ── AI 착수 통계 (흑·백 일치율) ── */
+        .ai-matchrate { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+        .amr-side { display: flex; align-items: center; gap: 8px; }
+        .amr-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+        .amr-dot.black { background: #333; }
+        .amr-dot.white { background: #fff; border: 1px solid #bbb; }
+        .amr-label { font-size: 13px; color: #555; width: 18px; }
+        .amr-bar { flex: 1; background: #eee; border-radius: 99px; height: 14px; overflow: hidden; }
+        .amr-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+        .amr-fill.black { background: #3a3a3a; }
+        .amr-fill.white { background: #9aa0a6; }
+        .amr-pct { font-size: 13px; font-weight: 700; width: 54px; text-align: right; }
+
+        /* ── 바둑판 ── */
+        #boardCanvas { display: block; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.18); max-width: 100%; height: auto; scroll-margin-top: 72px; }
+
+        /* ── 대국자 (바둑판 위 흑/백 구분) ── */
+        .board-players { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+        .bp-side { display: flex; align-items: center; gap: 7px; min-width: 0; }
+        .bp-side.right { flex-direction: row-reverse; }
+        .bp-stone { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
+        .bp-stone.black { background: radial-gradient(circle at 35% 32%, #666, #000); }
+        .bp-stone.white { background: radial-gradient(circle at 35% 32%, #fff, #cfcfcf); border: 1px solid #bbb; }
+        .bp-name { font-size: 15px; font-weight: 700; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .bp-tag { font-size: 11px; color: #fff; border-radius: 4px; padding: 1px 7px; flex-shrink: 0; font-weight: 700; }
+        .bp-tag.black { background: #3a3a3a; }
+        .bp-tag.white { background: #9aa0a6; }
+
+        /* ── 실시간 승률 바 ── */
+        .winrate-bar { position: relative; height: 26px; border-radius: 6px; overflow: hidden; display: flex; margin-bottom: 6px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06); }
+        .wb-black { height: 100%; background: linear-gradient(90deg,#2b2b2b,#454545); transition: width 0.45s ease; }
+        .wb-white { height: 100%; flex: 1; background: linear-gradient(90deg,#d4d4d4,#efefef); }
+        .wb-label { position: absolute; top: 0; line-height: 26px; font-size: 12px; font-weight: 700; }
+        .wb-label.black { left: 9px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
+        .wb-label.white { right: 9px; color: #555; text-shadow: 0 1px 2px rgba(255,255,255,0.7); }
+
+        /* ── 현재 형세(집 차이) ── */
+        .score-diff { text-align: center; font-size: 13px; font-weight: 700; margin-bottom: 12px; color: #888; }
+        .score-diff .lead-b { color: #222; }
+        .score-diff .lead-w { color: #888; }
+
+        .move-info-panel { margin-top: 12px; background: #f8f9fa; border-radius: 8px; padding: 12px 14px; }
+        .info-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px solid #eee; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #aaa; }
+        .info-placeholder { color: #bbb; font-size: 13px; text-align: center; padding: 10px 0; }
+
+        .nav-controls { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
+        .nav-row2     { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+        .nav-btn { background: #f0f2f5; border: 1px solid #ddd; border-radius: 6px; padding: 6px 14px; font-size: 17px; cursor: pointer; color: #555; line-height: 1; transition: background 0.15s; }
+        .nav-btn:hover:not(:disabled) { background: #4a90d9; color: #fff; border-color: #4a90d9; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.active { background: #4a90d9; color: #fff; border-color: #4a90d9; }
+        .nav-btn.sm { font-size: 13px; padding: 6px 14px; }
+        .move-counter { font-size: 13px; color: #666; min-width: 80px; text-align: center; font-weight: 600; }
+        .move-input { width: 58px; padding: 6px 8px; font-size: 13px; border: 1px solid #ddd; border-radius: 6px; text-align: center; outline: none; }
+        .move-input:focus { border-color: #4a90d9; }
+
+        /* ── 핵심 실수 ── */
+        .mistakes { display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
+        .mistakes::-webkit-scrollbar { width: 5px; }
+        .mistakes::-webkit-scrollbar-thumb { background: #ddd; border-radius: 99px; }
+        .mistakes-count { font-size: 12px; font-weight: 600; color: #e74c3c; background: #fdecea; border-radius: 99px; padding: 1px 9px; margin-left: 4px; }
+        .mistakes-empty { color: #bbb; font-size: 13px; text-align: center; padding: 18px 0; }
+        .mistake-card { background: #fff7f7; border: 1px solid #fad7d7; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: box-shadow 0.15s; display: flex; align-items: center; gap: 14px; }
+        .mistake-card:hover { box-shadow: 0 3px 12px rgba(231,76,60,0.18); }
+        .mistake-rank { font-size: 11px; color: #e74c3c; font-weight: 700; flex-shrink: 0; width: 32px; }
+        .mistake-move { font-size: 20px; font-weight: 800; color: #333; flex-shrink: 0; }
+        .mistake-spacer { flex: 1; }
+        .mistake-loss { font-size: 16px; font-weight: 700; color: #e74c3c; flex-shrink: 0; }
+
+        /* ── 형세 변화 차트 ── */
+        .chart-holder { height: 190px; }
+        .chart-holder-wr { height: 160px; margin-top: 14px; }
+
+        /* ── 실시간 AI 승률 바 ── */
+        .wr-bar-section { margin-top: 10px; background: #1a1a2e; border-radius: 8px; padding: 10px 14px; }
+        .wr-bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; font-size: 12px; }
+        .wr-black-val { color: #eee; font-weight: 700; font-size: 13px; }
+        .wr-center-label { color: #7a8aaa; letter-spacing: 1px; font-size: 11px; }
+        .wr-white-val { color: #bbb; font-weight: 700; font-size: 13px; }
+        .wr-bar { height: 20px; border-radius: 4px; overflow: hidden; display: flex; }
+        .wr-bar-black { background: linear-gradient(90deg, #111, #333); transition: width 0.4s ease; }
+        .wr-bar-white { flex: 1; background: linear-gradient(90deg, #ccc, #eee); }
+        .wr-score-line { text-align: center; margin-top: 6px; font-size: 13px; font-weight: 700; color: #e0e0e0; letter-spacing: 0.5px; }
+
+        /* ── 수 테이블 ── */
+        .table-filters { display: flex; gap: 6px; margin: 0 0 12px; flex-wrap: wrap; }
+        .filter-btn { background: #f0f2f5; border: 1px solid #ddd; border-radius: 6px; padding: 5px 13px; font-size: 12px; cursor: pointer; color: #666; transition: background 0.15s, color 0.15s; }
+        .filter-btn:hover:not(.active) { background: #e4e8ec; }
+        .filter-btn.active { background: #4a90d9; color: #fff; border-color: #4a90d9; }
+        .filter-empty { color: #bbb; font-size: 13px; text-align: center; padding: 24px 0; }
+        .table-wrap { overflow-y: auto; max-height: 520px; }
+        .table-wrap::-webkit-scrollbar { width: 5px; }
+        .table-wrap::-webkit-scrollbar-thumb { background: #ddd; border-radius: 99px; }
+        th { background: #f8f9fa; color: #555; font-size: 12px; padding: 8px 10px; border-bottom: 2px solid #eee; text-align: center; position: sticky; top: 0; z-index: 1; }
+        td { padding: 7px 10px; text-align: center; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+        tr.move-row { cursor: pointer; transition: background 0.1s; }
+        tr.move-row:hover { background: #f0f7ff !important; }
+        tr.move-row.selected-row { background: #e8f4fd !important; outline: 2px solid #4a90d9; outline-offset: -2px; }
+        tr.grade-d { background: #fff5f5; }
+        tr.grade-c { background: #fffaf4; }
+        .grade-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+        /* 등급 배지: 초록(좋음)에서 빨강(나쁨)으로 직관적 그라데이션 */
+        .g-최선 { background: #d3f0dd; color: #1e8449; }
+        .g-좋음 { background: #eaf7e1; color: #5a9216; }
+        .g-보통 { background: #fdf3d7; color: #b7770d; }
+        .g-실수 { background: #fde3cf; color: #d35400; }
+        .g-악수 { background: #fadbd8; color: #c0392b; }
+        /* 나란히 비교 모달 */
+        .cmp-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: rgba(20,20,35,0.72); align-items: center; justify-content: center; padding: 20px; }
+        .cmp-box { background: #fff; border-radius: 14px; max-width: 1120px; width: 100%; max-height: 94vh; overflow-y: auto; padding: 22px 24px 26px; box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+        .cmp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .cmp-head h3 { margin: 0; font-size: 18px; color: #222; }
+        .cmp-close { border: none; background: #f0f0f0; width: 32px; height: 32px; border-radius: 8px; font-size: 18px; cursor: pointer; color: #555; }
+        .cmp-close:hover { background: #e2e2e2; }
+        .cmp-diff { text-align: center; font-size: 14px; color: #555; margin: 6px 0 14px; }
+        .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .cmp-panel { display: flex; flex-direction: column; align-items: center; }
+        .cmp-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; padding: 5px 12px; border-radius: 20px; }
+        .cmp-title.mine { background: #fdecea; color: #c0392b; }
+        .cmp-title.best { background: #eaf2fb; color: #2471a3; }
+        .cmp-panel canvas { width: 100%; max-width: 460px; height: auto; border-radius: 8px; }
+        .cmp-stat { margin-top: 10px; font-size: 14px; color: #333; }
+        .cmp-pv { margin-top: 6px; font-size: 12px; color: #888; text-align: center; max-width: 460px; }
+        @media (max-width: 760px) { .cmp-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<nav class="topnav">
+    <div class="topnav-inner">
+        <a class="brand" href="index.html">⚫ 바둑 분석</a>
+        <div class="topnav-links">
+            <a href="report.html">실력 리포트</a>
+            <a href="index.html">오답노트</a>
+            <a href="index.html">갤러리</a>
+            <a href="index.html" class="active">기보 복기</a>
+            <a href="index.html">AI 대국</a>
+            <a href="index.html">소개</a>
+        </div>
+    </div>
+</nav>
+
+<div class="page">
+<div class="header">
+    <h1>복기 분석 결과</h1>
+    <div class="header-meta">
+        <span>📄 <span>kjkim805(9단)_LXL1988(1단)_202606171112.gib</span></span>
+        <span>🕐 <span>2026-07-03</span></span>
+        <span>총 <span>29</span>수</span>
+        
+        
+        
+    </div>
+</div>
+
+<div class="review-grid">
+
+    <!-- ══ 구간별 카드 (전체 폭) ══ -->
+    <div class="phase-cards area-phases">
+        <div class="phase-card good">
+            <div class="card-phase">초반 <small style="font-size:11px;color:#aaa;font-weight:400;">1~50수</small></div>
+            <div>
+                <div class="gauge-label"><span>최선수 일치율</span><span>17.24%</span></div>
+                <div class="gauge-track"><div class="gauge-fill fill-good" style="width:17.24%"></div></div>
+                <div class="stat-row"><span>평균 집 손해</span><span class="val">1.3집</span></div>
+                <div class="stat-row"><span>총 수</span><span class="val">29수</span></div>
+                <div class="card-badges" style="margin-top:10px;">
+                    
+                    <span class="badge badge-org">실수 1개</span>
+                    
+                </div>
+            </div>
+            
+        </div>
+
+        <div class="phase-card">
+            <div class="card-phase">중반 <small style="font-size:11px;color:#aaa;font-weight:400;">51~150수</small></div>
+            
+            <div class="no-data">해당 없음</div>
+        </div>
+
+        <div class="phase-card">
+            <div class="card-phase">종반 <small style="font-size:11px;color:#aaa;font-weight:400;">151수~</small></div>
+            
+            <div class="no-data">해당 없음</div>
+        </div>
+    </div>
+
+    <!-- ══ 바둑판 (왼쪽) ══ -->
+    <div class="card-box area-board">
+        <!-- 흑/백 대국자 -->
+        <div class="board-players">
+            <div class="bp-side">
+                <span class="bp-stone black"></span>
+                <span class="bp-name">흑</span>
+                <span class="bp-tag black">흑</span>
+            </div>
+            <div class="bp-side right">
+                <span class="bp-stone white"></span>
+                <span class="bp-name">백</span>
+                <span class="bp-tag white">백</span>
+            </div>
+        </div>
+        <!-- 실시간 승률 바 -->
+        <div class="winrate-bar">
+            <div class="wb-black" id="wbBlack" style="width:50%"></div>
+            <div class="wb-white" id="wbWhite"></div>
+            <span class="wb-label black" id="wbBlackPct">-</span>
+            <span class="wb-label white" id="wbWhitePct">-</span>
+        </div>
+        <div class="score-diff" id="scoreDiff">수를 이동하면 현재 형세가 표시됩니다</div>
+
+        <canvas id="boardCanvas"></canvas>
+        <div id="candTooltip" style="display:none;position:fixed;z-index:200;background:rgba(26,26,46,0.95);color:#fff;font-size:12px;line-height:1.55;padding:8px 11px;border-radius:8px;pointer-events:none;box-shadow:0 3px 12px rgba(0,0,0,0.3);white-space:nowrap;"></div>
+        <!-- 실시간 AI 승률 바 -->
+        <div id="winrateBar" class="wr-bar-section" style="display:none;">
+            <div class="wr-bar-header">
+                <span class="wr-black-val" id="wrBlackVal">흑 -</span>
+                <span class="wr-center-label">AI 승률</span>
+                <span class="wr-white-val" id="wrWhiteVal">백 -</span>
+            </div>
+            <div class="wr-bar">
+                <div class="wr-bar-black" id="wrBarBlack" style="width:50%"></div>
+                <div class="wr-bar-white"></div>
+            </div>
+            <div class="wr-score-line">
+                <span id="wrScoreText">-</span>
+            </div>
+        </div>
+
+        <div class="nav-controls">
+            <button class="nav-btn" id="btnFirst" onclick="showMove(0)"                  title="처음으로">«</button>
+            <button class="nav-btn" id="btnPrev5" onclick="skipMove(-5)"                 title="5수 뒤로 (Shift+←)">‹‹</button>
+            <button class="nav-btn" id="btnPrev"  onclick="prevMove()"                   title="이전 수 (←)">‹</button>
+            <span class="move-counter" id="moveCounter">-</span>
+            <button class="nav-btn" id="btnNext"  onclick="nextMove()"                   title="다음 수 (→)">›</button>
+            <button class="nav-btn" id="btnNext5" onclick="skipMove(5)"                  title="5수 앞으로 (Shift+→)">››</button>
+            <button class="nav-btn" id="btnLast"  onclick="showMove(moves.length - 1)"   title="끝으로">»</button>
+        </div>
+        <div class="nav-row2">
+            <input class="move-input" id="moveInput" type="number" min="1" placeholder="수번" />
+            <button class="nav-btn sm" onclick="jumpToInput()">이동</button>
+            <button class="nav-btn sm" id="btnSeq" onclick="toggleSequence()">수순</button>
+            <button class="nav-btn sm" id="btnVar" onclick="toggleVariation()" title="최선수를 뒀을 때의 예상 진행">변화도</button>
+            <button class="nav-btn sm" id="btnCmp" onclick="openCompare()" title="내가 둔 수와 AI 최선수의 이후 진행을 나란히 비교">나란히 비교</button>
+            <button class="nav-btn sm" id="btnTerr" onclick="toggleOwnership()" title="AI가 예측한 집(영역)">집예측</button>
+        </div>
+
+        <div id="moveInfo" class="move-info-panel">
+            <div class="info-placeholder">수를 클릭하거나 화살표 버튼으로 이동하세요</div>
+        </div>
+        <button id="btnReplay" hidden onclick="replayFromHere()" title="이 국면에서 KataGo와 직접 이어 둡니다"
+                style="width:100%;margin-top:12px;padding:11px;border:none;border-radius:10px;background:#2ecc71;color:#fff;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(46,204,113,0.35);">
+            ▶ 이 수부터 AI와 다시 두기
+        </button>
+    </div>
+
+    <!-- ══ 내 수 vs 최선수 나란히 비교 모달 ══ -->
+    <div class="cmp-overlay" id="compareModal">
+        <div class="cmp-box">
+            <div class="cmp-head">
+                <h3 id="cmpHeading">이 수 비교</h3>
+                <button class="cmp-close" onclick="closeCompare()" title="닫기">✕</button>
+            </div>
+            <div class="cmp-diff" id="cmpDiff"></div>
+            <div class="cmp-grid">
+                <div class="cmp-panel">
+                    <div class="cmp-title mine" id="cmpTitleL">내가 둔 수</div>
+                    <canvas id="cmpCanvasL"></canvas>
+                    <div class="cmp-stat" id="cmpStatL"></div>
+                    <div class="cmp-pv" id="cmpPvL"></div>
+                </div>
+                <div class="cmp-panel">
+                    <div class="cmp-title best" id="cmpTitleR">AI 최선수</div>
+                    <canvas id="cmpCanvasR"></canvas>
+                    <div class="cmp-stat" id="cmpStatR"></div>
+                    <div class="cmp-pv" id="cmpPvR"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ AI 착수 통계 (위) + 핵심 실수 (아래) ══ -->
+    <div class="area-side">
+
+        <!-- AI 착수 통계 -->
+        <div class="card-box side-ai">
+            <p class="section-title">AI 착수 통계</p>
+            <p class="section-desc">흑·백 각각 AI 최선수와 얼마나 일치했는지, 그리고 수의 품질 분포를 보여줍니다.</p>
+            <div class="ai-matchrate">
+                <div class="amr-side">
+                    <span class="amr-dot black"></span><span class="amr-label">흑</span>
+                    <div class="amr-bar"><div class="amr-fill black" id="amrBlackFill"></div></div>
+                    <span class="amr-pct" id="amrBlackPct">-</span>
+                </div>
+                <div class="amr-side">
+                    <span class="amr-dot white"></span><span class="amr-label">백</span>
+                    <div class="amr-bar"><div class="amr-fill white" id="amrWhiteFill"></div></div>
+                    <span class="amr-pct" id="amrWhitePct">-</span>
+                </div>
+            </div>
+            <div class="ai-chart-holder"><canvas id="aiStatChart"></canvas></div>
+        </div>
+
+        <!-- 핵심 실수 -->
+        <div class="card-box side-mistakes" id="mistakesCard">
+            <p class="section-title">핵심 실수 <span class="mistakes-count" id="mistakesCount"></span></p>
+            <p class="section-desc">실수·악수로 분류된 수입니다. 클릭하면 바둑판에서 위치를 확인할 수 있습니다.</p>
+            <div class="mistakes" id="mistakesList"></div>
+        </div>
+
+    </div>
+
+    <!-- ══ 형세 변화 + 승률 (전체 폭) ══ -->
+    <div class="card-box area-chart">
+        <p class="section-title">형세 변화</p>
+        <p class="section-desc">위로 올라갈수록 흑 유리, 아래로 내려갈수록 백 유리. 붉은 점은 핵심 실수, 붉은 점선은 현재 수입니다.</p>
+        <div class="chart-holder"><canvas id="scoreChart"></canvas></div>
+        <p class="section-title" style="margin-top:16px;">승률 변화</p>
+        <p class="section-desc">흑의 AI 승률(0~100%) 추이입니다. 50% 기준선 위면 흑 유리, 아래면 백 유리.</p>
+        <div class="chart-holder-wr"><canvas id="winrateChart"></canvas></div>
+    </div>
+
+    <!-- ══ 전체 수 분석 (전체 폭) ══ -->
+    <div class="card-box area-table">
+        <p class="section-title">전체 수 분석</p>
+        <p class="section-desc">수를 클릭하면 바둑판에 해당 시점의 국면이 표시됩니다. <span style="color:#e74c3c;">●</span> 착점 &nbsp; <span style="background:#1a5276;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:50%;">1</span> <span style="background:#2471a3;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:50%;">2</span> <span style="background:#5dade2;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:50%;">3</span> AI 추천수</p>
+        <div class="table-filters">
+            <button class="filter-btn active" data-filter="all"  onclick="setFilter(this)">전체</button>
+            <button class="filter-btn"        data-filter="key"  onclick="setFilter(this)">실수·악수만</button>
+        </div>
+        <div class="filter-empty" id="filterEmpty" style="display:none;">해당하는 수가 없습니다.</div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>수번</th>
+                        <th>색</th>
+                        <th id="thLoss" title="클릭: 손해 큰 순 정렬 / 다시 클릭: 원래 순서" style="cursor:pointer;user-select:none;" onclick="toggleSortByLoss()">집 손해 ↕</th>
+                        <th>등급</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr data-idx="0"
+                        class="move-row "
+                        onclick="jumpToMove(0)">
+                        <td>1</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>0.49</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-최선">최선</span></td>
+                    </tr>
+                    <tr data-idx="1"
+                        class="move-row "
+                        onclick="jumpToMove(1)">
+                        <td>2</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span>1.6</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="2"
+                        class="move-row "
+                        onclick="jumpToMove(2)">
+                        <td>3</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>1.91</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="3"
+                        class="move-row "
+                        onclick="jumpToMove(3)">
+                        <td>4</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span>1.73</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="4"
+                        class="move-row "
+                        onclick="jumpToMove(4)">
+                        <td>5</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>1.43</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-좋음">좋음</span></td>
+                    </tr>
+                    <tr data-idx="5"
+                        class="move-row grade-c"
+                        onclick="jumpToMove(5)">
+                        <td>6</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span style="color:#e67e22;font-weight:600;">3.7</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-실수">실수</span></td>
+                    </tr>
+                    <tr data-idx="6"
+                        class="move-row "
+                        onclick="jumpToMove(6)">
+                        <td>7</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>2.5</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="7"
+                        class="move-row "
+                        onclick="jumpToMove(7)">
+                        <td>8</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span>2.39</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="8"
+                        class="move-row "
+                        onclick="jumpToMove(8)">
+                        <td>9</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>1.76</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="9"
+                        class="move-row "
+                        onclick="jumpToMove(9)">
+                        <td>10</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span>2.0</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="10"
+                        class="move-row "
+                        onclick="jumpToMove(10)">
+                        <td>11</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>1.45</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-좋음">좋음</span></td>
+                    </tr>
+                    <tr data-idx="11"
+                        class="move-row "
+                        onclick="jumpToMove(11)">
+                        <td>12</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span>1.6</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="12"
+                        class="move-row "
+                        onclick="jumpToMove(12)">
+                        <td>13</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>2.28</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="13"
+                        class="move-row "
+                        onclick="jumpToMove(13)">
+                        <td>14</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span>1.42</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-좋음">좋음</span></td>
+                    </tr>
+                    <tr data-idx="14"
+                        class="move-row "
+                        onclick="jumpToMove(14)">
+                        <td>15</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>1.56</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="15"
+                        class="move-row "
+                        onclick="jumpToMove(15)">
+                        <td>16</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span>1.25</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-좋음">좋음</span></td>
+                    </tr>
+                    <tr data-idx="16"
+                        class="move-row "
+                        onclick="jumpToMove(16)">
+                        <td>17</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>0.8</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-좋음">좋음</span></td>
+                    </tr>
+                    <tr data-idx="17"
+                        class="move-row "
+                        onclick="jumpToMove(17)">
+                        <td>18</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            
+                            <span style="color:#2ecc71;">0.0</span>
+                        </td>
+                        <td><span class="grade-badge g-최선">최선</span></td>
+                    </tr>
+                    <tr data-idx="18"
+                        class="move-row "
+                        onclick="jumpToMove(18)">
+                        <td>19</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>1.62</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="19"
+                        class="move-row "
+                        onclick="jumpToMove(19)">
+                        <td>20</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span>1.88</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="20"
+                        class="move-row "
+                        onclick="jumpToMove(20)">
+                        <td>21</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>1.29</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-좋음">좋음</span></td>
+                    </tr>
+                    <tr data-idx="21"
+                        class="move-row "
+                        onclick="jumpToMove(21)">
+                        <td>22</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span>0.92</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-좋음">좋음</span></td>
+                    </tr>
+                    <tr data-idx="22"
+                        class="move-row "
+                        onclick="jumpToMove(22)">
+                        <td>23</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            <span>0.11</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-최선">최선</span></td>
+                    </tr>
+                    <tr data-idx="23"
+                        class="move-row "
+                        onclick="jumpToMove(23)">
+                        <td>24</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span>1.63</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-보통">보통</span></td>
+                    </tr>
+                    <tr data-idx="24"
+                        class="move-row "
+                        onclick="jumpToMove(24)">
+                        <td>25</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            
+                            <span style="color:#2ecc71;">0.0</span>
+                        </td>
+                        <td><span class="grade-badge g-최선">최선</span></td>
+                    </tr>
+                    <tr data-idx="25"
+                        class="move-row "
+                        onclick="jumpToMove(25)">
+                        <td>26</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            
+                            <span style="color:#2ecc71;">0.0</span>
+                        </td>
+                        <td><span class="grade-badge g-최선">최선</span></td>
+                    </tr>
+                    <tr data-idx="26"
+                        class="move-row "
+                        onclick="jumpToMove(26)">
+                        <td>27</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            
+                            <span style="color:#2ecc71;">0.0</span>
+                        </td>
+                        <td><span class="grade-badge g-최선">최선</span></td>
+                    </tr>
+                    <tr data-idx="27"
+                        class="move-row "
+                        onclick="jumpToMove(27)">
+                        <td>28</td>
+                        <td>
+                            <span style="color:#333;font-weight:700;">흑</span>
+                            
+                        </td>
+                        <td>
+                            <span>0.42</span>
+                            
+                        </td>
+                        <td><span class="grade-badge g-최선">최선</span></td>
+                    </tr>
+                    <tr data-idx="28"
+                        class="move-row "
+                        onclick="jumpToMove(28)">
+                        <td>29</td>
+                        <td>
+                            
+                            <span style="color:#888;">백</span>
+                        </td>
+                        <td>
+                            
+                            <span style="color:#2ecc71;">0.0</span>
+                        </td>
+                        <td><span class="grade-badge g-최선">최선</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const moves = [{"turnNumber":1,"color":"W","move":"O17","bestMove":"D5","topMoves":["D5","D15","Q5"],"bestPv":["D5","C3","E3","D4","E4","C5","C6"],"matchesBest":false,"winrateBefore":0.007,"winrateAfter":0.008,"winrateLoss":0.001,"scoreLeadBefore":-12.42,"scoreLeadAfter":-11.83,"scoreLoss":0.49,"grade":"\uCD5C\uC120","phase":"\uCD08\uBC18","ownership":[0.0,0.01,-0.01,-0.01,-0.03,-0.03,-0.04,-0.04,-0.06,-0.1,-0.15,-0.19,-0.22,-0.23,-0.14,-0.05,0.02,0.05,0.07,0.02,0.01,-0.01,-0.02,-0.04,-0.05,-0.05,-0.05,-0.08,-0.13,-0.16,-0.18,-0.25,-0.28,-0.15,-0.01,0.03,0.08,0.09,0.01,0.01,0.03,-0.05,-0.05,-0.08,-0.06,-0.06,-0.06,-0.1,-0.17,-0.12,-0.21,-0.65,-0.02,0.13,0.11,0.08,0.08,0.01,0.0,-0.03,-0.1,-0.05,-0.06,-0.05,-0.05,-0.06,-0.08,-0.09,-0.11,-0.11,-0.19,-0.11,-0.1,0.1,0.06,0.06,0.0,-0.01,-0.03,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.04,-0.06,-0.06,-0.1,-0.1,-0.04,-0.04,-0.02,0.01,0.02,0.0,0.0,-0.02,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.03,-0.04,-0.06,-0.06,-0.05,-0.06,-0.03,-0.03,-0.02,0.0,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.05,-0.05,-0.05,-0.05,-0.08,-0.05,-0.04,0.0,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.04,-0.05,-0.05,-0.06,-0.06,-0.05,0.0,0.0,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.03,-0.03,-0.04,-0.05,-0.05,-0.05,-0.05,0.0,0.0,-0.01,-0.02,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.04,-0.04,-0.04,-0.04,0.0,0.0,0.0,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.03,-0.03,-0.02,0.0,0.0,0.0,0.0,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.02,-0.01,0.0,0.0,0.01,-0.01,0.0,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.02,-0.02,-0.03,-0.02,-0.01,-0.01,0.01,0.01,0.01,0.01,0.0,0.0,-0.01,-0.01,-0.02,-0.02,-0.01,-0.01,-0.01,-0.02,-0.03,-0.04,-0.02,0.0,0.0,0.02,0.02,0.02,0.03,0.01,0.0,0.0,-0.01,-0.01,-0.01,-0.01,-0.01,-0.02,-0.03,-0.04,-0.08,-0.02,-0.01,0.0,0.04,0.03,0.06,0.07,0.04,0.02,0.0,0.0,-0.01,-0.01,-0.01,-0.01,-0.02,-0.04,-0.07,-0.15,-0.05,0.0,0.0,0.03,0.04,0.04,0.07,0.03,0.02,0.02,0.01,0.0,-0.01,-0.01,-0.01,-0.02,-0.03,-0.02,-0.02,0.02,0.01,0.01,0.05,0.05,0.05,0.04,0.04,0.02,0.01,0.01,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.01,0.02,0.02,0.02,0.04,0.05,0.04,0.05,0.03,0.02,0.01,0.01,0.0,0.0,0.0,0.0,0.0,0.0,0.01,0.01,0.01,0.02,0.01],"candidates":[{"move":"D5","winrate":0.007,"scoreLead":-12.74,"pv":["D5","C3","E3","D4","E4","C5"]},{"move":"D15","winrate":0.007,"scoreLead":-12.74,"pv":["D15","C17","E17","D16","E16","C15"]},{"move":"Q5","winrate":0.007,"scoreLead":-12.74,"pv":["Q5","R3","P3","Q4","P4","R5"]}]},{"turnNumber":2,"color":"B","move":"Q14","bestMove":"R16","topMoves":["R16","Q17","P16"],"bestPv":["R16","D16","D4","Q4","R3"],"matchesBest":false,"winrateBefore":0.008,"winrateAfter":0.004,"winrateLoss":0.004,"scoreLeadBefore":-11.83,"scoreLeadAfter":-13.43,"scoreLoss":1.6,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[-0.01,-0.01,-0.02,-0.02,-0.03,-0.04,-0.03,-0.03,-0.04,-0.06,-0.09,-0.13,-0.18,-0.23,-0.19,-0.16,-0.14,-0.13,-0.12,-0.01,-0.01,-0.02,-0.01,-0.04,-0.05,-0.04,-0.03,-0.04,-0.08,-0.1,-0.13,-0.2,-0.27,-0.2,-0.14,-0.13,-0.12,-0.09,-0.01,-0.02,-0.03,-0.01,-0.06,-0.07,-0.05,-0.03,-0.03,-0.05,-0.09,-0.06,-0.13,-0.61,-0.14,0.05,-0.19,-0.1,-0.07,-0.01,-0.01,-0.03,-0.06,-0.06,-0.06,-0.04,-0.03,-0.03,-0.05,-0.04,-0.05,-0.01,-0.1,0.01,-0.13,-0.02,-0.05,-0.03,-0.02,-0.02,-0.05,-0.05,-0.04,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,0.0,-0.02,-0.08,-0.02,0.04,0.05,0.01,0.01,-0.02,-0.02,-0.03,-0.04,-0.03,-0.03,-0.02,-0.02,-0.01,-0.01,0.0,0.01,0.02,0.03,0.08,0.59,0.17,0.05,0.06,-0.02,-0.02,-0.04,-0.03,-0.03,-0.02,-0.02,-0.01,-0.01,0.0,0.0,0.01,0.01,0.02,0.04,0.12,0.12,0.07,0.05,-0.02,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,0.0,0.0,0.03,0.06,-0.01,0.02,0.04,-0.02,-0.02,-0.02,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,0.0,0.02,0.05,0.05,0.03,0.03,-0.02,-0.02,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,0.0,0.01,0.03,0.06,0.03,0.02,-0.02,-0.03,-0.03,-0.03,-0.02,-0.01,-0.01,-0.02,-0.01,-0.01,-0.01,-0.01,-0.01,0.0,0.01,0.02,0.03,0.03,0.02,-0.03,-0.04,-0.04,-0.03,-0.02,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,0.0,0.0,0.01,0.02,0.04,0.03,0.02,-0.05,-0.05,-0.06,-0.04,-0.03,-0.02,-0.01,-0.01,-0.01,-0.01,-0.01,0.0,0.0,0.01,0.02,0.03,0.05,0.04,0.02,-0.06,-0.07,-0.09,-0.06,-0.04,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.0,0.01,0.02,0.03,0.04,0.02,0.02,-0.08,-0.09,-0.1,-0.08,-0.05,-0.03,-0.02,-0.01,-0.01,-0.01,-0.01,0.0,0.01,0.02,0.03,0.04,0.03,0.02,0.01,-0.09,-0.1,-0.14,-0.09,-0.09,-0.04,-0.02,-0.02,-0.01,-0.01,-0.01,0.0,0.01,0.03,0.05,0.15,0.03,0.01,0.01,-0.1,-0.1,-0.12,-0.15,-0.09,-0.07,-0.03,-0.02,-0.01,-0.01,0.0,0.02,0.03,0.01,0.04,0.11,-0.01,0.01,0.0,-0.09,-0.1,-0.1,-0.1,-0.08,-0.05,-0.03,-0.02,-0.01,0.0,0.0,0.01,0.02,0.02,0.04,0.04,0.03,0.01,0.02,-0.1,-0.09,-0.1,-0.08,-0.07,-0.05,-0.03,-0.01,-0.01,0.0,0.0,0.0,0.01,0.02,0.03,0.03,0.01,0.02,0.01],"candidates":[{"move":"R16","winrate":0.008,"scoreLead":-11.56,"pv":["R16","D16","D4","Q4","R3"]},{"move":"Q17","winrate":0.009,"scoreLead":-11.83,"pv":["Q17","Q16","R16","R15","S17","S16"]},{"move":"P16","winrate":0.007,"scoreLead":-12.65,"pv":["P16","O16","P15","Q18","D16"]}]},{"turnNumber":3,"color":"W","move":"R12","bestMove":"Q16","topMoves":["Q16","R16","R17"],"bestPv":["Q16","Q4","D3","C16"],"matchesBest":false,"winrateBefore":0.004,"winrateAfter":0.009,"winrateLoss":0.004,"scoreLeadBefore":-13.43,"scoreLeadAfter":-11.52,"scoreLoss":1.91,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[0.06,0.06,0.04,0.03,0.01,0.0,0.01,0.01,0.01,-0.02,-0.06,-0.09,-0.13,-0.13,-0.04,0.04,0.09,0.11,0.11,0.07,0.07,0.04,0.02,-0.01,0.0,0.01,0.02,0.01,-0.02,-0.04,-0.07,-0.15,-0.17,-0.04,0.1,0.12,0.11,0.11,0.07,0.07,0.08,0.01,-0.01,-0.03,0.0,0.01,0.01,0.03,-0.01,-0.03,-0.09,-0.49,0.09,0.39,0.15,0.1,0.09,0.07,0.07,0.11,-0.02,0.0,-0.02,-0.01,0.0,0.0,-0.02,-0.04,-0.05,0.0,-0.03,0.12,0.08,0.18,0.07,0.05,0.05,0.05,0.03,0.0,-0.01,-0.02,-0.01,0.0,0.0,0.0,-0.02,-0.02,-0.02,-0.05,0.05,0.16,0.07,-0.01,0.0,0.03,0.03,-0.01,-0.01,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,0.02,0.13,0.6,0.09,-0.07,-0.05,0.01,0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,0.01,-0.03,0.07,0.01,-0.13,-0.15,0.0,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.04,-0.02,-0.05,-0.02,-0.59,-0.29,-0.22,-0.01,-0.01,-0.02,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.04,-0.03,-0.06,-0.1,-0.17,-0.23,-0.21,-0.01,-0.02,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.08,-0.09,-0.16,-0.16,-0.01,-0.02,-0.03,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.03,-0.02,-0.02,-0.02,-0.01,-0.03,-0.07,-0.11,-0.13,-0.12,-0.02,-0.03,-0.05,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.02,-0.05,-0.07,-0.09,-0.07,-0.03,-0.04,-0.07,-0.06,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.04,-0.04,-0.05,-0.03,-0.04,-0.05,-0.09,-0.1,-0.07,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.02,-0.01,-0.06,-0.08,-0.09,-0.16,-0.1,-0.07,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.01,-0.02,-0.02,0.0,-0.07,-0.09,-0.19,-0.35,-0.16,-0.1,-0.05,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.04,-0.03,-0.02,-0.03,-0.01,0.01,-0.07,-0.08,-0.05,-0.22,-0.11,-0.09,-0.07,-0.05,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,0.0,0.04,0.03,0.0,0.01,-0.06,-0.06,-0.08,-0.1,-0.09,-0.06,-0.05,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.01,0.01,0.02,0.03,0.02,0.02,-0.08,-0.07,-0.08,-0.08,-0.07,-0.06,-0.04,-0.02,-0.01,-0.01,-0.02,-0.02,-0.01,0.0,0.01,0.03,0.02,0.03,0.01],"candidates":[{"move":"Q16","winrate":0.004,"scoreLead":-13.37,"pv":["Q16","Q4","D3","C16"]},{"move":"R16","winrate":0.004,"scoreLead":-13.72,"pv":["R16","Q4","D3","C16"]},{"move":"R17","winrate":0.005,"scoreLead":-12.91,"pv":["R17","Q4","D3","D16"]}]},{"turnNumber":4,"color":"B","move":"P17","bestMove":"Q17","topMoves":["Q17","R17","R16"],"bestPv":["Q17","D16","Q4","D4","C3"],"matchesBest":false,"winrateBefore":0.009,"winrateAfter":0.008,"winrateLoss":0.001,"scoreLeadBefore":-11.52,"scoreLeadAfter":-12.89,"scoreLoss":1.73,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[-0.08,-0.07,-0.08,-0.07,-0.06,-0.04,-0.03,-0.03,-0.06,-0.09,-0.11,-0.13,-0.14,-0.07,0.09,0.21,0.26,0.27,0.28,-0.07,-0.08,-0.09,-0.08,-0.07,-0.05,-0.03,-0.04,-0.06,-0.09,-0.1,-0.12,-0.16,-0.12,0.11,0.3,0.28,0.3,0.29,-0.08,-0.08,-0.09,-0.14,-0.09,-0.06,-0.05,-0.04,-0.05,-0.08,-0.08,-0.07,-0.2,-0.46,0.78,0.43,0.39,0.28,0.27,-0.06,-0.07,-0.12,-0.17,-0.08,-0.05,-0.03,-0.03,-0.03,-0.04,-0.06,-0.08,-0.12,0.18,0.32,0.37,0.32,0.23,0.21,-0.05,-0.06,-0.07,-0.08,-0.05,-0.04,-0.02,-0.01,-0.02,-0.03,-0.04,-0.05,-0.01,0.04,0.17,0.24,0.17,0.13,0.12,-0.04,-0.04,-0.05,-0.05,-0.04,-0.02,-0.01,-0.01,-0.01,-0.02,-0.03,-0.03,0.0,0.05,0.14,0.62,0.13,0.01,0.02,-0.03,-0.03,-0.04,-0.03,-0.03,-0.01,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,0.0,0.04,0.03,0.06,0.04,-0.06,-0.09,-0.02,-0.02,-0.03,-0.03,-0.02,-0.01,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,0.0,-0.04,-0.04,-0.55,-0.24,-0.17,-0.01,-0.02,-0.02,-0.03,-0.02,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.03,-0.02,-0.12,-0.18,-0.17,-0.01,-0.01,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,-0.05,-0.04,-0.12,-0.13,-0.02,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.0,-0.01,-0.04,-0.09,-0.09,-0.09,-0.02,-0.02,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.0,-0.01,-0.04,-0.06,-0.07,-0.06,-0.02,-0.02,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,0.0,0.0,-0.01,-0.03,-0.04,-0.05,-0.04,-0.03,-0.03,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,-0.02,-0.03,-0.04,-0.05,-0.04,-0.04,-0.04,-0.04,-0.05,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.04,-0.06,-0.07,-0.06,-0.05,-0.04,-0.05,-0.08,-0.08,-0.05,-0.03,-0.03,-0.02,-0.02,-0.03,-0.03,-0.03,-0.03,-0.04,-0.06,-0.07,-0.11,-0.07,-0.06,-0.05,-0.06,-0.08,-0.09,-0.05,-0.04,-0.03,-0.03,-0.02,-0.03,-0.03,-0.03,-0.04,-0.05,-0.05,-0.11,-0.08,-0.07,-0.07,-0.05,-0.06,-0.06,-0.06,-0.05,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.04,-0.05,-0.07,-0.07,-0.07,-0.06,-0.06,-0.05,-0.06,-0.04,-0.04,-0.03,-0.02,-0.02,-0.02,-0.01,-0.02,-0.02,-0.03,-0.04,-0.05,-0.06,-0.07,-0.06,-0.08],"candidates":[{"move":"Q17","winrate":0.009,"scoreLead":-11.33,"pv":["Q17","D16","Q4","D4","C3"]},{"move":"R17","winrate":0.008,"scoreLead":-11.88,"pv":["R17","D16","Q4","D4","L17"]},{"move":"R16","winrate":0.007,"scoreLead":-12.03,"pv":["R16","Q4","D16","D4","L17"]}]},{"turnNumber":5,"color":"W","move":"O16","bestMove":"P16","topMoves":["P16","P18","Q17"],"bestPv":["P16","Q16","Q17","P18","O18","Q18","R17"],"matchesBest":false,"winrateBefore":0.008,"winrateAfter":0.01,"winrateLoss":0.002,"scoreLeadBefore":-12.89,"scoreLeadAfter":-11.5,"scoreLoss":1.43,"grade":"\uC88B\uC74C","phase":"\uCD08\uBC18","ownership":[-0.08,-0.07,-0.08,-0.08,-0.07,-0.06,-0.04,-0.05,-0.07,-0.11,-0.15,-0.19,-0.2,-0.12,0.08,0.18,0.22,0.23,0.22,-0.06,-0.07,-0.09,-0.1,-0.1,-0.07,-0.06,-0.06,-0.09,-0.12,-0.15,-0.16,-0.3,-0.14,0.13,0.32,0.21,0.21,0.21,-0.06,-0.07,-0.07,-0.13,-0.09,-0.09,-0.07,-0.07,-0.08,-0.11,-0.12,-0.15,-0.29,-0.67,0.6,0.25,0.21,0.15,0.17,-0.05,-0.06,-0.11,-0.09,-0.04,-0.05,-0.05,-0.04,-0.06,-0.09,-0.13,-0.17,-0.27,-0.67,0.47,0.27,0.17,0.1,0.1,-0.04,-0.05,-0.03,-0.05,-0.03,-0.04,-0.03,-0.03,-0.04,-0.08,-0.11,-0.13,-0.23,-0.21,0.11,0.3,0.2,0.06,0.04,-0.03,-0.04,-0.05,-0.04,-0.03,-0.03,-0.02,-0.02,-0.03,-0.05,-0.08,-0.09,-0.08,0.0,0.21,0.69,0.16,0.0,0.0,-0.02,-0.03,-0.05,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.04,-0.05,-0.06,-0.03,0.05,0.24,0.15,0.07,-0.07,-0.1,-0.02,-0.03,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.04,-0.03,0.02,0.04,0.03,-0.51,-0.23,-0.17,-0.02,-0.02,-0.03,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.02,0.0,-0.01,-0.02,-0.12,-0.18,-0.17,-0.02,-0.02,-0.03,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,-0.04,-0.05,-0.12,-0.13,-0.02,-0.02,-0.03,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,-0.01,-0.04,-0.09,-0.1,-0.1,-0.02,-0.02,-0.05,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,0.0,0.0,0.0,-0.02,-0.04,-0.07,-0.06,-0.02,-0.03,-0.06,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.0,0.01,-0.01,-0.01,-0.04,-0.03,-0.03,-0.03,-0.07,-0.07,-0.05,-0.03,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.01,0.02,0.03,-0.01,-0.01,-0.01,-0.04,-0.05,-0.06,-0.1,-0.06,-0.05,-0.03,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.01,0.04,0.06,0.03,0.0,0.0,-0.04,-0.05,-0.1,-0.23,-0.1,-0.06,-0.03,-0.03,-0.02,-0.02,-0.01,-0.01,-0.01,0.02,0.05,0.2,0.02,0.0,0.01,-0.04,-0.05,-0.04,-0.13,-0.08,-0.06,-0.04,-0.03,-0.02,-0.02,-0.01,-0.01,0.0,-0.01,0.06,0.07,0.02,0.01,0.0,-0.03,-0.04,-0.06,-0.06,-0.06,-0.04,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,0.0,0.0,0.03,0.03,0.03,0.01,0.02,-0.04,-0.04,-0.05,-0.05,-0.04,-0.03,-0.02,-0.01,-0.01,-0.01,-0.01,-0.01,0.0,0.01,0.02,0.03,0.02,0.02,0.01],"candidates":[{"move":"P16","winrate":0.008,"scoreLead":-13.37,"pv":["P16","Q16","Q17","P18","O18","Q18"]},{"move":"P18","winrate":0.007,"scoreLead":-12.81,"pv":["P18","Q17","Q18","R17","D16","Q4"]},{"move":"Q17","winrate":0.008,"scoreLead":-12.58,"pv":["Q17","P16","P18","O18","N18","Q18"]}]},{"turnNumber":6,"color":"B","move":"S14","bestMove":"P16","topMoves":["P16","Q16","Q4"],"bestPv":["P16","O15","P13","R16","P15"],"matchesBest":false,"winrateBefore":0.01,"winrateAfter":0.005,"winrateLoss":0.005,"scoreLeadBefore":-11.5,"scoreLeadAfter":-15.2,"scoreLoss":3.7,"grade":"\uC2E4\uC218","phase":"\uCD08\uBC18","ownership":[-0.07,-0.06,-0.07,-0.06,-0.06,-0.06,-0.05,-0.06,-0.08,-0.13,-0.19,-0.28,-0.36,-0.39,-0.28,-0.16,0.0,0.1,0.16,-0.06,-0.06,-0.07,-0.07,-0.08,-0.07,-0.07,-0.07,-0.1,-0.14,-0.2,-0.24,-0.4,-0.44,-0.41,-0.01,0.05,0.17,0.23,-0.07,-0.07,-0.06,-0.11,-0.09,-0.12,-0.09,-0.08,-0.09,-0.12,-0.16,-0.16,-0.37,-0.77,0.26,-0.07,0.2,0.23,0.3,-0.06,-0.07,-0.13,-0.16,-0.09,-0.08,-0.07,-0.06,-0.07,-0.1,-0.13,-0.18,-0.29,-0.77,0.08,0.24,0.22,0.34,0.36,-0.05,-0.06,-0.07,-0.09,-0.06,-0.06,-0.05,-0.05,-0.05,-0.07,-0.09,-0.12,-0.16,-0.13,-0.1,0.33,0.22,0.36,0.46,-0.04,-0.05,-0.06,-0.06,-0.05,-0.04,-0.04,-0.03,-0.03,-0.04,-0.06,-0.08,-0.1,-0.05,0.11,0.69,0.34,0.64,0.39,-0.03,-0.04,-0.06,-0.04,-0.04,-0.03,-0.03,-0.02,-0.02,-0.03,-0.04,-0.05,-0.06,0.0,0.03,0.16,0.13,0.11,0.28,-0.02,-0.03,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.03,-0.04,-0.06,-0.05,-0.06,0.0,-0.43,0.01,0.05,-0.02,-0.03,-0.03,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.05,-0.06,-0.05,-0.02,-0.02,-0.04,0.01,-0.02,-0.02,-0.03,-0.04,-0.03,-0.03,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.05,-0.04,-0.05,0.01,-0.02,-0.03,-0.02,-0.02,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.03,-0.02,-0.02,-0.03,-0.03,-0.03,-0.04,-0.05,-0.07,-0.04,-0.05,-0.02,-0.02,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.04,-0.03,-0.05,-0.05,-0.02,-0.02,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,0.0,-0.02,-0.01,-0.03,-0.03,-0.01,-0.02,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,0.0,0.0,0.0,-0.03,-0.02,-0.02,-0.01,-0.02,-0.03,-0.03,-0.02,-0.03,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,0.01,0.02,-0.01,-0.01,-0.01,-0.01,-0.01,-0.02,-0.05,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,0.0,0.01,0.09,-0.02,-0.02,-0.01,-0.01,-0.01,-0.02,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.02,0.0,-0.01,-0.02,-0.02,-0.02,0.0,-0.01,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.02,-0.01,-0.02,-0.02,-0.02,-0.01,-0.02,-0.01,-0.02,-0.01,-0.02,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.02,-0.01,-0.03],"candidates":[{"move":"P16","winrate":0.01,"scoreLead":-11.25,"pv":["P16","O15","P13","R16","P15"]},{"move":"Q16","winrate":0.007,"scoreLead":-12.76,"pv":["Q16","D16","Q4","D4","Q12"]},{"move":"Q4","winrate":0.007,"scoreLead":-13.54,"pv":["Q4","P16","Q16","Q17","R17"]}]},{"turnNumber":7,"color":"W","move":"F17","bestMove":"P16","topMoves":["P16","R17","Q17"],"bestPv":["P16","Q16","Q17","R17","P18","D17","R16"],"matchesBest":false,"winrateBefore":0.005,"winrateAfter":0.007,"winrateLoss":0.002,"scoreLeadBefore":-15.2,"scoreLeadAfter":-12.7,"scoreLoss":2.5,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[-0.23,-0.25,-0.26,-0.28,-0.31,-0.32,-0.27,-0.21,-0.19,-0.2,-0.22,-0.26,-0.28,-0.21,0.04,0.18,0.35,0.44,0.48,-0.22,-0.24,-0.27,-0.29,-0.35,-0.39,-0.31,-0.22,-0.22,-0.22,-0.23,-0.23,-0.37,-0.28,-0.11,0.52,0.41,0.49,0.53,-0.22,-0.26,-0.27,-0.23,-0.27,-0.74,-0.22,-0.14,-0.19,-0.18,-0.17,-0.17,-0.32,-0.69,0.69,0.46,0.56,0.54,0.57,-0.2,-0.24,-0.36,-0.27,-0.22,-0.26,-0.12,-0.13,-0.12,-0.13,-0.14,-0.19,-0.28,-0.7,0.53,0.57,0.53,0.59,0.58,-0.17,-0.2,-0.2,-0.17,-0.14,-0.17,-0.13,-0.07,-0.07,-0.09,-0.11,-0.14,-0.19,-0.09,-0.01,0.57,0.49,0.56,0.62,-0.13,-0.15,-0.13,-0.12,-0.1,-0.1,-0.06,-0.05,-0.04,-0.05,-0.08,-0.11,-0.13,-0.03,0.2,0.81,0.45,0.75,0.49,-0.1,-0.12,-0.13,-0.1,-0.09,-0.07,-0.05,-0.04,-0.03,-0.04,-0.06,-0.08,-0.09,-0.01,0.05,0.21,0.19,0.14,0.34,-0.08,-0.1,-0.11,-0.09,-0.07,-0.06,-0.05,-0.03,-0.03,-0.04,-0.05,-0.06,-0.08,-0.05,-0.01,0.05,-0.38,0.05,0.09,-0.07,-0.08,-0.09,-0.09,-0.07,-0.05,-0.04,-0.04,-0.03,-0.04,-0.04,-0.05,-0.06,-0.05,-0.02,0.03,0.0,-0.01,0.04,-0.06,-0.07,-0.08,-0.08,-0.06,-0.05,-0.04,-0.04,-0.04,-0.03,-0.04,-0.04,-0.04,-0.04,-0.02,-0.02,0.02,0.0,-0.01,-0.05,-0.06,-0.07,-0.06,-0.05,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.03,-0.01,-0.02,-0.04,-0.05,-0.06,-0.06,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,-0.01,0.04,-0.01,-0.01,-0.03,-0.04,-0.05,-0.06,-0.04,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.01,0.0,0.01,0.01,0.05,0.02,0.01,-0.03,-0.03,-0.06,-0.05,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.01,0.02,0.04,0.03,0.02,-0.02,-0.03,-0.01,-0.05,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,0.0,-0.01,0.01,0.02,0.02,0.02,0.02,-0.03,-0.04,-0.05,-0.08,-0.04,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.01,-0.01,0.01,0.03,0.08,0.01,0.01,0.02,-0.04,-0.04,-0.05,-0.14,-0.06,-0.05,-0.04,-0.03,-0.02,-0.02,-0.02,-0.01,0.01,0.0,0.05,0.11,0.04,0.02,0.02,-0.04,-0.05,-0.06,-0.09,-0.07,-0.05,-0.04,-0.03,-0.02,-0.02,-0.01,0.0,0.01,0.02,0.04,0.05,0.05,0.03,0.03,-0.05,-0.05,-0.06,-0.06,-0.06,-0.05,-0.03,-0.02,-0.02,-0.01,-0.01,0.0,0.01,0.03,0.04,0.05,0.04,0.04,0.03],"candidates":[{"move":"P16","winrate":0.004,"scoreLead":-15.32,"pv":["P16","Q16","Q17","R17","P18","D17"]},{"move":"R17","winrate":0.005,"scoreLead":-15.35,"pv":["R17","P16","P15","Q15","P18","Q18"]},{"move":"Q17","winrate":0.005,"scoreLead":-15.3,"pv":["Q17","P16","P18","Q16","R17","Q18"]}]},{"turnNumber":8,"color":"B","move":"D14","bestMove":"P16","topMoves":["P16","Q16","C16"],"bestPv":["P16","C16","Q4","D3","C5"],"matchesBest":false,"winrateBefore":0.007,"winrateAfter":0.005,"winrateLoss":0.002,"scoreLeadBefore":-12.7,"scoreLeadAfter":-15.1,"scoreLoss":2.39,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[-0.06,-0.07,-0.1,-0.12,-0.18,-0.22,-0.19,-0.16,-0.15,-0.17,-0.21,-0.28,-0.36,-0.39,-0.29,-0.19,-0.05,0.02,0.08,-0.04,-0.06,-0.07,-0.1,-0.19,-0.28,-0.22,-0.16,-0.17,-0.19,-0.22,-0.25,-0.4,-0.46,-0.38,-0.03,-0.02,0.09,0.15,-0.03,-0.04,-0.09,0.11,-0.15,-0.64,-0.16,-0.08,-0.15,-0.16,-0.16,-0.18,-0.38,-0.78,0.17,-0.09,0.11,0.16,0.23,0.01,-0.02,-0.02,-0.12,-0.06,-0.15,-0.07,-0.11,-0.11,-0.12,-0.14,-0.18,-0.3,-0.79,0.0,0.23,0.18,0.28,0.3,0.04,0.05,0.09,0.05,-0.04,-0.13,-0.07,-0.03,-0.05,-0.07,-0.09,-0.12,-0.16,-0.16,-0.11,0.31,0.19,0.32,0.4,0.07,0.06,0.18,0.58,0.05,-0.01,-0.02,-0.02,-0.02,-0.04,-0.06,-0.08,-0.1,-0.05,0.09,0.65,0.29,0.57,0.34,0.06,0.08,0.11,0.11,0.02,-0.01,-0.02,-0.01,-0.02,-0.02,-0.04,-0.05,-0.06,-0.02,0.0,0.13,0.09,0.08,0.23,0.04,0.01,0.0,0.04,0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.05,-0.06,-0.06,-0.08,-0.02,-0.46,-0.01,0.03,0.02,0.02,0.03,0.04,0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.03,-0.04,-0.06,-0.07,-0.07,-0.05,-0.04,-0.07,-0.01,0.01,0.01,0.02,0.0,0.0,-0.01,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.04,-0.05,-0.05,-0.07,0.0,-0.03,-0.05,0.0,0.0,0.0,-0.01,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.04,-0.05,-0.06,-0.08,-0.05,-0.06,0.0,0.0,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.05,-0.05,-0.06,-0.06,0.0,0.0,-0.01,-0.01,0.0,0.0,-0.01,-0.01,-0.01,-0.02,-0.02,-0.01,-0.01,-0.01,-0.02,-0.03,-0.04,-0.04,-0.04,0.0,0.0,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.02,-0.02,-0.01,-0.01,-0.02,-0.02,-0.04,-0.03,-0.03,-0.01,-0.01,-0.03,-0.03,-0.01,-0.02,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.02,-0.01,-0.02,-0.04,-0.03,-0.03,-0.01,-0.02,-0.05,-0.06,-0.03,-0.02,-0.02,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.02,0.0,-0.05,-0.04,-0.02,-0.03,-0.02,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.02,-0.02,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.03,-0.02,-0.03,-0.02,-0.03,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.03,-0.02,-0.03],"candidates":[{"move":"P16","winrate":0.007,"scoreLead":-12.37,"pv":["P16","C16","Q4","D3","C5"]},{"move":"Q16","winrate":0.005,"scoreLead":-13.97,"pv":["Q16","C16","Q3"]},{"move":"C16","winrate":0.006,"scoreLead":-14.37,"pv":["C16","R17","Q17","R16"]}]},{"turnNumber":9,"color":"W","move":"C12","bestMove":"P16","topMoves":["P16","R17","R15"],"bestPv":["P16","Q16","Q17","R17","P18","D17","R18","Q4"],"matchesBest":false,"winrateBefore":0.005,"winrateAfter":0.006,"winrateLoss":0.001,"scoreLeadBefore":-15.1,"scoreLeadAfter":-13.34,"scoreLoss":1.76,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[-0.1,-0.11,-0.13,-0.17,-0.23,-0.28,-0.23,-0.19,-0.17,-0.19,-0.21,-0.26,-0.3,-0.27,-0.1,0.05,0.22,0.32,0.37,-0.08,-0.1,-0.13,-0.17,-0.26,-0.34,-0.27,-0.19,-0.2,-0.2,-0.22,-0.23,-0.37,-0.33,-0.2,0.25,0.29,0.37,0.42,-0.07,-0.1,-0.12,-0.02,-0.22,-0.69,-0.19,-0.11,-0.17,-0.17,-0.16,-0.16,-0.34,-0.72,0.39,0.13,0.43,0.42,0.47,-0.08,-0.1,-0.1,-0.27,-0.11,-0.19,-0.07,-0.13,-0.12,-0.12,-0.13,-0.18,-0.28,-0.73,0.17,0.42,0.4,0.49,0.5,-0.09,-0.1,-0.08,0.01,-0.09,-0.14,-0.09,-0.05,-0.06,-0.07,-0.09,-0.12,-0.15,-0.11,-0.07,0.38,0.33,0.47,0.55,-0.1,-0.11,0.0,0.45,0.04,-0.02,-0.02,-0.03,-0.03,-0.04,-0.06,-0.08,-0.11,-0.02,0.14,0.73,0.36,0.69,0.44,-0.17,-0.17,-0.08,-0.01,-0.08,-0.02,-0.03,-0.02,-0.02,-0.03,-0.04,-0.06,-0.07,-0.01,0.03,0.17,0.15,0.12,0.3,-0.24,-0.32,-0.63,-0.05,-0.08,-0.03,-0.04,-0.03,-0.02,-0.03,-0.04,-0.05,-0.07,-0.05,-0.04,0.01,-0.43,0.01,0.05,-0.22,-0.25,-0.19,-0.14,-0.08,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.04,-0.05,-0.06,-0.04,0.0,-0.03,-0.05,0.0,-0.18,-0.17,-0.11,-0.1,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.05,-0.04,-0.05,-0.01,-0.04,-0.04,-0.13,-0.14,-0.14,-0.08,-0.05,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.05,-0.08,-0.06,-0.06,-0.08,-0.09,-0.08,-0.06,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.05,-0.04,-0.06,-0.06,-0.03,-0.04,-0.01,-0.04,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.02,-0.03,-0.03,-0.04,-0.04,0.01,0.0,-0.01,0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.02,-0.03,-0.03,-0.03,-0.03,0.03,0.02,0.04,0.04,0.03,0.0,-0.01,-0.01,-0.02,-0.01,-0.01,-0.01,-0.01,-0.02,-0.01,-0.04,-0.04,-0.03,-0.03,0.05,0.04,0.08,0.15,0.04,0.01,-0.01,-0.01,-0.01,-0.02,-0.02,-0.01,-0.02,-0.02,-0.03,-0.04,-0.06,-0.04,-0.02,0.04,0.05,0.06,0.09,0.05,0.0,0.01,0.0,-0.01,-0.02,-0.01,-0.01,-0.01,-0.02,-0.01,-0.02,-0.01,-0.02,-0.02,0.05,0.04,0.05,0.04,0.03,0.01,0.0,0.0,-0.01,-0.01,-0.01,0.0,0.0,0.0,-0.01,-0.01,-0.01,-0.02,-0.01,0.04,0.05,0.04,0.04,0.03,0.02,0.0,0.0,-0.01,-0.01,0.0,0.0,0.0,0.0,-0.01,0.0,-0.01,-0.01,-0.02],"candidates":[{"move":"P16","winrate":0.004,"scoreLead":-15.23,"pv":["P16","Q16","Q17","R17","P18","D17"]},{"move":"R17","winrate":0.005,"scoreLead":-15.34,"pv":["R17","P16","P15","Q15","P18","Q18"]},{"move":"R15","winrate":0.005,"scoreLead":-14.95,"pv":["R15","Q15","D16","P18"]}]},{"turnNumber":10,"color":"B","move":"H17","bestMove":"P16","topMoves":["P16","D17","C16"],"bestPv":["P16","D16","D4","Q4","C7"],"matchesBest":false,"winrateBefore":0.006,"winrateAfter":0.004,"winrateLoss":0.002,"scoreLeadBefore":-13.34,"scoreLeadAfter":-15.34,"scoreLoss":2.0,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[0.0,0.01,0.0,0.0,-0.04,-0.04,0.03,0.08,0.06,-0.02,-0.1,-0.19,-0.29,-0.33,-0.22,-0.13,0.0,0.08,0.14,0.01,0.0,0.03,0.03,-0.04,-0.09,0.03,0.14,0.06,-0.04,-0.1,-0.16,-0.33,-0.38,-0.32,0.02,0.04,0.14,0.2,0.0,-0.01,-0.01,0.2,-0.02,-0.5,0.0,0.45,0.03,-0.1,-0.04,-0.1,-0.32,-0.74,0.19,-0.03,0.15,0.2,0.27,-0.01,-0.03,0.01,-0.11,0.02,-0.06,-0.05,0.01,0.01,-0.01,-0.06,-0.13,-0.27,-0.75,0.01,0.24,0.21,0.3,0.32,-0.03,-0.04,0.01,0.07,-0.01,-0.08,-0.03,0.08,0.02,-0.03,-0.05,-0.09,-0.13,-0.15,-0.11,0.27,0.16,0.32,0.4,-0.07,-0.07,0.05,0.5,0.08,0.0,-0.03,0.0,0.0,-0.02,-0.04,-0.06,-0.08,-0.04,0.09,0.64,0.26,0.57,0.34,-0.14,-0.13,-0.04,0.02,-0.06,-0.01,-0.03,-0.01,-0.01,-0.02,-0.03,-0.04,-0.05,-0.01,0.01,0.13,0.09,0.08,0.23,-0.21,-0.29,-0.6,-0.02,-0.05,-0.02,-0.04,-0.03,-0.02,-0.02,-0.03,-0.04,-0.06,-0.05,-0.07,-0.01,-0.46,-0.02,0.02,-0.2,-0.23,-0.17,-0.12,-0.07,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.04,-0.05,-0.05,-0.06,-0.03,-0.03,-0.07,-0.01,-0.17,-0.16,-0.1,-0.1,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.04,-0.04,-0.06,0.01,-0.03,-0.04,-0.14,-0.14,-0.14,-0.09,-0.05,-0.03,-0.02,-0.02,-0.03,-0.03,-0.02,-0.02,-0.03,-0.03,-0.04,-0.05,-0.07,-0.05,-0.06,-0.1,-0.12,-0.11,-0.08,-0.04,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.04,-0.04,-0.05,-0.05,-0.07,-0.09,-0.09,-0.07,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.02,-0.02,-0.03,-0.03,-0.07,-0.08,-0.08,-0.07,-0.05,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,0.0,-0.02,-0.02,-0.02,-0.07,-0.1,-0.11,-0.09,-0.05,-0.05,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.01,-0.01,0.01,0.0,-0.02,-0.02,-0.02,-0.08,-0.1,-0.16,-0.15,-0.08,-0.05,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.05,-0.03,-0.03,-0.01,-0.09,-0.1,-0.09,-0.12,-0.06,-0.05,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.02,-0.03,-0.01,-0.01,-0.03,-0.03,-0.03,-0.08,-0.09,-0.08,-0.07,-0.06,-0.04,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.02,-0.09,-0.07,-0.08,-0.06,-0.05,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.02,-0.02,-0.03],"candidates":[{"move":"P16","winrate":0.006,"scoreLead":-13.0,"pv":["P16","D16","D4","Q4","C7"]},{"move":"D17","winrate":0.006,"scoreLead":-13.54,"pv":["D17","P16","Q16","Q17","R17","P18"]},{"move":"C16","winrate":0.005,"scoreLead":-14.38,"pv":["C16","R17","P16"]}]},{"turnNumber":11,"color":"W","move":"F15","bestMove":"P16","topMoves":["P16","R17","D16"],"bestPv":["P16","Q16","Q17","R17","P18","D17","R18"],"matchesBest":false,"winrateBefore":0.004,"winrateAfter":0.006,"winrateLoss":0.001,"scoreLeadBefore":-15.34,"scoreLeadAfter":-13.89,"scoreLoss":1.45,"grade":"\uC88B\uC74C","phase":"\uCD08\uBC18","ownership":[-0.07,-0.08,-0.1,-0.13,-0.19,-0.19,-0.1,-0.01,0.01,-0.03,-0.07,-0.17,-0.25,-0.25,-0.09,0.03,0.19,0.28,0.33,-0.05,-0.08,-0.09,-0.12,-0.22,-0.27,-0.12,0.05,0.02,-0.04,-0.07,-0.12,-0.31,-0.3,-0.19,0.23,0.26,0.33,0.38,-0.06,-0.08,-0.13,0.04,-0.18,-0.71,-0.17,0.33,-0.01,-0.06,0.03,-0.09,-0.29,-0.69,0.4,0.14,0.37,0.38,0.43,-0.06,-0.08,-0.05,-0.27,-0.1,-0.39,-0.2,-0.06,-0.1,-0.03,-0.06,-0.13,-0.26,-0.7,0.16,0.4,0.37,0.44,0.45,-0.08,-0.1,-0.09,-0.08,-0.24,-0.73,-0.23,-0.07,-0.05,-0.06,-0.08,-0.1,-0.13,-0.12,-0.07,0.39,0.27,0.43,0.5,-0.11,-0.13,-0.01,0.36,-0.05,-0.19,-0.13,-0.09,-0.06,-0.05,-0.06,-0.08,-0.11,-0.05,0.13,0.72,0.34,0.65,0.4,-0.18,-0.19,-0.11,-0.04,-0.12,-0.1,-0.09,-0.06,-0.04,-0.04,-0.05,-0.06,-0.08,-0.02,0.02,0.17,0.14,0.1,0.27,-0.24,-0.33,-0.63,-0.07,-0.06,-0.06,-0.06,-0.05,-0.04,-0.04,-0.04,-0.06,-0.07,-0.05,-0.04,0.01,-0.44,-0.01,0.04,-0.23,-0.27,-0.2,-0.15,-0.1,-0.05,-0.05,-0.04,-0.03,-0.03,-0.04,-0.05,-0.06,-0.05,-0.04,-0.01,-0.04,-0.06,-0.01,-0.2,-0.2,-0.14,-0.13,-0.06,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.04,-0.04,-0.05,-0.04,-0.05,-0.02,-0.04,-0.05,-0.16,-0.17,-0.16,-0.1,-0.06,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.06,-0.08,-0.06,-0.07,-0.11,-0.13,-0.11,-0.08,-0.04,-0.03,-0.02,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.04,-0.05,-0.06,-0.06,-0.06,-0.08,-0.06,-0.06,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.03,-0.03,-0.04,-0.04,-0.03,-0.05,-0.06,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.02,-0.02,-0.03,-0.03,-0.02,-0.01,-0.02,0.0,0.02,0.02,0.0,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.02,-0.01,-0.03,-0.03,-0.02,-0.02,0.01,0.0,0.03,0.14,0.04,0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.04,-0.03,-0.01,0.01,0.01,0.02,0.05,0.04,0.0,0.0,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.02,-0.04,-0.02,-0.02,-0.02,0.02,0.01,0.02,0.02,0.01,0.0,-0.01,-0.01,-0.01,-0.02,-0.01,-0.01,-0.02,-0.02,-0.03,-0.03,-0.02,-0.02,-0.01,0.01,0.02,0.01,0.02,0.01,0.0,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.01,-0.02],"candidates":[{"move":"P16","winrate":0.004,"scoreLead":-15.41,"pv":["P16","Q16","Q17","R17","P18","D17"]},{"move":"R17","winrate":0.005,"scoreLead":-16.01,"pv":["R17","P16","P15","Q15","P18"]},{"move":"D16","winrate":0.004,"scoreLead":-14.9,"pv":["D16","P16","D4","Q4","K17"]}]},{"turnNumber":12,"color":"B","move":"L17","bestMove":"P16","topMoves":["P16","D17","E16"],"bestPv":["P16","D16","D4","Q3","L17"],"matchesBest":false,"winrateBefore":0.006,"winrateAfter":0.005,"winrateLoss":0.001,"scoreLeadBefore":-13.89,"scoreLeadAfter":-15.49,"scoreLoss":1.6,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[-0.13,-0.13,-0.16,-0.17,-0.2,-0.17,-0.02,0.11,0.19,0.2,0.15,0.02,-0.14,-0.24,-0.15,-0.04,0.11,0.2,0.27,-0.11,-0.14,-0.15,-0.16,-0.24,-0.24,-0.03,0.18,0.21,0.23,0.22,0.09,-0.18,-0.29,-0.24,0.07,0.17,0.28,0.33,-0.1,-0.13,-0.18,-0.04,-0.21,-0.69,-0.11,0.48,0.14,0.16,0.52,-0.01,-0.22,-0.67,0.23,-0.05,0.32,0.34,0.38,-0.1,-0.12,-0.1,-0.29,-0.11,-0.36,-0.14,0.0,-0.04,-0.04,0.03,-0.04,-0.23,-0.68,-0.12,0.28,0.31,0.42,0.42,-0.11,-0.12,-0.11,-0.1,-0.24,-0.71,-0.2,-0.04,-0.01,0.0,-0.03,-0.09,-0.1,-0.17,-0.05,0.26,0.21,0.41,0.49,-0.13,-0.14,-0.03,0.33,-0.06,-0.18,-0.13,-0.08,-0.04,-0.02,-0.03,-0.04,-0.11,-0.05,0.08,0.7,0.32,0.64,0.4,-0.19,-0.21,-0.12,-0.06,-0.17,-0.1,-0.09,-0.05,-0.04,-0.03,-0.04,-0.06,-0.09,-0.02,0.03,0.18,0.15,0.12,0.28,-0.24,-0.34,-0.64,-0.08,-0.08,-0.06,-0.06,-0.05,-0.04,-0.04,-0.04,-0.05,-0.07,-0.05,-0.03,0.02,-0.42,0.0,0.04,-0.23,-0.26,-0.2,-0.17,-0.1,-0.06,-0.05,-0.04,-0.03,-0.03,-0.04,-0.04,-0.05,-0.05,-0.03,-0.01,-0.03,-0.05,0.0,-0.19,-0.19,-0.13,-0.13,-0.06,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.04,-0.03,-0.05,0.0,-0.03,-0.04,-0.15,-0.16,-0.16,-0.1,-0.06,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.03,-0.03,-0.03,-0.05,-0.07,-0.05,-0.06,-0.11,-0.13,-0.12,-0.09,-0.05,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.04,-0.04,-0.05,-0.05,-0.07,-0.09,-0.09,-0.07,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.02,-0.02,-0.04,-0.03,-0.05,-0.06,-0.07,-0.06,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.04,-0.06,-0.07,-0.06,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,-0.03,-0.02,-0.02,-0.04,-0.06,-0.08,-0.06,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,0.0,-0.04,-0.03,-0.01,-0.04,-0.05,-0.04,-0.06,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,-0.02,-0.02,-0.02,-0.02,-0.04,-0.04,-0.04,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.02,-0.01,-0.05,-0.03,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,-0.01,-0.02,-0.01,-0.02],"candidates":[{"move":"P16","winrate":0.005,"scoreLead":-13.72,"pv":["P16","D16","D4","Q3","L17"]},{"move":"D17","winrate":0.006,"scoreLead":-13.83,"pv":["D17","R17","P16","P15","Q15","P18"]},{"move":"E16","winrate":0.006,"scoreLead":-14.16,"pv":["E16","F16","P16","C17","E13"]}]},{"turnNumber":13,"color":"W","move":"O13","bestMove":"P16","topMoves":["P16","Q17","R17"],"bestPv":["P16","R17","Q17","R16","D16"],"matchesBest":false,"winrateBefore":0.005,"winrateAfter":0.007,"winrateLoss":0.002,"scoreLeadBefore":-15.49,"scoreLeadAfter":-13.21,"scoreLoss":2.28,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[0.03,0.01,-0.02,-0.06,-0.13,-0.14,-0.02,0.1,0.16,0.16,0.1,-0.04,-0.18,-0.26,-0.13,-0.03,0.11,0.19,0.24,0.04,0.02,0.01,-0.03,-0.15,-0.2,-0.02,0.17,0.18,0.19,0.18,0.05,-0.25,-0.3,-0.24,0.12,0.17,0.24,0.29,0.03,0.02,0.0,0.16,-0.13,-0.66,-0.11,0.46,0.11,0.11,0.47,-0.06,-0.26,-0.71,0.33,0.0,0.23,0.28,0.34,0.02,0.01,0.06,-0.17,-0.01,-0.34,-0.14,-0.02,-0.05,-0.1,0.02,-0.11,-0.27,-0.71,0.11,0.28,0.28,0.35,0.37,-0.01,-0.02,0.0,-0.01,-0.19,-0.69,-0.21,-0.03,-0.03,-0.04,-0.02,-0.1,-0.19,-0.17,-0.14,0.3,0.18,0.36,0.43,-0.06,-0.07,0.05,0.43,0.0,-0.18,-0.13,-0.1,-0.07,-0.06,-0.07,-0.04,-0.18,-0.1,0.1,0.64,0.26,0.59,0.35,-0.15,-0.14,-0.06,0.0,-0.11,-0.1,-0.1,-0.07,-0.06,-0.07,-0.08,-0.11,-0.17,-0.66,-0.03,0.08,0.09,0.07,0.22,-0.22,-0.31,-0.61,-0.04,-0.05,-0.06,-0.07,-0.07,-0.06,-0.06,-0.07,-0.08,-0.12,-0.15,-0.06,0.04,-0.48,-0.04,0.0,-0.22,-0.25,-0.19,-0.15,-0.08,-0.05,-0.06,-0.05,-0.05,-0.05,-0.06,-0.06,-0.09,-0.09,-0.07,-0.05,-0.07,-0.1,-0.04,-0.19,-0.18,-0.12,-0.11,-0.05,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.05,-0.07,-0.08,-0.08,-0.09,-0.06,-0.07,-0.08,-0.15,-0.16,-0.15,-0.09,-0.06,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.04,-0.05,-0.06,-0.07,-0.09,-0.11,-0.09,-0.1,-0.11,-0.12,-0.1,-0.07,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.04,-0.05,-0.07,-0.09,-0.09,-0.09,-0.06,-0.07,-0.05,-0.05,-0.03,-0.02,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.05,-0.06,-0.07,-0.07,-0.03,-0.04,-0.05,-0.01,-0.02,-0.02,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.04,-0.05,-0.05,-0.05,-0.01,-0.02,-0.01,0.01,0.01,-0.01,-0.02,-0.02,-0.03,-0.03,-0.03,-0.03,-0.02,-0.03,-0.02,-0.04,-0.04,-0.04,-0.04,0.0,-0.01,0.01,0.1,0.02,0.0,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.05,-0.04,-0.03,-0.02,0.0,0.01,0.01,0.03,0.02,-0.01,-0.02,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.04,-0.02,-0.02,-0.02,0.01,0.0,0.01,0.01,0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.02,-0.02,-0.02,0.0,0.01,0.01,0.01,0.0,0.0,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03],"candidates":[{"move":"P16","winrate":0.004,"scoreLead":-16.01,"pv":["P16","R17","Q17","R16","D16"]},{"move":"Q17","winrate":0.005,"scoreLead":-15.55,"pv":["Q17","P16","P18","Q16","R17","Q18"]},{"move":"R17","winrate":0.006,"scoreLead":-15.41,"pv":["R17","P16","P15","Q15","P18"]}]},{"turnNumber":14,"color":"B","move":"P13","bestMove":"D17","topMoves":["D17","P16","E16"],"bestPv":["D17","Q17","R17","P16"],"matchesBest":false,"winrateBefore":0.007,"winrateAfter":0.005,"winrateLoss":0.002,"scoreLeadBefore":-13.21,"scoreLeadAfter":-14.63,"scoreLoss":1.42,"grade":"\uC88B\uC74C","phase":"\uCD08\uBC18","ownership":[-0.12,-0.13,-0.15,-0.17,-0.21,-0.17,-0.03,0.09,0.17,0.17,0.12,-0.01,-0.14,-0.2,-0.05,0.05,0.17,0.24,0.29,-0.1,-0.13,-0.14,-0.16,-0.24,-0.24,-0.04,0.17,0.19,0.2,0.19,0.08,-0.22,-0.24,-0.12,0.2,0.22,0.3,0.34,-0.1,-0.13,-0.18,-0.02,-0.21,-0.7,-0.11,0.47,0.12,0.13,0.48,-0.04,-0.24,-0.67,0.4,0.14,0.32,0.34,0.39,-0.1,-0.12,-0.11,-0.3,-0.13,-0.36,-0.15,-0.01,-0.06,-0.08,0.01,-0.08,-0.25,-0.67,0.12,0.33,0.37,0.41,0.42,-0.11,-0.13,-0.12,-0.12,-0.25,-0.72,-0.2,-0.05,-0.03,-0.03,-0.04,-0.11,-0.13,-0.23,-0.03,0.4,0.17,0.39,0.49,-0.13,-0.15,-0.04,0.32,-0.07,-0.18,-0.14,-0.09,-0.06,-0.06,-0.07,-0.06,-0.22,-0.06,0.24,0.81,0.4,0.66,0.42,-0.2,-0.21,-0.13,-0.07,-0.18,-0.11,-0.1,-0.06,-0.06,-0.06,-0.08,-0.11,-0.19,-0.55,0.71,0.34,0.26,0.18,0.32,-0.25,-0.35,-0.65,-0.09,-0.09,-0.07,-0.07,-0.06,-0.06,-0.06,-0.07,-0.08,-0.11,0.08,0.01,0.1,-0.3,0.09,0.1,-0.24,-0.27,-0.21,-0.17,-0.11,-0.06,-0.06,-0.05,-0.04,-0.05,-0.05,-0.05,-0.02,0.01,0.04,0.12,0.04,0.0,0.05,-0.2,-0.19,-0.13,-0.13,-0.07,-0.05,-0.04,-0.03,-0.03,-0.04,-0.04,-0.04,-0.03,-0.01,-0.01,0.01,0.02,0.0,-0.01,-0.16,-0.17,-0.16,-0.11,-0.07,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.04,-0.03,-0.05,-0.12,-0.14,-0.13,-0.09,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.04,-0.05,-0.05,-0.08,-0.1,-0.09,-0.08,-0.05,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,-0.03,-0.04,-0.04,-0.06,-0.07,-0.08,-0.07,-0.05,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.02,-0.02,-0.03,-0.03,-0.06,-0.08,-0.08,-0.06,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.04,-0.03,-0.03,-0.06,-0.08,-0.11,-0.06,-0.05,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.06,-0.07,-0.04,-0.03,-0.06,-0.07,-0.07,-0.09,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.04,-0.05,-0.04,-0.04,-0.04,-0.06,-0.07,-0.06,-0.06,-0.05,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.04,-0.03,-0.04,-0.03,-0.07,-0.06,-0.06,-0.04,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.03,-0.03,-0.04,-0.03,-0.04],"candidates":[{"move":"D17","winrate":0.008,"scoreLead":-13.09,"pv":["D17","Q17","R17","P16"]},{"move":"P16","winrate":0.007,"scoreLead":-12.95,"pv":["P16","D16","D4","Q4","O15"]},{"move":"E16","winrate":0.007,"scoreLead":-13.29,"pv":["E16","F16","C17","R17"]}]},{"turnNumber":15,"color":"W","move":"O12","bestMove":"D16","topMoves":["D16","P16","C17"],"bestPv":["D16","P16","P15","Q15"],"matchesBest":false,"winrateBefore":0.005,"winrateAfter":0.008,"winrateLoss":0.002,"scoreLeadBefore":-14.63,"scoreLeadAfter":-13.02,"scoreLoss":1.56,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[0.06,0.04,0.01,-0.05,-0.13,-0.14,-0.02,0.1,0.16,0.16,0.12,-0.01,-0.16,-0.22,-0.08,0.04,0.17,0.24,0.29,0.07,0.05,0.03,-0.02,-0.15,-0.21,-0.02,0.17,0.18,0.2,0.19,0.08,-0.22,-0.27,-0.15,0.17,0.22,0.29,0.34,0.06,0.05,0.04,0.17,-0.13,-0.66,-0.11,0.47,0.12,0.12,0.48,-0.04,-0.26,-0.72,0.4,0.13,0.32,0.33,0.37,0.05,0.05,0.1,-0.17,-0.03,-0.35,-0.14,-0.02,-0.06,-0.12,0.04,-0.1,-0.29,-0.72,0.05,0.33,0.35,0.38,0.37,0.01,-0.01,0.02,-0.02,-0.2,-0.7,-0.22,-0.04,-0.04,-0.04,-0.03,-0.11,-0.22,-0.26,-0.07,0.38,0.05,0.32,0.41,-0.05,-0.07,0.05,0.43,-0.01,-0.2,-0.15,-0.12,-0.08,-0.07,-0.07,0.0,-0.31,-0.12,0.15,0.73,0.22,0.54,0.31,-0.15,-0.14,-0.06,-0.01,-0.16,-0.12,-0.12,-0.09,-0.08,-0.09,-0.09,-0.13,-0.31,-0.79,0.58,0.25,0.17,0.07,0.21,-0.23,-0.32,-0.62,-0.07,-0.08,-0.08,-0.09,-0.08,-0.08,-0.09,-0.09,-0.12,-0.29,-0.78,-0.17,-0.01,-0.38,0.01,0.03,-0.23,-0.26,-0.2,-0.16,-0.1,-0.07,-0.07,-0.06,-0.06,-0.07,-0.08,-0.11,-0.15,-0.22,-0.14,0.16,0.04,-0.05,0.0,-0.19,-0.19,-0.13,-0.12,-0.06,-0.06,-0.05,-0.05,-0.05,-0.06,-0.06,-0.08,-0.1,-0.11,-0.09,-0.01,-0.01,-0.03,-0.04,-0.15,-0.16,-0.15,-0.1,-0.06,-0.04,-0.04,-0.04,-0.04,-0.04,-0.05,-0.06,-0.08,-0.08,-0.07,-0.06,-0.08,-0.06,-0.06,-0.11,-0.12,-0.1,-0.08,-0.05,-0.04,-0.03,-0.03,-0.03,-0.04,-0.04,-0.05,-0.06,-0.06,-0.06,-0.05,-0.06,-0.07,-0.07,-0.06,-0.08,-0.06,-0.06,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.05,-0.05,-0.03,-0.05,-0.05,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.04,-0.02,-0.02,-0.02,-0.02,-0.01,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.03,-0.03,0.0,-0.01,-0.01,0.04,-0.01,-0.02,-0.03,-0.03,-0.04,-0.03,-0.03,-0.03,-0.03,-0.02,-0.01,0.0,-0.02,-0.02,-0.02,-0.01,0.0,0.0,0.0,0.0,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,-0.02,0.0,-0.01,0.0,0.0,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,0.0,-0.01,0.0,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.01,0.0,-0.01],"candidates":[{"move":"D16","winrate":0.005,"scoreLead":-14.72,"pv":["D16","P16","P15","Q15"]},{"move":"P16","winrate":0.005,"scoreLead":-14.78,"pv":["P16","Q16","Q17","R17","P18"]},{"move":"C17","winrate":0.005,"scoreLead":-14.87,"pv":["C17","P16","P15","Q15"]}]},{"turnNumber":16,"color":"B","move":"Q11","bestMove":"D17","topMoves":["D17","P16","C16"],"bestPv":["D17","R15","Q15","R14","R16"],"matchesBest":false,"winrateBefore":0.008,"winrateAfter":0.005,"winrateLoss":0.002,"scoreLeadBefore":-13.02,"scoreLeadAfter":-14.18,"scoreLoss":1.25,"grade":"\uC88B\uC74C","phase":"\uCD08\uBC18","ownership":[-0.15,-0.16,-0.18,-0.2,-0.23,-0.19,-0.04,0.09,0.16,0.17,0.12,-0.01,-0.16,-0.21,-0.05,0.06,0.18,0.26,0.31,-0.14,-0.16,-0.17,-0.19,-0.26,-0.26,-0.05,0.16,0.18,0.2,0.19,0.08,-0.24,-0.27,-0.13,0.23,0.24,0.32,0.36,-0.13,-0.16,-0.22,-0.05,-0.23,-0.73,-0.14,0.46,0.12,0.13,0.49,-0.05,-0.26,-0.72,0.41,0.16,0.35,0.37,0.41,-0.13,-0.15,-0.14,-0.29,-0.13,-0.39,-0.17,-0.02,-0.07,-0.09,0.04,-0.08,-0.3,-0.72,0.08,0.36,0.38,0.44,0.44,-0.13,-0.15,-0.15,-0.13,-0.27,-0.74,-0.22,-0.06,-0.03,-0.03,-0.04,-0.12,-0.21,-0.3,-0.11,0.43,0.22,0.42,0.52,-0.15,-0.17,-0.05,0.3,-0.1,-0.2,-0.15,-0.1,-0.07,-0.07,-0.07,-0.02,-0.32,-0.06,0.18,0.83,0.48,0.71,0.5,-0.21,-0.23,-0.15,-0.09,-0.19,-0.13,-0.11,-0.08,-0.07,-0.08,-0.08,-0.11,-0.28,-0.72,0.71,0.42,0.36,0.33,0.44,-0.26,-0.36,-0.66,-0.12,-0.11,-0.09,-0.08,-0.07,-0.07,-0.08,-0.09,-0.11,-0.25,-0.7,0.02,0.3,-0.04,0.24,0.27,-0.25,-0.28,-0.21,-0.18,-0.12,-0.07,-0.07,-0.06,-0.06,-0.07,-0.08,-0.09,-0.12,-0.17,0.01,0.67,0.34,0.19,0.21,-0.2,-0.21,-0.15,-0.15,-0.08,-0.06,-0.05,-0.05,-0.05,-0.05,-0.06,-0.06,-0.07,-0.06,0.0,0.16,0.16,0.16,0.13,-0.17,-0.18,-0.18,-0.13,-0.08,-0.05,-0.04,-0.04,-0.04,-0.04,-0.05,-0.05,-0.06,-0.04,-0.01,0.05,0.02,0.06,0.06,-0.13,-0.15,-0.14,-0.11,-0.07,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.01,0.03,0.05,0.03,0.02,-0.1,-0.12,-0.11,-0.09,-0.06,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,0.0,0.02,0.03,0.03,0.01,-0.09,-0.1,-0.11,-0.09,-0.06,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.01,0.02,0.02,0.01,-0.09,-0.11,-0.11,-0.09,-0.06,-0.05,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.0,0.01,0.02,0.01,-0.09,-0.11,-0.16,-0.11,-0.08,-0.06,-0.05,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,-0.02,-0.01,-0.03,0.01,0.02,0.02,-0.09,-0.1,-0.09,-0.1,-0.06,-0.06,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.01,0.01,0.02,0.01,-0.08,-0.09,-0.08,-0.07,-0.05,-0.04,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,0.0,0.01,0.01,-0.09,-0.08,-0.08,-0.06,-0.05,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,0.0,-0.01,0.01,0.0],"candidates":[{"move":"D17","winrate":0.009,"scoreLead":-12.58,"pv":["D17","R15","Q15","R14","R16"]},{"move":"P16","winrate":0.005,"scoreLead":-13.75,"pv":["P16","D16","D4","P15"]},{"move":"C16","winrate":0.007,"scoreLead":-13.27,"pv":["C16","R15","Q15","R14"]}]},{"turnNumber":17,"color":"W","move":"P15","bestMove":"C17","topMoves":["C17","D16","D17"],"bestPv":["C17","P16","D4","E13"],"matchesBest":false,"winrateBefore":0.005,"winrateAfter":0.007,"winrateLoss":0.002,"scoreLeadBefore":-14.18,"scoreLeadAfter":-13.24,"scoreLoss":0.8,"grade":"\uC88B\uC74C","phase":"\uCD08\uBC18","ownership":[-0.04,-0.06,-0.09,-0.13,-0.18,-0.17,-0.03,0.09,0.17,0.17,0.14,0.0,-0.16,-0.25,-0.13,-0.03,0.07,0.14,0.18,-0.02,-0.05,-0.07,-0.11,-0.21,-0.24,-0.03,0.17,0.18,0.19,0.21,0.11,-0.29,-0.28,-0.1,0.04,0.11,0.18,0.23,-0.02,-0.04,-0.09,0.07,-0.18,-0.7,-0.14,0.46,0.12,0.13,0.47,-0.08,-0.33,-0.84,0.22,-0.05,0.16,0.21,0.28,-0.01,-0.02,0.03,-0.21,-0.05,-0.38,-0.17,-0.03,-0.08,-0.14,0.04,-0.11,-0.36,-0.85,-0.33,-0.14,0.03,0.29,0.31,-0.03,-0.04,-0.02,-0.02,-0.21,-0.71,-0.23,-0.05,-0.06,-0.06,-0.06,-0.16,-0.21,-0.53,-0.82,0.05,0.08,0.29,0.4,-0.07,-0.07,0.05,0.43,0.0,-0.19,-0.15,-0.13,-0.1,-0.09,-0.1,-0.12,-0.3,-0.44,-0.32,0.61,0.31,0.61,0.39,-0.15,-0.15,-0.07,0.01,0.0,-0.09,-0.1,-0.09,-0.09,-0.1,-0.12,-0.15,-0.32,-0.83,0.48,0.28,0.23,0.23,0.35,-0.22,-0.31,-0.6,-0.04,-0.03,-0.05,-0.08,-0.08,-0.08,-0.09,-0.1,-0.14,-0.29,-0.83,-0.01,0.07,-0.15,0.16,0.21,-0.22,-0.26,-0.19,-0.14,-0.08,-0.05,-0.06,-0.06,-0.06,-0.07,-0.08,-0.1,-0.15,-0.23,-0.18,0.56,0.3,0.14,0.18,-0.19,-0.19,-0.14,-0.14,-0.06,-0.05,-0.04,-0.04,-0.05,-0.05,-0.05,-0.06,-0.08,-0.09,-0.02,0.13,0.15,0.15,0.12,-0.16,-0.17,-0.16,-0.1,-0.06,-0.04,-0.03,-0.03,-0.04,-0.04,-0.04,-0.05,-0.06,-0.04,-0.01,0.07,0.04,0.06,0.07,-0.11,-0.12,-0.1,-0.07,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.04,-0.04,-0.03,0.0,0.03,0.05,0.05,0.04,-0.06,-0.08,-0.05,-0.06,-0.03,-0.02,-0.02,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,0.0,0.03,0.04,0.04,0.03,-0.03,-0.04,-0.06,-0.01,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.01,0.01,0.05,0.04,0.02,-0.01,-0.01,0.0,0.02,0.01,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.0,0.01,0.02,0.02,0.02,0.01,0.0,0.03,0.12,0.02,0.0,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.0,-0.02,0.02,0.02,0.02,0.01,0.02,0.03,0.05,0.04,-0.01,0.0,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,0.0,0.0,0.01,0.02,0.01,0.02,0.01,0.03,0.02,0.02,0.01,0.0,0.0,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,0.01,0.01,0.02,0.02,0.03,0.02,0.03,0.02,0.01,0.0,0.0,-0.01,-0.01,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.01,0.01],"candidates":[{"move":"C17","winrate":0.005,"scoreLead":-14.59,"pv":["C17","P16","D4","E13"]},{"move":"D16","winrate":0.005,"scoreLead":-14.02,"pv":["D16","P16","D4","Q4"]},{"move":"D17","winrate":0.005,"scoreLead":-14.2,"pv":["D17","P16","P15","Q15"]}]},{"turnNumber":18,"color":"B","move":"Q15","bestMove":"D17","topMoves":["D17","R17","Q15"],"bestPv":["D17","R17","Q4","D4","E13"],"matchesBest":false,"winrateBefore":0.007,"winrateAfter":0.008,"winrateLoss":-0.001,"scoreLeadBefore":-13.24,"scoreLeadAfter":-13.07,"scoreLoss":0.0,"grade":"\uCD5C\uC120","phase":"\uCD08\uBC18","ownership":[-0.13,-0.14,-0.16,-0.18,-0.21,-0.18,-0.03,0.1,0.18,0.19,0.15,0.04,-0.1,-0.13,0.0,0.15,0.27,0.35,0.4,-0.11,-0.14,-0.15,-0.17,-0.24,-0.25,-0.04,0.17,0.19,0.21,0.22,0.11,-0.15,-0.22,0.13,0.29,0.34,0.4,0.45,-0.11,-0.14,-0.2,-0.01,-0.22,-0.72,-0.14,0.47,0.13,0.14,0.49,-0.04,-0.24,-0.73,0.5,0.28,0.42,0.46,0.51,-0.11,-0.13,-0.1,-0.28,-0.13,-0.37,-0.16,-0.01,-0.07,-0.09,0.0,-0.11,-0.29,-0.73,0.2,0.38,0.51,0.57,0.56,-0.12,-0.15,-0.14,-0.11,-0.26,-0.74,-0.22,-0.05,-0.04,-0.05,-0.1,-0.19,-0.23,-0.42,-0.68,0.85,0.62,0.61,0.64,-0.15,-0.17,-0.05,0.31,-0.09,-0.2,-0.15,-0.11,-0.08,-0.09,-0.12,-0.15,-0.29,-0.39,-0.28,0.85,0.57,0.8,0.6,-0.21,-0.23,-0.15,-0.09,-0.21,-0.13,-0.12,-0.08,-0.08,-0.1,-0.13,-0.16,-0.33,-0.8,0.55,0.35,0.39,0.36,0.49,-0.27,-0.36,-0.67,-0.12,-0.11,-0.09,-0.09,-0.08,-0.08,-0.1,-0.12,-0.15,-0.29,-0.8,-0.1,0.29,-0.05,0.27,0.3,-0.25,-0.29,-0.22,-0.19,-0.13,-0.08,-0.08,-0.07,-0.07,-0.08,-0.1,-0.12,-0.15,-0.23,-0.05,0.63,0.32,0.2,0.22,-0.2,-0.21,-0.14,-0.15,-0.08,-0.07,-0.06,-0.05,-0.06,-0.06,-0.07,-0.08,-0.1,-0.09,-0.04,0.14,0.15,0.16,0.13,-0.16,-0.18,-0.17,-0.13,-0.08,-0.06,-0.05,-0.05,-0.05,-0.05,-0.05,-0.06,-0.07,-0.06,-0.03,0.04,0.04,0.07,0.06,-0.12,-0.15,-0.14,-0.11,-0.07,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.05,-0.05,-0.04,-0.02,0.03,0.04,0.04,0.02,-0.09,-0.11,-0.11,-0.09,-0.06,-0.05,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,0.0,0.02,0.03,0.03,0.01,-0.08,-0.09,-0.1,-0.09,-0.07,-0.05,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,-0.01,0.0,0.01,0.02,0.03,0.02,-0.07,-0.1,-0.11,-0.1,-0.07,-0.06,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,-0.01,0.0,0.01,0.03,0.03,0.01,-0.07,-0.1,-0.14,-0.12,-0.08,-0.07,-0.05,-0.05,-0.04,-0.04,-0.04,-0.03,-0.02,-0.01,0.0,0.01,0.02,0.02,0.02,-0.07,-0.08,-0.07,-0.09,-0.05,-0.05,-0.05,-0.05,-0.04,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.01,0.02,0.01,-0.07,-0.07,-0.06,-0.06,-0.04,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.01,0.01,0.02,-0.07,-0.06,-0.06,-0.05,-0.04,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.0,0.01,0.01],"candidates":[{"move":"D17","winrate":0.008,"scoreLead":-13.06,"pv":["D17","R17","Q4","D4","E13"]},{"move":"R17","winrate":0.007,"scoreLead":-13.11,"pv":["R17","D16","D4","Q4","R6"]},{"move":"Q15","winrate":0.009,"scoreLead":-12.93,"pv":["Q15","Q16","P16","P14","P18","R16"]}]},{"turnNumber":19,"color":"W","move":"J14","bestMove":"P18","topMoves":["P18","Q16","C17"],"bestPv":["P18","D17","Q16","D4"],"matchesBest":false,"winrateBefore":0.008,"winrateAfter":0.011,"winrateLoss":0.003,"scoreLeadBefore":-13.07,"scoreLeadAfter":-11.45,"scoreLoss":1.62,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[-0.11,-0.12,-0.15,-0.19,-0.23,-0.22,-0.08,0.04,0.11,0.12,0.09,-0.03,-0.17,-0.19,-0.01,0.18,0.33,0.42,0.48,-0.09,-0.13,-0.14,-0.17,-0.27,-0.28,-0.09,0.11,0.12,0.14,0.16,0.04,-0.22,-0.31,0.08,0.38,0.41,0.49,0.54,-0.09,-0.12,-0.19,0.03,-0.26,-0.77,-0.19,0.38,0.08,0.08,0.42,-0.09,-0.29,-0.75,0.53,0.31,0.59,0.57,0.59,-0.09,-0.1,-0.05,-0.27,-0.17,-0.42,-0.24,-0.08,-0.19,-0.13,0.0,-0.15,-0.32,-0.75,0.22,0.47,0.6,0.64,0.64,-0.1,-0.13,-0.11,-0.11,-0.29,-0.79,-0.28,-0.12,-0.18,-0.06,-0.03,-0.17,-0.24,-0.42,-0.65,0.89,0.69,0.66,0.7,-0.13,-0.16,-0.05,0.3,-0.12,-0.23,-0.26,-0.28,-0.74,-0.21,-0.16,-0.16,-0.31,-0.33,-0.17,0.89,0.61,0.83,0.64,-0.21,-0.23,-0.15,-0.1,-0.22,-0.18,-0.16,-0.18,-0.23,-0.2,-0.22,-0.18,-0.34,-0.8,0.65,0.43,0.41,0.38,0.52,-0.27,-0.37,-0.68,-0.13,-0.14,-0.12,-0.13,-0.13,-0.16,-0.16,-0.15,-0.17,-0.31,-0.8,-0.07,0.32,-0.02,0.28,0.31,-0.26,-0.3,-0.23,-0.21,-0.15,-0.1,-0.1,-0.11,-0.11,-0.12,-0.12,-0.13,-0.17,-0.24,-0.04,0.65,0.33,0.21,0.23,-0.21,-0.22,-0.15,-0.15,-0.09,-0.08,-0.08,-0.08,-0.09,-0.09,-0.09,-0.09,-0.11,-0.1,-0.05,0.14,0.15,0.16,0.13,-0.17,-0.18,-0.18,-0.12,-0.09,-0.07,-0.06,-0.06,-0.06,-0.06,-0.07,-0.07,-0.08,-0.07,-0.03,0.03,0.03,0.07,0.06,-0.12,-0.14,-0.12,-0.09,-0.07,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.06,-0.05,-0.02,0.03,0.04,0.03,0.02,-0.07,-0.09,-0.07,-0.07,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.01,0.01,0.02,0.02,0.0,-0.03,-0.05,-0.07,-0.02,-0.02,-0.03,-0.03,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,-0.02,-0.01,-0.01,0.02,0.01,0.0,0.0,-0.01,0.02,0.03,0.01,-0.01,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,0.02,0.01,0.05,0.21,0.05,0.01,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.03,-0.09,-0.04,-0.01,-0.01,0.02,0.03,0.04,0.07,0.06,0.0,-0.01,-0.02,-0.03,-0.03,-0.03,-0.02,-0.02,-0.03,-0.03,-0.02,-0.02,-0.01,-0.01,0.03,0.02,0.04,0.03,0.03,0.0,-0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.01,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.02,0.04,0.03,0.03,0.02,0.01,-0.01,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,-0.02,-0.01,-0.02,-0.01,-0.01],"candidates":[{"move":"P18","winrate":0.006,"scoreLead":-13.56,"pv":["P18","D17","Q16","D4"]},{"move":"Q16","winrate":0.011,"scoreLead":-12.63,"pv":["Q16","P16","P14","P18","R16","S16"]},{"move":"C17","winrate":0.007,"scoreLead":-13.13,"pv":["C17","P18","D4","E13"]}]},{"turnNumber":20,"color":"B","move":"M14","bestMove":"P18","topMoves":["P18","D17","P16"],"bestPv":["P18","C17","D4","Q4","E16"],"matchesBest":false,"winrateBefore":0.011,"winrateAfter":0.008,"winrateLoss":0.003,"scoreLeadBefore":-11.45,"scoreLeadAfter":-13.34,"scoreLoss":1.88,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[-0.18,-0.18,-0.2,-0.22,-0.25,-0.21,-0.07,0.05,0.14,0.16,0.13,0.02,-0.13,-0.16,-0.02,0.15,0.3,0.39,0.45,-0.16,-0.19,-0.2,-0.21,-0.29,-0.29,-0.08,0.12,0.15,0.17,0.19,0.08,-0.17,-0.27,0.05,0.31,0.38,0.46,0.5,-0.15,-0.18,-0.25,-0.08,-0.26,-0.76,-0.18,0.4,0.09,0.1,0.49,-0.06,-0.24,-0.7,0.46,0.21,0.54,0.53,0.56,-0.14,-0.17,-0.14,-0.29,-0.17,-0.42,-0.22,-0.07,-0.2,-0.08,0.01,-0.08,-0.26,-0.71,0.15,0.43,0.56,0.62,0.61,-0.15,-0.17,-0.17,-0.13,-0.29,-0.78,-0.26,-0.12,-0.19,-0.03,-0.13,-0.03,-0.17,-0.39,-0.66,0.89,0.67,0.64,0.68,-0.16,-0.19,-0.07,0.28,-0.12,-0.2,-0.23,-0.23,-0.69,-0.17,-0.08,0.38,-0.15,-0.26,-0.24,0.88,0.6,0.83,0.63,-0.22,-0.24,-0.16,-0.11,-0.21,-0.16,-0.13,-0.14,-0.17,-0.11,-0.11,-0.06,-0.21,-0.73,0.63,0.42,0.42,0.39,0.52,-0.27,-0.37,-0.67,-0.12,-0.13,-0.1,-0.11,-0.1,-0.12,-0.1,-0.06,-0.06,-0.25,-0.73,-0.07,0.33,-0.02,0.29,0.32,-0.26,-0.29,-0.23,-0.21,-0.14,-0.09,-0.09,-0.09,-0.09,-0.08,-0.07,-0.1,-0.13,-0.2,-0.01,0.66,0.33,0.22,0.24,-0.21,-0.21,-0.15,-0.15,-0.09,-0.07,-0.06,-0.06,-0.07,-0.06,-0.05,-0.06,-0.09,-0.1,-0.04,0.14,0.16,0.16,0.14,-0.17,-0.18,-0.18,-0.12,-0.08,-0.06,-0.05,-0.05,-0.05,-0.04,-0.04,-0.05,-0.07,-0.06,-0.02,0.05,0.04,0.07,0.07,-0.12,-0.14,-0.13,-0.1,-0.07,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.05,-0.04,-0.01,0.03,0.05,0.04,0.03,-0.08,-0.1,-0.09,-0.08,-0.06,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,0.0,0.02,0.03,0.03,0.01,-0.06,-0.07,-0.08,-0.06,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.0,0.02,0.02,0.01,-0.05,-0.06,-0.06,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.01,-0.02,0.0,0.0,0.0,-0.04,-0.06,-0.07,0.02,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.03,-0.03,-0.09,-0.03,-0.01,0.0,-0.04,-0.04,-0.04,-0.04,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.01,-0.01,-0.01,-0.03,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.02,0.0,-0.01],"candidates":[{"move":"P18","winrate":0.01,"scoreLead":-11.36,"pv":["P18","C17","D4","Q4","E16"]},{"move":"D17","winrate":0.013,"scoreLead":-11.16,"pv":["D17","P18","Q18","Q17","R17","P16"]},{"move":"P16","winrate":0.009,"scoreLead":-12.1,"pv":["P16","C17","D4","P18","Q18"]}]},{"turnNumber":21,"color":"W","move":"L15","bestMove":"P18","topMoves":["P18","Q16","P14"],"bestPv":["P18","R17","D16","D4"],"matchesBest":false,"winrateBefore":0.008,"winrateAfter":0.01,"winrateLoss":0.002,"scoreLeadBefore":-13.34,"scoreLeadAfter":-12.08,"scoreLoss":1.29,"grade":"\uC88B\uC74C","phase":"\uCD08\uBC18","ownership":[-0.16,-0.17,-0.2,-0.23,-0.27,-0.24,-0.11,-0.01,0.06,0.06,0.01,-0.1,-0.22,-0.2,0.01,0.18,0.31,0.4,0.45,-0.14,-0.18,-0.2,-0.23,-0.31,-0.3,-0.13,0.05,0.05,0.05,0.06,-0.05,-0.31,-0.33,0.12,0.4,0.4,0.46,0.51,-0.14,-0.17,-0.24,-0.06,-0.28,-0.78,-0.23,0.3,0.0,-0.01,0.33,-0.24,-0.37,-0.78,0.65,0.39,0.53,0.54,0.56,-0.13,-0.15,-0.12,-0.31,-0.21,-0.44,-0.26,-0.12,-0.21,-0.16,-0.06,-0.28,-0.36,-0.78,0.45,0.53,0.59,0.62,0.62,-0.14,-0.16,-0.16,-0.15,-0.31,-0.8,-0.3,-0.17,-0.25,-0.24,-0.67,-0.1,-0.18,-0.47,-0.67,0.9,0.69,0.65,0.69,-0.16,-0.19,-0.08,0.26,-0.15,-0.23,-0.27,-0.27,-0.75,-0.28,-0.25,0.27,-0.16,-0.22,-0.06,0.9,0.62,0.84,0.65,-0.22,-0.24,-0.18,-0.13,-0.25,-0.18,-0.16,-0.17,-0.21,-0.19,-0.18,-0.12,-0.24,-0.7,0.68,0.45,0.43,0.4,0.53,-0.28,-0.37,-0.68,-0.15,-0.15,-0.12,-0.12,-0.12,-0.15,-0.14,-0.12,-0.09,-0.24,-0.71,-0.03,0.35,0.0,0.3,0.33,-0.26,-0.3,-0.23,-0.2,-0.14,-0.1,-0.09,-0.09,-0.1,-0.1,-0.1,-0.11,-0.12,-0.18,0.01,0.67,0.35,0.23,0.25,-0.22,-0.21,-0.15,-0.15,-0.09,-0.08,-0.07,-0.07,-0.07,-0.07,-0.06,-0.06,-0.08,-0.08,-0.02,0.15,0.17,0.17,0.15,-0.17,-0.18,-0.18,-0.12,-0.09,-0.06,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.06,-0.05,-0.01,0.06,0.05,0.09,0.08,-0.12,-0.14,-0.13,-0.1,-0.07,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,0.0,0.05,0.07,0.06,0.04,-0.08,-0.09,-0.08,-0.08,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,0.01,0.03,0.06,0.05,0.03,-0.05,-0.06,-0.07,-0.05,-0.05,-0.04,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,-0.01,0.01,0.03,0.05,0.05,0.03,-0.03,-0.04,-0.04,-0.03,-0.02,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,-0.01,0.01,0.02,0.04,0.04,0.03,-0.01,-0.02,-0.02,0.04,-0.01,-0.02,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.01,0.0,0.0,0.0,0.05,0.05,0.05,-0.01,-0.02,-0.01,-0.01,0.0,-0.02,-0.02,-0.03,-0.03,-0.02,-0.02,-0.01,-0.01,0.0,0.01,0.05,0.04,0.04,0.04,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.01,-0.02,-0.02,-0.01,-0.01,-0.01,0.0,0.01,0.02,0.03,0.04,0.04,0.05,-0.02,0.0,-0.01,0.0,-0.01,-0.01,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,0.0,0.01,0.02,0.04,0.04,0.04,0.04],"candidates":[{"move":"P18","winrate":0.006,"scoreLead":-14.0,"pv":["P18","R17","D16","D4"]},{"move":"Q16","winrate":0.012,"scoreLead":-12.62,"pv":["Q16","P16","P14","Q17","Q13"]},{"move":"P14","winrate":0.007,"scoreLead":-13.84,"pv":["P14","P16","Q13","O15"]}]},{"turnNumber":22,"color":"B","move":"K15","bestMove":"P16","topMoves":["P16","P18","D17"],"bestPv":["P16","P18","Q18","C17"],"matchesBest":false,"winrateBefore":0.01,"winrateAfter":0.008,"winrateLoss":0.002,"scoreLeadBefore":-12.08,"scoreLeadAfter":-13.0,"scoreLoss":0.92,"grade":"\uC88B\uC74C","phase":"\uCD08\uBC18","ownership":[-0.02,-0.02,-0.04,-0.08,-0.15,-0.16,-0.07,0.03,0.1,0.11,0.07,-0.04,-0.17,-0.21,-0.05,0.05,0.19,0.27,0.33,-0.01,-0.03,-0.02,-0.06,-0.16,-0.23,-0.09,0.09,0.1,0.12,0.13,0.02,-0.25,-0.26,-0.08,0.25,0.26,0.34,0.4,-0.02,-0.04,-0.06,0.16,-0.15,-0.7,-0.2,0.36,0.02,0.07,0.41,-0.1,-0.3,-0.75,0.49,0.23,0.39,0.42,0.46,-0.03,-0.05,-0.01,-0.16,-0.08,-0.35,-0.21,-0.12,-0.1,-0.08,-0.08,-0.18,-0.32,-0.76,0.28,0.33,0.46,0.53,0.53,-0.06,-0.08,-0.06,-0.04,-0.23,-0.74,-0.26,-0.11,-0.13,0.27,-0.54,-0.17,-0.22,-0.42,-0.68,0.85,0.6,0.58,0.62,-0.11,-0.14,-0.01,0.37,-0.07,-0.19,-0.22,-0.21,-0.64,-0.22,-0.16,0.25,-0.21,-0.29,-0.2,0.85,0.57,0.8,0.59,-0.19,-0.2,-0.11,-0.07,-0.22,-0.15,-0.14,-0.16,-0.19,-0.2,-0.13,-0.14,-0.27,-0.75,0.56,0.35,0.38,0.35,0.48,-0.26,-0.35,-0.66,-0.12,-0.13,-0.11,-0.12,-0.12,-0.14,-0.13,-0.12,-0.11,-0.26,-0.75,-0.07,0.26,-0.07,0.25,0.28,-0.25,-0.28,-0.22,-0.18,-0.13,-0.09,-0.09,-0.09,-0.1,-0.1,-0.1,-0.11,-0.13,-0.19,-0.03,0.63,0.31,0.19,0.21,-0.2,-0.2,-0.14,-0.13,-0.08,-0.08,-0.07,-0.07,-0.07,-0.07,-0.06,-0.06,-0.08,-0.08,-0.02,0.12,0.14,0.15,0.12,-0.16,-0.17,-0.16,-0.11,-0.08,-0.06,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.06,-0.05,-0.02,0.04,0.02,0.06,0.06,-0.11,-0.13,-0.13,-0.1,-0.06,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.01,0.03,0.05,0.04,0.02,-0.08,-0.1,-0.09,-0.08,-0.06,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.02,0.0,0.02,0.04,0.03,0.01,-0.06,-0.07,-0.08,-0.07,-0.05,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.01,0.03,0.03,0.02,-0.05,-0.06,-0.07,-0.06,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.0,0.02,0.02,0.01,-0.04,-0.06,-0.08,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,-0.01,-0.01,-0.03,0.01,0.01,0.02,-0.05,-0.05,-0.05,-0.07,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.01,0.0,0.01,0.02,0.01,-0.04,-0.05,-0.04,-0.05,-0.04,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,0.0,0.01,0.01,0.02,-0.05,-0.04,-0.05,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,-0.01,0.0,0.0,0.01,0.01],"candidates":[{"move":"P16","winrate":0.009,"scoreLead":-12.06,"pv":["P16","P18","Q18","C17"]},{"move":"P18","winrate":0.009,"scoreLead":-12.21,"pv":["P18","C17","M15","M16"]},{"move":"D17","winrate":0.011,"scoreLead":-11.79,"pv":["D17","P18","P16","R17","Q18"]}]},{"turnNumber":23,"color":"W","move":"K14","bestMove":"K14","topMoves":["K14","L14","P18"],"bestPv":["K14","P16","P18","Q18","C17"],"matchesBest":true,"winrateBefore":0.008,"winrateAfter":0.008,"winrateLoss":0.0,"scoreLeadBefore":-13.0,"scoreLeadAfter":-12.8,"scoreLoss":0.11,"grade":"\uCD5C\uC120","phase":"\uCD08\uBC18","ownership":[-0.08,-0.09,-0.11,-0.14,-0.2,-0.2,-0.09,0.0,0.06,0.06,0.03,-0.07,-0.18,-0.17,0.05,0.19,0.32,0.4,0.46,-0.06,-0.09,-0.09,-0.12,-0.22,-0.24,-0.12,0.06,0.04,0.07,0.09,0.0,-0.28,-0.27,0.08,0.47,0.4,0.46,0.51,-0.07,-0.1,-0.15,0.12,-0.22,-0.74,-0.23,0.3,-0.02,-0.03,0.35,-0.12,-0.31,-0.72,0.7,0.44,0.53,0.54,0.56,-0.07,-0.09,-0.04,-0.23,-0.17,-0.38,-0.25,-0.15,-0.17,-0.25,-0.15,-0.2,-0.31,-0.73,0.52,0.55,0.59,0.62,0.62,-0.1,-0.12,-0.1,-0.1,-0.27,-0.78,-0.32,-0.2,-0.36,-0.02,-0.67,-0.12,-0.17,-0.45,-0.61,0.9,0.7,0.65,0.69,-0.14,-0.17,-0.06,0.31,-0.13,-0.22,-0.29,-0.33,-0.85,-0.85,-0.17,0.25,-0.18,-0.2,-0.07,0.9,0.62,0.84,0.64,-0.21,-0.23,-0.15,-0.11,-0.25,-0.19,-0.18,-0.22,-0.34,-0.33,-0.2,-0.15,-0.25,-0.71,0.68,0.46,0.43,0.39,0.52,-0.27,-0.37,-0.68,-0.15,-0.16,-0.14,-0.14,-0.15,-0.19,-0.19,-0.13,-0.11,-0.26,-0.71,-0.01,0.34,0.01,0.3,0.32,-0.26,-0.3,-0.23,-0.21,-0.15,-0.11,-0.11,-0.11,-0.13,-0.13,-0.12,-0.12,-0.13,-0.18,0.01,0.67,0.34,0.22,0.24,-0.21,-0.21,-0.15,-0.15,-0.1,-0.09,-0.08,-0.08,-0.09,-0.09,-0.08,-0.07,-0.08,-0.08,-0.02,0.14,0.16,0.17,0.14,-0.17,-0.18,-0.17,-0.13,-0.09,-0.07,-0.06,-0.06,-0.06,-0.06,-0.06,-0.06,-0.07,-0.05,-0.02,0.05,0.05,0.08,0.07,-0.12,-0.14,-0.13,-0.1,-0.07,-0.06,-0.05,-0.05,-0.05,-0.04,-0.04,-0.04,-0.05,-0.04,-0.01,0.05,0.06,0.05,0.03,-0.08,-0.1,-0.09,-0.09,-0.06,-0.05,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,0.0,0.03,0.05,0.04,0.02,-0.06,-0.07,-0.08,-0.07,-0.06,-0.05,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,-0.01,0.01,0.02,0.04,0.04,0.02,-0.04,-0.06,-0.06,-0.05,-0.04,-0.05,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,-0.02,-0.01,0.01,0.01,0.03,0.03,0.02,-0.03,-0.05,-0.05,-0.02,-0.03,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,-0.01,-0.01,-0.01,0.02,0.02,0.03,-0.03,-0.03,-0.03,-0.04,-0.02,-0.03,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,0.0,0.01,0.02,0.02,0.02,-0.02,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.0,0.02,0.02,0.02,-0.03,-0.02,-0.03,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.01,0.01,0.02,0.02],"candidates":[{"move":"K14","winrate":0.008,"scoreLead":-12.89,"pv":["K14","P16","P18","Q18","C17"]},{"move":"L14","winrate":0.007,"scoreLead":-13.27,"pv":["L14","D17","Q16","P16","P14"]},{"move":"P18","winrate":0.006,"scoreLead":-13.57,"pv":["P18","K14","Q16","D17"]}]},{"turnNumber":24,"color":"B","move":"M15","bestMove":"P16","topMoves":["P16","P18","D17"],"bestPv":["P16","P18","Q18","C17","M15"],"matchesBest":false,"winrateBefore":0.008,"winrateAfter":0.006,"winrateLoss":0.002,"scoreLeadBefore":-12.8,"scoreLeadAfter":-14.29,"scoreLoss":1.63,"grade":"\uBCF4\uD1B5","phase":"\uCD08\uBC18","ownership":[0.03,0.02,0.0,-0.04,-0.13,-0.15,-0.05,0.07,0.15,0.17,0.13,0.01,-0.15,-0.21,-0.06,0.07,0.21,0.31,0.37,0.04,0.02,0.03,-0.01,-0.15,-0.21,-0.06,0.13,0.16,0.18,0.2,0.08,-0.19,-0.29,-0.06,0.25,0.3,0.38,0.44,0.03,0.02,0.0,0.23,-0.17,-0.71,-0.19,0.41,0.08,0.12,0.48,0.02,-0.26,-0.76,0.49,0.23,0.45,0.47,0.5,0.01,-0.01,0.04,-0.12,-0.12,-0.35,-0.2,-0.08,-0.12,-0.06,0.18,-0.06,-0.16,-0.76,0.24,0.36,0.51,0.57,0.57,-0.04,-0.06,-0.05,-0.02,-0.23,-0.76,-0.28,-0.15,-0.4,0.07,-0.65,0.3,-0.16,-0.44,-0.71,0.87,0.64,0.61,0.65,-0.1,-0.14,0.0,0.38,-0.08,-0.21,-0.28,-0.34,-0.87,-0.87,-0.55,0.3,-0.2,-0.37,-0.18,0.87,0.58,0.81,0.61,-0.19,-0.2,-0.11,-0.07,-0.24,-0.18,-0.18,-0.22,-0.35,-0.36,-0.27,-0.29,-0.28,-0.8,0.59,0.38,0.38,0.35,0.49,-0.26,-0.36,-0.67,-0.13,-0.15,-0.14,-0.15,-0.16,-0.2,-0.2,-0.19,-0.11,-0.31,-0.79,-0.09,0.27,-0.06,0.26,0.28,-0.26,-0.29,-0.24,-0.2,-0.15,-0.12,-0.12,-0.13,-0.14,-0.14,-0.14,-0.15,-0.17,-0.22,-0.04,0.63,0.31,0.19,0.21,-0.21,-0.21,-0.15,-0.15,-0.1,-0.09,-0.09,-0.1,-0.1,-0.11,-0.09,-0.09,-0.1,-0.11,-0.04,0.11,0.14,0.15,0.12,-0.17,-0.18,-0.18,-0.13,-0.1,-0.07,-0.07,-0.07,-0.07,-0.07,-0.07,-0.07,-0.08,-0.06,-0.03,0.03,0.03,0.06,0.06,-0.12,-0.14,-0.14,-0.11,-0.08,-0.06,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.04,-0.02,0.03,0.04,0.04,0.02,-0.09,-0.1,-0.1,-0.09,-0.07,-0.05,-0.05,-0.05,-0.05,-0.04,-0.04,-0.04,-0.04,-0.03,-0.01,0.02,0.04,0.03,0.01,-0.07,-0.08,-0.08,-0.07,-0.06,-0.05,-0.05,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,0.0,0.01,0.02,0.02,0.01,-0.05,-0.07,-0.07,-0.06,-0.04,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.02,-0.02,0.0,0.0,0.02,0.02,0.01,-0.04,-0.06,-0.07,-0.04,-0.04,-0.05,-0.05,-0.05,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,-0.02,-0.03,0.0,0.01,0.01,-0.05,-0.05,-0.05,-0.06,-0.04,-0.04,-0.05,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,-0.01,0.0,0.01,0.01,0.0,-0.04,-0.05,-0.04,-0.05,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.0,0.01,-0.05,-0.04,-0.05,-0.03,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,-0.01,-0.01,0.0,0.0,0.01,0.0],"candidates":[{"move":"P16","winrate":0.009,"scoreLead":-12.33,"pv":["P16","P18","Q18","C17","M15"]},{"move":"P18","winrate":0.007,"scoreLead":-13.24,"pv":["P18","C17","L14","K16","M15"]},{"move":"D17","winrate":0.008,"scoreLead":-12.96,"pv":["D17","P18","P16","R17","Q18"]}]},{"turnNumber":25,"color":"W","move":"M16","bestMove":"M16","topMoves":["M16","L14","Q16"],"bestPv":["M16","L16","L14","M17","M13","D17"],"matchesBest":true,"winrateBefore":0.006,"winrateAfter":0.007,"winrateLoss":0.001,"scoreLeadBefore":-14.29,"scoreLeadAfter":-14.29,"scoreLoss":0.0,"grade":"\uCD5C\uC120","phase":"\uCD08\uBC18","ownership":[0.09,0.08,0.05,-0.01,-0.11,-0.14,-0.01,0.12,0.21,0.22,0.17,0.03,-0.17,-0.25,-0.11,0.01,0.14,0.24,0.3,0.1,0.08,0.09,0.03,-0.11,-0.2,-0.01,0.19,0.26,0.26,0.27,0.11,-0.2,-0.34,-0.1,0.19,0.23,0.31,0.37,0.08,0.07,0.08,0.29,-0.13,-0.69,-0.16,0.48,0.17,0.23,0.48,0.22,-0.24,-0.82,0.44,0.21,0.35,0.39,0.44,0.06,0.04,0.1,-0.06,-0.05,-0.37,-0.18,-0.04,-0.04,0.05,0.39,-0.15,0.01,-0.83,0.21,0.21,0.43,0.51,0.51,0.0,-0.02,0.0,0.02,-0.21,-0.75,-0.26,-0.09,-0.33,0.1,-0.86,0.18,-0.28,-0.48,-0.75,0.84,0.58,0.56,0.61,-0.08,-0.11,0.03,0.42,-0.06,-0.22,-0.27,-0.34,-0.89,-0.9,-0.83,0.16,-0.31,-0.37,-0.23,0.84,0.56,0.79,0.58,-0.18,-0.17,-0.09,-0.05,-0.23,-0.19,-0.19,-0.24,-0.38,-0.44,-0.44,-0.54,-0.41,-0.84,0.57,0.37,0.37,0.34,0.47,-0.26,-0.35,-0.66,-0.13,-0.15,-0.15,-0.16,-0.18,-0.23,-0.25,-0.29,-0.2,-0.38,-0.83,-0.09,0.26,-0.08,0.25,0.27,-0.26,-0.29,-0.24,-0.2,-0.15,-0.13,-0.13,-0.14,-0.16,-0.18,-0.18,-0.19,-0.21,-0.23,-0.04,0.62,0.31,0.18,0.2,-0.22,-0.21,-0.15,-0.15,-0.11,-0.1,-0.1,-0.11,-0.12,-0.13,-0.12,-0.12,-0.11,-0.11,-0.03,0.11,0.13,0.14,0.12,-0.17,-0.18,-0.18,-0.13,-0.1,-0.08,-0.08,-0.08,-0.09,-0.09,-0.09,-0.08,-0.08,-0.07,-0.04,0.02,0.02,0.05,0.05,-0.13,-0.15,-0.14,-0.11,-0.08,-0.07,-0.06,-0.06,-0.06,-0.07,-0.07,-0.06,-0.06,-0.05,-0.02,0.02,0.04,0.03,0.01,-0.09,-0.11,-0.11,-0.1,-0.07,-0.06,-0.06,-0.05,-0.06,-0.05,-0.05,-0.05,-0.04,-0.03,-0.01,0.01,0.03,0.02,0.01,-0.07,-0.09,-0.09,-0.08,-0.07,-0.06,-0.05,-0.05,-0.05,-0.05,-0.05,-0.04,-0.03,-0.03,-0.01,0.01,0.02,0.02,0.01,-0.06,-0.08,-0.08,-0.07,-0.05,-0.06,-0.05,-0.05,-0.05,-0.05,-0.04,-0.04,-0.03,-0.03,-0.01,0.0,0.02,0.01,0.01,-0.05,-0.07,-0.1,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.04,-0.03,-0.02,-0.02,-0.02,0.0,0.01,0.02,-0.06,-0.06,-0.05,-0.07,-0.04,-0.05,-0.05,-0.05,-0.05,-0.05,-0.04,-0.04,-0.03,-0.03,-0.02,0.0,0.01,0.01,0.01,-0.05,-0.06,-0.05,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.0,0.0,0.01,-0.05,-0.04,-0.05,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.0,0.01,0.0],"candidates":[{"move":"M16","winrate":0.005,"scoreLead":-14.8,"pv":["M16","L16","L14","M17","M13","D17"]},{"move":"L14","winrate":0.005,"scoreLead":-14.51,"pv":["L14","P16","P18","Q18"]},{"move":"Q16","winrate":0.009,"scoreLead":-13.57,"pv":["Q16","P16","P14","Q17","Q13"]}]},{"turnNumber":26,"color":"B","move":"L16","bestMove":"L16","topMoves":["L16","E16","N16"],"bestPv":["L16","L14","M17","M13","D17","D4"],"matchesBest":true,"winrateBefore":0.007,"winrateAfter":0.006,"winrateLoss":0.001,"scoreLeadBefore":-14.29,"scoreLeadAfter":-14.49,"scoreLoss":0.0,"grade":"\uCD5C\uC120","phase":"\uCD08\uBC18","ownership":[0.1,0.09,0.06,0.0,-0.1,-0.13,0.0,0.14,0.23,0.24,0.18,0.04,-0.16,-0.24,-0.1,0.02,0.17,0.26,0.33,0.1,0.09,0.1,0.04,-0.1,-0.18,0.01,0.21,0.29,0.29,0.29,0.14,-0.19,-0.34,-0.11,0.23,0.26,0.34,0.4,0.09,0.08,0.08,0.33,-0.14,-0.68,-0.14,0.51,0.2,0.27,0.51,0.27,-0.25,-0.81,0.49,0.27,0.4,0.43,0.47,0.06,0.05,0.11,-0.08,-0.1,-0.32,-0.14,-0.02,-0.02,0.09,0.5,-0.09,0.03,-0.82,0.28,0.28,0.49,0.53,0.54,0.0,-0.02,0.01,0.01,-0.21,-0.75,-0.25,-0.1,-0.33,0.12,-0.87,0.2,-0.29,-0.5,-0.76,0.85,0.61,0.58,0.62,-0.08,-0.11,0.03,0.42,-0.07,-0.22,-0.27,-0.34,-0.9,-0.9,-0.87,0.17,-0.31,-0.39,-0.23,0.85,0.56,0.8,0.58,-0.18,-0.18,-0.09,-0.05,-0.25,-0.2,-0.19,-0.24,-0.38,-0.45,-0.46,-0.58,-0.41,-0.85,0.54,0.33,0.37,0.33,0.47,-0.26,-0.36,-0.67,-0.14,-0.15,-0.15,-0.16,-0.18,-0.24,-0.25,-0.3,-0.19,-0.39,-0.84,-0.11,0.24,-0.09,0.24,0.26,-0.26,-0.29,-0.24,-0.2,-0.16,-0.13,-0.14,-0.15,-0.17,-0.18,-0.18,-0.19,-0.21,-0.24,-0.05,0.62,0.3,0.17,0.2,-0.21,-0.21,-0.15,-0.15,-0.11,-0.11,-0.1,-0.11,-0.12,-0.13,-0.13,-0.12,-0.12,-0.11,-0.03,0.1,0.13,0.14,0.11,-0.17,-0.18,-0.18,-0.13,-0.1,-0.08,-0.08,-0.08,-0.09,-0.09,-0.09,-0.09,-0.08,-0.07,-0.04,0.02,0.02,0.05,0.04,-0.13,-0.15,-0.14,-0.11,-0.08,-0.07,-0.06,-0.06,-0.07,-0.07,-0.07,-0.06,-0.06,-0.05,-0.02,0.02,0.04,0.03,0.01,-0.09,-0.11,-0.11,-0.1,-0.08,-0.06,-0.06,-0.06,-0.06,-0.06,-0.05,-0.05,-0.04,-0.03,-0.01,0.01,0.03,0.02,0.01,-0.07,-0.09,-0.09,-0.09,-0.08,-0.06,-0.06,-0.05,-0.05,-0.05,-0.05,-0.04,-0.03,-0.02,-0.01,0.01,0.02,0.02,0.01,-0.07,-0.08,-0.09,-0.08,-0.06,-0.07,-0.06,-0.05,-0.05,-0.05,-0.05,-0.04,-0.03,-0.02,-0.01,0.0,0.02,0.02,0.01,-0.06,-0.08,-0.1,-0.08,-0.06,-0.06,-0.06,-0.06,-0.05,-0.05,-0.05,-0.04,-0.03,-0.02,-0.01,-0.01,0.01,0.01,0.02,-0.06,-0.06,-0.06,-0.07,-0.05,-0.05,-0.06,-0.05,-0.05,-0.05,-0.04,-0.04,-0.03,-0.03,-0.01,0.0,0.01,0.01,0.01,-0.05,-0.06,-0.05,-0.05,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,-0.01,-0.01,0.01,0.0,0.01,-0.06,-0.05,-0.05,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.0,0.01,0.01],"candidates":[{"move":"L16","winrate":0.008,"scoreLead":-13.98,"pv":["L16","L14","M17","M13","D17","D4"]},{"move":"E16","winrate":0.006,"scoreLead":-14.9,"pv":["E16","F16","L16","L14","N16","M13"]},{"move":"N16","winrate":0.005,"scoreLead":-16.2,"pv":["N16","L16","N17","N15","N14"]}]},{"turnNumber":27,"color":"W","move":"L14","bestMove":"L14","topMoves":["L14","Q16","P14"],"bestPv":["L14","M17","M13","D17","Q16","P16","P14"],"matchesBest":true,"winrateBefore":0.006,"winrateAfter":0.006,"winrateLoss":0.0,"scoreLeadBefore":-14.49,"scoreLeadAfter":-14.48,"scoreLoss":0.0,"grade":"\uCD5C\uC120","phase":"\uCD08\uBC18","ownership":[0.11,0.1,0.07,0.01,-0.09,-0.13,-0.01,0.13,0.21,0.21,0.15,0.0,-0.18,-0.24,-0.08,0.05,0.2,0.29,0.36,0.11,0.1,0.11,0.06,-0.09,-0.18,-0.01,0.19,0.26,0.26,0.24,0.09,-0.22,-0.34,-0.09,0.26,0.29,0.37,0.42,0.09,0.09,0.1,0.35,-0.14,-0.68,-0.15,0.48,0.17,0.24,0.47,0.17,-0.29,-0.82,0.52,0.3,0.43,0.46,0.49,0.06,0.05,0.11,-0.08,-0.1,-0.32,-0.15,-0.03,-0.04,0.05,0.45,-0.15,-0.02,-0.83,0.33,0.33,0.52,0.56,0.56,0.0,-0.02,0.02,0.01,-0.21,-0.75,-0.25,-0.1,-0.35,0.08,-0.9,0.16,-0.32,-0.53,-0.76,0.85,0.63,0.6,0.64,-0.08,-0.11,0.03,0.42,-0.07,-0.22,-0.28,-0.35,-0.91,-0.91,-0.91,0.13,-0.33,-0.37,-0.2,0.85,0.57,0.81,0.59,-0.18,-0.18,-0.09,-0.05,-0.24,-0.19,-0.19,-0.24,-0.38,-0.46,-0.48,-0.59,-0.42,-0.85,0.55,0.34,0.38,0.34,0.47,-0.26,-0.36,-0.67,-0.14,-0.15,-0.15,-0.16,-0.18,-0.24,-0.25,-0.31,-0.2,-0.39,-0.84,-0.11,0.25,-0.08,0.24,0.27,-0.26,-0.29,-0.24,-0.2,-0.16,-0.13,-0.14,-0.15,-0.17,-0.18,-0.19,-0.2,-0.21,-0.24,-0.04,0.62,0.3,0.17,0.2,-0.21,-0.21,-0.15,-0.15,-0.11,-0.11,-0.11,-0.11,-0.13,-0.13,-0.13,-0.12,-0.12,-0.11,-0.03,0.1,0.13,0.14,0.11,-0.17,-0.18,-0.18,-0.13,-0.1,-0.08,-0.08,-0.08,-0.09,-0.09,-0.09,-0.08,-0.08,-0.07,-0.04,0.02,0.02,0.05,0.05,-0.13,-0.15,-0.14,-0.11,-0.08,-0.07,-0.07,-0.07,-0.07,-0.07,-0.07,-0.06,-0.06,-0.05,-0.02,0.02,0.04,0.03,0.01,-0.09,-0.11,-0.11,-0.1,-0.08,-0.06,-0.06,-0.06,-0.06,-0.06,-0.05,-0.05,-0.04,-0.03,-0.01,0.01,0.03,0.02,0.01,-0.08,-0.09,-0.09,-0.09,-0.07,-0.06,-0.05,-0.05,-0.05,-0.05,-0.05,-0.04,-0.03,-0.02,0.0,0.01,0.02,0.02,0.02,-0.07,-0.08,-0.09,-0.08,-0.06,-0.06,-0.06,-0.05,-0.05,-0.05,-0.05,-0.04,-0.03,-0.02,0.0,0.01,0.03,0.02,0.02,-0.06,-0.08,-0.11,-0.08,-0.06,-0.06,-0.06,-0.06,-0.05,-0.05,-0.05,-0.04,-0.03,-0.02,-0.01,0.0,0.02,0.02,0.03,-0.07,-0.07,-0.06,-0.07,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.04,-0.04,-0.03,-0.02,-0.01,0.01,0.02,0.02,0.02,-0.05,-0.06,-0.06,-0.06,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.01,0.01,0.02,-0.06,-0.05,-0.06,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.01,-0.01,0.01,0.01,0.02,0.02],"candidates":[{"move":"L14","winrate":0.006,"scoreLead":-14.49,"pv":["L14","M17","M13","D17","Q16","P16"]},{"move":"Q16","winrate":0.016,"scoreLead":-11.11,"pv":["Q16","L14","R16","O14","P14"]},{"move":"P14","winrate":0.021,"scoreLead":-10.0,"pv":["P14","P16","L14","O15","O14","N15"]}]},{"turnNumber":28,"color":"B","move":"N16","bestMove":"M17","topMoves":["M17","P16","D17"],"bestPv":["M17","M13","D17","Q16","P16","P14"],"matchesBest":false,"winrateBefore":0.006,"winrateAfter":0.007,"winrateLoss":-0.001,"scoreLeadBefore":-14.48,"scoreLeadAfter":-14.72,"scoreLoss":0.42,"grade":"\uCD5C\uC120","phase":"\uCD08\uBC18","ownership":[-0.02,-0.04,-0.06,-0.1,-0.17,-0.16,0.01,0.19,0.31,0.35,0.3,0.17,-0.09,-0.26,-0.2,-0.07,0.08,0.19,0.27,-0.01,-0.04,-0.04,-0.07,-0.19,-0.22,0.03,0.27,0.38,0.39,0.44,0.24,-0.04,-0.39,-0.18,0.08,0.18,0.28,0.35,-0.02,-0.03,-0.06,0.13,-0.2,-0.71,-0.12,0.6,0.27,0.38,0.65,0.49,-0.08,-0.79,0.37,0.21,0.32,0.4,0.43,-0.03,-0.05,0.0,-0.14,-0.14,-0.35,-0.13,0.0,0.02,0.17,0.64,0.33,0.49,-0.81,0.13,0.18,0.47,0.5,0.52,-0.07,-0.09,-0.09,-0.04,-0.25,-0.76,-0.24,-0.09,-0.28,0.2,-0.87,0.46,-0.23,-0.56,-0.8,0.85,0.59,0.59,0.62,-0.12,-0.16,-0.02,0.35,-0.09,-0.22,-0.27,-0.32,-0.87,-0.87,-0.88,0.43,-0.09,-0.38,-0.19,0.85,0.58,0.8,0.59,-0.21,-0.22,-0.13,-0.09,-0.26,-0.19,-0.19,-0.23,-0.36,-0.44,-0.46,-0.56,-0.33,-0.84,0.62,0.4,0.37,0.35,0.47,-0.27,-0.37,-0.68,-0.14,-0.16,-0.15,-0.16,-0.18,-0.23,-0.23,-0.29,-0.16,-0.38,-0.83,-0.05,0.24,-0.06,0.25,0.27,-0.27,-0.3,-0.25,-0.22,-0.16,-0.13,-0.13,-0.14,-0.16,-0.17,-0.17,-0.18,-0.21,-0.25,-0.06,0.62,0.3,0.18,0.2,-0.22,-0.22,-0.16,-0.15,-0.11,-0.1,-0.1,-0.11,-0.12,-0.13,-0.12,-0.12,-0.12,-0.11,-0.02,0.1,0.13,0.14,0.11,-0.17,-0.18,-0.18,-0.14,-0.1,-0.08,-0.08,-0.08,-0.09,-0.09,-0.09,-0.08,-0.09,-0.07,-0.04,0.03,0.02,0.05,0.05,-0.13,-0.15,-0.14,-0.12,-0.08,-0.07,-0.06,-0.06,-0.06,-0.06,-0.06,-0.06,-0.06,-0.05,-0.02,0.02,0.04,0.03,0.01,-0.09,-0.1,-0.1,-0.1,-0.08,-0.06,-0.06,-0.05,-0.05,-0.05,-0.05,-0.05,-0.04,-0.03,-0.01,0.01,0.03,0.02,0.01,-0.07,-0.08,-0.08,-0.08,-0.07,-0.06,-0.05,-0.05,-0.05,-0.05,-0.04,-0.04,-0.03,-0.03,-0.01,0.0,0.02,0.01,0.01,-0.05,-0.07,-0.07,-0.07,-0.05,-0.06,-0.05,-0.05,-0.05,-0.05,-0.04,-0.04,-0.03,-0.03,-0.01,0.0,0.02,0.01,0.0,-0.04,-0.06,-0.07,-0.03,-0.04,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.04,-0.03,-0.03,-0.02,-0.03,-0.01,0.0,0.01,-0.05,-0.05,-0.05,-0.06,-0.04,-0.04,-0.05,-0.05,-0.05,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,-0.01,0.0,0.0,0.0,-0.04,-0.05,-0.04,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,-0.02,-0.01,0.0,0.0,0.01,-0.05,-0.04,-0.04,-0.03,-0.04,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.03,-0.02,-0.02,-0.02,0.0,-0.01,0.0,0.0],"candidates":[{"move":"M17","winrate":0.006,"scoreLead":-14.04,"pv":["M17","M13","D17","Q16","P16","P14"]},{"move":"P16","winrate":0.006,"scoreLead":-14.62,"pv":["P16","M13","D17","P18","Q18"]},{"move":"D17","winrate":0.005,"scoreLead":-14.67,"pv":["D17","M17","P16","P14","P18","P12"]}]},{"turnNumber":29,"color":"W","move":"M13","bestMove":"M13","topMoves":["M13","Q16","P18"],"bestPv":["M13","M17","Q16","P16","O15","Q17"],"matchesBest":true,"winrateBefore":0.007,"winrateAfter":0.007,"winrateLoss":0.0,"scoreLeadBefore":-14.72,"scoreLeadAfter":-14.68,"scoreLoss":0.0,"grade":"\uCD5C\uC120","phase":"\uCD08\uBC18","ownership":[0.0,-0.01,-0.04,-0.08,-0.15,-0.15,0.01,0.18,0.29,0.32,0.27,0.14,-0.06,-0.17,-0.09,0.07,0.22,0.32,0.38,0.01,-0.01,-0.01,-0.05,-0.16,-0.2,0.01,0.25,0.35,0.35,0.37,0.14,0.0,-0.3,-0.04,0.21,0.33,0.4,0.45,0.0,-0.01,-0.03,0.18,-0.18,-0.69,-0.12,0.57,0.24,0.33,0.59,0.36,0.04,-0.74,0.47,0.3,0.45,0.49,0.51,-0.01,-0.03,0.03,-0.12,-0.12,-0.34,-0.14,-0.01,0.0,0.13,0.58,0.21,0.48,-0.76,0.14,0.33,0.55,0.58,0.58,-0.06,-0.08,-0.07,-0.03,-0.24,-0.75,-0.25,-0.1,-0.31,0.16,-0.91,0.32,-0.2,-0.48,-0.76,0.86,0.64,0.62,0.65,-0.12,-0.16,-0.02,0.36,-0.09,-0.21,-0.27,-0.34,-0.91,-0.92,-0.92,0.29,-0.22,-0.44,-0.21,0.86,0.58,0.81,0.6,-0.21,-0.22,-0.13,-0.08,-0.25,-0.2,-0.19,-0.25,-0.39,-0.5,-0.61,-0.83,-0.45,-0.89,0.63,0.41,0.37,0.34,0.47,-0.27,-0.37,-0.69,-0.16,-0.17,-0.16,-0.17,-0.19,-0.25,-0.27,-0.36,-0.25,-0.45,-0.88,-0.08,0.25,-0.07,0.25,0.27,-0.27,-0.3,-0.25,-0.22,-0.17,-0.14,-0.15,-0.16,-0.18,-0.19,-0.21,-0.23,-0.26,-0.28,-0.06,0.62,0.3,0.17,0.19,-0.22,-0.22,-0.15,-0.16,-0.12,-0.11,-0.11,-0.12,-0.14,-0.14,-0.15,-0.14,-0.14,-0.12,-0.02,0.1,0.12,0.14,0.11,-0.17,-0.18,-0.18,-0.14,-0.11,-0.09,-0.09,-0.09,-0.1,-0.1,-0.1,-0.1,-0.1,-0.08,-0.05,0.02,0.02,0.05,0.04,-0.12,-0.15,-0.15,-0.12,-0.09,-0.08,-0.07,-0.07,-0.08,-0.08,-0.08,-0.07,-0.07,-0.06,-0.03,0.01,0.04,0.02,0.01,-0.09,-0.11,-0.11,-0.1,-0.08,-0.07,-0.07,-0.06,-0.06,-0.06,-0.06,-0.05,-0.05,-0.04,-0.02,0.0,0.03,0.02,0.0,-0.07,-0.08,-0.09,-0.09,-0.08,-0.07,-0.06,-0.06,-0.06,-0.06,-0.05,-0.05,-0.04,-0.03,-0.01,0.0,0.02,0.01,0.01,-0.06,-0.07,-0.08,-0.08,-0.06,-0.07,-0.06,-0.06,-0.06,-0.06,-0.05,-0.05,-0.04,-0.03,-0.01,-0.01,0.01,0.01,0.0,-0.04,-0.06,-0.08,-0.06,-0.06,-0.06,-0.06,-0.06,-0.06,-0.06,-0.05,-0.05,-0.04,-0.03,-0.02,-0.03,-0.01,0.0,0.01,-0.05,-0.05,-0.04,-0.06,-0.04,-0.05,-0.06,-0.06,-0.05,-0.05,-0.05,-0.04,-0.04,-0.03,-0.02,-0.01,0.0,0.0,0.0,-0.04,-0.05,-0.04,-0.05,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.02,-0.01,0.0,0.0,0.01,-0.04,-0.04,-0.04,-0.03,-0.04,-0.04,-0.04,-0.04,-0.04,-0.04,-0.03,-0.03,-0.03,-0.02,-0.02,0.0,-0.01,0.0,0.0],"candidates":[{"move":"M13","winrate":0.006,"scoreLead":-14.88,"pv":["M13","M17","Q16","P16","O15","Q17"]},{"move":"Q16","winrate":0.008,"scoreLead":-14.73,"pv":["Q16","P16","N15","M17","Q17","P18"]},{"move":"P18","winrate":0.006,"scoreLead":-13.98,"pv":["P18","Q17","M13","M17","N14"]}]}];
+</script>
+<script>
+/* 핵심 실수 = 실수·악수로 분류된 모든 수 (집 손해 큰 순) */
+const keyMistakes = moves.filter(m => m.grade === '실수' || m.grade === '악수')
+                         .sort((a, b) => b.scoreLoss - a.scoreLoss);
+const mistakeTurns = new Set(keyMistakes.map(m => m.turnNumber));
+let currentIdx = -1;
+let showSequence = false;
+let showVariation = false;
+let showOwnership = false;
+let scoreChartInst, winrateChartInst;
+let candMarkers = [];      // 현재 화면의 후보수 마커 위치+상세 (hover 판정용)
+let hoveredCandIdx = -1;   // 현재 hover 중인 후보 인덱스
+
+/* ── 현재 수 커서 플러그인 ── */
+const cursorPlugin = {
+    id: 'cursorLine',
+    afterDatasetsDraw(chart) {
+        const opts = chart.options.plugins.cursorLine;
+        if (!opts || opts.cursorX < 0) return;
+        const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+        const xPx = x.getPixelForValue(opts.cursorX);
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(xPx, top); ctx.lineTo(xPx, bottom);
+        ctx.strokeStyle = 'rgba(231,76,60,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 3]);
+        ctx.stroke();
+        ctx.restore();
+    }
+};
+
+/* ── 바둑판 상수 ── */
+const CELL = 30;
+const PAD  = 28;
+const BOARD_PX = PAD * 2 + CELL * 18;
+
+const canvas = document.getElementById('boardCanvas');
+canvas.width  = BOARD_PX;
+canvas.height = BOARD_PX;
+canvas.style.width  = BOARD_PX + 'px';
+canvas.style.height = BOARD_PX + 'px';
+
+/* ── GTP → 격자 좌표 (0-indexed) ── */
+function gtpToGrid(gtp) {
+    if (!gtp || gtp === '' || gtp.toLowerCase() === 'pass') return null;
+    const col = gtp[0].toUpperCase();
+    let x = col.charCodeAt(0) - 65;
+    if (x >= 8) x--;
+    const y = parseInt(gtp.substring(1)) - 1;
+    if (isNaN(y) || x < 0 || x > 18 || y < 0 || y > 18) return null;
+    return { x, y };
+}
+
+function px(gx) { return PAD + gx * CELL; }
+function py(gy) { return PAD + (18 - gy) * CELL; }
+
+/* ── 바둑판 배경 + 격자 ── */
+function drawBoard(ctx) {
+    const bg = ctx.createLinearGradient(0, 0, BOARD_PX, BOARD_PX);
+    bg.addColorStop(0, '#E8B86D');
+    bg.addColorStop(1, '#C9954A');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, BOARD_PX, BOARD_PX);
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 0.8;
+    for (let i = 0; i < 19; i++) {
+        ctx.beginPath(); ctx.moveTo(px(i), py(0));  ctx.lineTo(px(i), py(18)); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px(0), py(i));  ctx.lineTo(px(18), py(i)); ctx.stroke();
+    }
+
+    const starCoords = [];
+    [3, 9, 15].forEach(a => [3, 9, 15].forEach(b => starCoords.push([a, b])));
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    starCoords.forEach(([gx, gy]) => {
+        ctx.beginPath(); ctx.arc(px(gx), py(gy), 3.5, 0, Math.PI * 2); ctx.fill();
+    });
+
+    const COLS = 'ABCDEFGHJKLMNOPQRST';
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < 19; i++) {
+        ctx.fillText(COLS[i], px(i), PAD - 14);
+        ctx.fillText(COLS[i], px(i), BOARD_PX - PAD + 14);
+        ctx.fillText(String(i + 1), PAD - 15, py(i));
+        ctx.fillText(String(i + 1), BOARD_PX - PAD + 15, py(i));
+    }
+}
+
+/* ── 돌 그리기 ── */
+function drawStone(ctx, gx, gy, color, isLast) {
+    const cx = px(gx), cy = py(gy);
+    const r = CELL * 0.44;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    if (color === 'B') {
+        const g = ctx.createRadialGradient(cx - r*0.32, cy - r*0.32, r*0.08, cx, cy, r);
+        g.addColorStop(0, '#555'); g.addColorStop(1, '#000');
+        ctx.fillStyle = g; ctx.fill();
+    } else {
+        const g = ctx.createRadialGradient(cx - r*0.32, cy - r*0.32, r*0.08, cx, cy, r);
+        g.addColorStop(0, '#fff'); g.addColorStop(1, '#ccc');
+        ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = '#888'; ctx.lineWidth = 0.8; ctx.stroke();
+    }
+    if (isLast) {
+        ctx.beginPath(); ctx.arc(cx, cy, r * 0.42, 0, Math.PI * 2);
+        ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2; ctx.stroke();
+    }
+}
+
+/* ── AI 추천수 마커: 순위 숫자+원 (1=진파랑 / 2=파랑 / 3=하늘색) ── */
+const CAND_BG    = ['#1a5276', '#2471a3', '#5dade2'];
+const CAND_SIZES = [0.40, 0.36, 0.32];
+function drawCandidateMarker(ctx, gx, gy, rank) {
+    const cx = px(gx), cy = py(gy);
+    const r = CELL * CAND_SIZES[rank - 1];
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = CAND_BG[rank - 1];
+    ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+    const fs = Math.round(r * 1.25);
+    ctx.font = `bold ${fs}px sans-serif`;
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(rank), cx, cy);
+}
+
+/* ── 따냄 로직 ── */
+function getAdjacent(x, y) {
+    const adj = [];
+    if (x > 0)  adj.push([x-1, y]);
+    if (x < 18) adj.push([x+1, y]);
+    if (y > 0)  adj.push([x, y-1]);
+    if (y < 18) adj.push([x, y+1]);
+    return adj;
+}
+
+function getGroup(board, x, y) {
+    const color = board[x][y], group = [], visited = new Set(), stack = [[x, y]];
+    while (stack.length > 0) {
+        const [cx, cy] = stack.pop();
+        const key = cx * 19 + cy;
+        if (visited.has(key)) continue;
+        visited.add(key);
+        if (board[cx][cy] !== color) continue;
+        group.push([cx, cy]);
+        for (const [nx, ny] of getAdjacent(cx, cy)) {
+            if (!visited.has(nx * 19 + ny)) stack.push([nx, ny]);
+        }
+    }
+    return group;
+}
+
+function hasLiberty(board, group) {
+    for (const [x, y] of group)
+        for (const [nx, ny] of getAdjacent(x, y))
+            if (board[nx][ny] === null) return true;
+    return false;
+}
+
+function buildBoardState(upToIdx) {
+    const board = Array.from({length: 19}, () => Array(19).fill(null));
+    for (let i = 0; i <= upToIdx; i++) {
+        const m = moves[i];
+        const g = gtpToGrid(m.move);
+        if (!g) continue;
+        board[g.x][g.y] = m.color;
+        const opp = m.color === 'B' ? 'W' : 'B';
+        for (const [nx, ny] of getAdjacent(g.x, g.y)) {
+            if (board[nx][ny] === opp) {
+                const grp = getGroup(board, nx, ny);
+                if (!hasLiberty(board, grp)) for (const [gx, gy] of grp) board[gx][gy] = null;
+            }
+        }
+        const selfGrp = getGroup(board, g.x, g.y);
+        if (!hasLiberty(board, selfGrp)) for (const [gx, gy] of selfGrp) board[gx][gy] = null;
+    }
+    return board;
+}
+
+/* ── AI 집(영역) 예측 히트맵 ──
+   ownership[y*19+x], +값=흑·−값=백 (KataGo reportAnalysisWinratesAs=BLACK).
+   확신할수록 큰 사각형, 접전(≈0)은 생략. 돌보다 먼저 그려 돌이 덮게 함. */
+function drawOwnership(ctx, ownership) {
+    for (let gx = 0; gx < 19; gx++) {
+        for (let gy = 0; gy < 19; gy++) {
+            const v = ownership[(18 - gy) * 19 + gx];
+            if (v == null) continue;
+            const a = Math.abs(v);
+            if (a < 0.15) continue;
+            const side = CELL * 0.82 * a;
+            ctx.fillStyle = v > 0 ? `rgba(0,0,0,${(0.55 * a).toFixed(3)})`
+                                  : `rgba(255,255,255,${(0.85 * a).toFixed(3)})`;
+            ctx.fillRect(px(gx) - side / 2, py(gy) - side / 2, side, side);
+        }
+    }
+}
+
+/* ── 변화도(예상 진행) 반투명 돌 ── */
+function drawGhostStone(ctx, gx, gy, color, num, isFirst) {
+    const cx = px(gx), cy = py(gy);
+    const r = CELL * 0.44;
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = color === 'B' ? '#1a1a1a' : '#f4f4f4';
+    ctx.fill();
+    if (color === 'W') { ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.stroke(); }
+    ctx.restore();
+    if (isFirst) {  // 첫 수(최선수)는 파란 테두리로 강조
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = '#3498db'; ctx.lineWidth = 2.5; ctx.stroke();
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const fs = String(num).length >= 2 ? CELL * 0.34 : CELL * 0.4;
+    ctx.font = `bold ${fs}px sans-serif`;
+    ctx.fillStyle = color === 'B' ? '#fff' : '#222';
+    ctx.fillText(String(num), cx, cy);
+}
+
+/* 예상 진행(pv)을 base 국면 위에 번호 매겨 표시 (startColor부터 교대) */
+function drawPvSequence(ctx, baseBoard, startColor, pv) {
+    const board = baseBoard.map(col => col.slice());
+    let color = startColor;
+    const drawn = [];
+    for (let k = 0; k < pv.length; k++) {
+        const g = gtpToGrid(pv[k]);
+        if (!g) { color = color === 'B' ? 'W' : 'B'; continue; }
+        if (board[g.x][g.y]) { color = color === 'B' ? 'W' : 'B'; continue; }
+        board[g.x][g.y] = color;
+        const opp = color === 'B' ? 'W' : 'B';
+        for (const [nx, ny] of getAdjacent(g.x, g.y)) {
+            if (board[nx][ny] === opp) {
+                const grp = getGroup(board, nx, ny);
+                if (!hasLiberty(board, grp)) for (const [gx, gy] of grp) board[gx][gy] = null;
+            }
+        }
+        drawn.push({ x: g.x, y: g.y, color, num: k + 1 });
+        color = color === 'B' ? 'W' : 'B';
+    }
+    drawn.forEach(s => drawGhostStone(ctx, s.x, s.y, s.color, s.num, s.num === 1));
+}
+/* 최선수 이후 예상 진행 (변화도 토글) */
+function drawVariation(ctx, baseBoard, cur) {
+    drawPvSequence(ctx, baseBoard, cur.color, cur.bestPv);
+}
+
+/* ── 수 표시 ── */
+function showMove(idx) {
+    if (idx < 0 || idx >= moves.length) return;
+    currentIdx = idx;
+
+    const ctx = canvas.getContext('2d');
+    drawBoard(ctx);
+    candMarkers = [];  // 후보 마커는 아래에서 다시 채움 (hover 판정 초기화)
+
+    const cur = moves[idx];
+    const variationActive = showVariation && cur.bestPv && cur.bestPv.length > 0 && cur.move !== cur.bestMove;
+
+    if (variationActive) {
+        // 현재 수를 두기 직전 국면 위에 최선수 변화도를 표시
+        const base = buildBoardState(idx - 1);
+        const prevG = idx > 0 ? gtpToGrid(moves[idx - 1].move) : null;
+        for (let x = 0; x < 19; x++)
+            for (let y = 0; y < 19; y++)
+                if (base[x][y]) drawStone(ctx, x, y, base[x][y], prevG && x === prevG.x && y === prevG.y);
+        drawVariation(ctx, base, cur);
+    } else {
+        const board = buildBoardState(idx);
+        // AI 집 예측 히트맵 (돌보다 먼저 → 돌이 위를 덮음)
+        if (showOwnership && cur.ownership && cur.ownership.length === 361) drawOwnership(ctx, cur.ownership);
+        const lastG = gtpToGrid(cur.move);
+        for (let x = 0; x < 19; x++)
+            for (let y = 0; y < 19; y++)
+                if (board[x][y]) drawStone(ctx, x, y, board[x][y], lastG && x === lastG.x && y === lastG.y);
+
+        // AI 추천수 상위 3개 표시. 상세(candidates)가 있으면 hover 대상으로 기록,
+        // 없으면 좌표만(topMoves) / 최후 bestMove
+        const candList = (cur.candidates && cur.candidates.length > 0)
+            ? cur.candidates
+            : ((cur.topMoves && cur.topMoves.length > 0) ? cur.topMoves.map(m => ({ move: m }))
+               : (cur.bestMove ? [{ move: cur.bestMove }] : []));
+        candList.forEach((c, i) => {
+            if (!c.move || c.move === cur.move) return;
+            const g = gtpToGrid(c.move);
+            if (g && !board[g.x][g.y]) {
+                drawCandidateMarker(ctx, g.x, g.y, i + 1);
+                if (typeof c.winrate === 'number') candMarkers.push({ gx: g.x, gy: g.y, rank: i + 1, cand: c });
+            }
+        });
+
+        // 수순번호 표시
+        if (showSequence) {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i <= idx; i++) {
+                const g = gtpToGrid(moves[i].move);
+                if (!g || !board[g.x][g.y]) continue;
+                const num = String(i + 1);
+                const fontSize = num.length >= 3 ? CELL * 0.26 : CELL * 0.32;
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.fillStyle = moves[i].color === 'B' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)';
+                ctx.fillText(num, px(g.x), py(g.y));
+            }
+        }
+    }
+
+    document.getElementById('moveCounter').textContent = `${idx + 1} / ${moves.length}수`;
+    document.getElementById('btnFirst').disabled = idx === 0;
+    document.getElementById('btnPrev5').disabled = idx === 0;
+    document.getElementById('btnPrev').disabled  = idx === 0;
+    document.getElementById('btnNext').disabled  = idx === moves.length - 1;
+    document.getElementById('btnNext5').disabled = idx === moves.length - 1;
+    document.getElementById('btnLast').disabled  = idx === moves.length - 1;
+    document.getElementById('btnCmp').disabled = !(cur.bestMove && cur.move !== cur.bestMove);
+
+    const lossColor = cur.scoreLoss >= 5 ? '#e74c3c' : cur.scoreLoss >= 3 ? '#e67e22' : cur.scoreLoss <= 0 ? '#2ecc71' : '#555';
+    const lossText  = cur.scoreLoss > 0 ? `-${cur.scoreLoss}집` : cur.scoreLoss < 0 ? `+${Math.abs(cur.scoreLoss)}집 (득점)` : '0집';
+
+    // 최선수 + 변화도 정보 (실제 착점이 최선수와 다를 때만)
+    let bestHtml = '';
+    if (cur.bestMove && cur.move !== cur.bestMove) {
+        bestHtml += `<div class="info-row"><span class="info-label">최선수</span><span style="color:#3498db;font-weight:700;">${cur.bestMove}</span></div>`;
+        if (cur.bestPv && cur.bestPv.length > 1) {
+            const pvText = cur.bestPv.slice(0, 6).join(' → ');
+            bestHtml += `<div class="info-row" style="${variationActive ? '' : 'opacity:0.6;'}"><span class="info-label">예상 진행</span><span style="font-size:12px;color:#666;">${pvText}</span></div>`;
+        }
+    }
+
+    document.getElementById('moveInfo').innerHTML = `
+        <div class="info-row"><span class="info-label">수번</span><span><b>${cur.turnNumber}수</b> (${cur.color === 'B' ? '흑' : '백'})</span></div>
+        <div class="info-row"><span class="info-label">집 손해</span><span style="color:${lossColor};font-weight:700;">${lossText}</span></div>
+        <div class="info-row"><span class="info-label">등급</span><span class="grade-badge g-${cur.grade}">${cur.grade}</span></div>
+        ${bestHtml}
+        ${variationActive ? '<div style="margin-top:8px;font-size:12px;color:#3498db;">바둑판에 표시된 번호는 최선수 이후 예상 진행입니다.</div>' : ''}
+        ${showOwnership && !variationActive ? '<div style="margin-top:8px;font-size:12px;color:#888;">■ 검정=흑 집 · □ 흰색=백 집 (칸이 클수록 확실). AI 예측 영역입니다.</div>' : ''}
+        ${showOwnership && variationActive ? '<div style="margin-top:8px;font-size:12px;color:#aaa;">변화도 표시 중엔 집 예측이 숨겨집니다.</div>' : ''}
+        ${!variationActive && cur.candidates && cur.candidates.length ? '<div style="margin-top:8px;font-size:12px;color:#888;">바둑판의 ①②③에 마우스를 올리면 후보수의 승률·예상 진행을 볼 수 있어요.</div>' : ''}
+    `;
+
+    // 실시간 승률 바 + 현재 집 차이 (winrateAfter·scoreLeadAfter = 흑 기준)
+    const blackWr = Math.max(0, Math.min(1, cur.winrateAfter)) * 100;
+    document.getElementById('wbBlack').style.width   = blackWr.toFixed(1) + '%';
+    document.getElementById('wbBlackPct').textContent = '흑 ' + blackWr.toFixed(1) + '%';
+    document.getElementById('wbWhitePct').textContent = (100 - blackWr).toFixed(1) + '% 백';
+    const lead = cur.scoreLeadAfter;
+    const sd = document.getElementById('scoreDiff');
+    if (lead >= 0) sd.innerHTML = `현재 형세: <span class="lead-b">흑 ${lead.toFixed(1)}집 유리</span>`;
+    else           sd.innerHTML = `현재 형세: <span class="lead-w">백 ${Math.abs(lead).toFixed(1)}집 유리</span>`;
+
+    // 테이블 행 하이라이트만 (바둑판→테이블 자동 스크롤은 하지 않음)
+    document.querySelectorAll('.selected-row').forEach(r => r.classList.remove('selected-row'));
+    const row = document.querySelector(`tr[data-idx="${idx}"]`);
+    if (row) row.classList.add('selected-row');
+
+    // 실시간 AI 승률 바
+    const wrPct = cur.winrateAfter * 100;
+    const sl = cur.scoreLeadAfter;
+    const scoreText = Math.abs(sl) < 0.1 ? '균형'
+                    : sl > 0 ? `흑 +${sl.toFixed(1)}집 유리`
+                             : `백 +${Math.abs(sl).toFixed(1)}집 유리`;
+    document.getElementById('winrateBar').style.display = '';
+    document.getElementById('wrBarBlack').style.width = wrPct.toFixed(1) + '%';
+    document.getElementById('wrBlackVal').textContent = `흑 ${wrPct.toFixed(1)}%`;
+    document.getElementById('wrWhiteVal').textContent = `백 ${(100 - wrPct).toFixed(1)}%`;
+    document.getElementById('wrScoreText').textContent = scoreText;
+
+    // 두 차트의 현재 수 커서 갱신
+    if (scoreChartInst)   { scoreChartInst.options.plugins.cursorLine.cursorX   = idx; scoreChartInst.update('none'); }
+    if (winrateChartInst) { winrateChartInst.options.plugins.cursorLine.cursorX = idx; winrateChartInst.update('none'); }
+}
+
+function prevMove() { showMove(currentIdx - 1); }
+function nextMove() { showMove(currentIdx + 1); }
+function skipMove(delta) { showMove(Math.max(0, Math.min(moves.length - 1, currentIdx + delta))); }
+
+function jumpToInput() {
+    const val = parseInt(document.getElementById('moveInput').value);
+    if (!isNaN(val) && val >= 1 && val <= moves.length) showMove(val - 1);
+}
+
+function toggleSequence() {
+    showSequence = !showSequence;
+    document.getElementById('btnSeq').classList.toggle('active', showSequence);
+    if (currentIdx >= 0) showMove(currentIdx);
+}
+
+function toggleVariation() {
+    showVariation = !showVariation;
+    document.getElementById('btnVar').classList.toggle('active', showVariation);
+    if (currentIdx >= 0) showMove(currentIdx);
+}
+
+function toggleOwnership() {
+    showOwnership = !showOwnership;
+    document.getElementById('btnTerr').classList.toggle('active', showOwnership);
+    if (currentIdx >= 0) showMove(currentIdx);
+}
+
+/* ── 내 수 vs 최선수 나란히 비교 ──
+   같은 직전 국면에서, 실제 대국 진행(내 수 이후)과 AI 최선수 예상 진행을 두 판에 나란히 그린다. */
+function drawCompareBoard(canvasEl, pv) {
+    canvasEl.width = BOARD_PX; canvasEl.height = BOARD_PX;
+    const ctx = canvasEl.getContext('2d');
+    drawBoard(ctx);
+    const base = buildBoardState(currentIdx - 1);
+    const prevG = currentIdx > 0 ? gtpToGrid(moves[currentIdx - 1].move) : null;
+    for (let x = 0; x < 19; x++)
+        for (let y = 0; y < 19; y++)
+            if (base[x][y]) drawStone(ctx, x, y, base[x][y], prevG && x === prevG.x && y === prevG.y);
+    drawPvSequence(ctx, base, moves[currentIdx].color, pv);
+}
+function cmpStat(wr, score) {
+    const w = (Math.max(0, Math.min(1, wr)) * 100).toFixed(1);
+    const s = score >= 0 ? `흑 +${score.toFixed(1)}집` : `백 +${Math.abs(score).toFixed(1)}집`;
+    return `흑 승률 <b>${w}%</b> · 예상 형세 <b>${s}</b>`;
+}
+function openCompare() {
+    if (currentIdx < 0) return;
+    const cur = moves[currentIdx];
+    if (!cur.bestMove || cur.move === cur.bestMove) return;  // 최선수와 같으면 비교 불필요
+
+    const actualPv = moves.slice(currentIdx, currentIdx + 6).map(m => m.move);  // 내 수 + 실제 진행
+    const bestPv   = (cur.bestPv && cur.bestPv.length) ? cur.bestPv : [cur.bestMove];
+    drawCompareBoard(document.getElementById('cmpCanvasL'), actualPv);
+    drawCompareBoard(document.getElementById('cmpCanvasR'), bestPv);
+
+    const best = (cur.candidates && cur.candidates.length) ? cur.candidates[0] : null;
+    const bWr  = best ? best.winrate   : cur.winrateBefore;
+    const bScr = best ? best.scoreLead : cur.scoreLeadBefore;
+    document.getElementById('cmpHeading').textContent = `${cur.turnNumber}수 비교 (${cur.color === 'B' ? '흑' : '백'})`;
+    document.getElementById('cmpTitleL').textContent = `내가 둔 수 · ${cur.move}`;
+    document.getElementById('cmpTitleR').textContent = `AI 최선수 · ${cur.bestMove}`;
+    document.getElementById('cmpStatL').innerHTML = cmpStat(cur.winrateAfter, cur.scoreLeadAfter);
+    document.getElementById('cmpStatR').innerHTML = cmpStat(bWr, bScr);
+    document.getElementById('cmpPvL').textContent = '이후 실제 진행: ' + actualPv.slice(0, 6).join(' → ');
+    document.getElementById('cmpPvR').textContent = '예상 진행: ' + bestPv.slice(0, 6).join(' → ');
+    document.getElementById('cmpDiff').textContent = cur.scoreLoss > 0
+        ? `이 수로 최선수 대비 약 ${cur.scoreLoss.toFixed(1)}집을 손해봤어요.`
+        : '최선수에 가까운 좋은 수였어요.';
+    document.getElementById('compareModal').style.display = 'flex';
+}
+function closeCompare() { document.getElementById('compareModal').style.display = 'none'; }
+
+/* ── 이 수부터 AI와 다시 두기: 선택 수 직전 국면을 /play로 넘겨 이어 두기 ──
+   유저는 그 수를 둔 쪽을 잡아, 그 자리에서 다른 수를 시도할 수 있다. */
+function replayFromHere() {
+    const idx = currentIdx < 0 ? 0 : currentIdx;
+    const setup = moves.slice(0, idx).map(m => [m.color, m.move]);  // 선택 수 직전까지
+    const payload = { moves: setup, userColor: moves[idx].color, fromTurn: moves[idx].turnNumber };
+    sessionStorage.setItem('replaySetup', JSON.stringify(payload));
+    location.href = '/play';
+}
+
+/* ── 후보수(①②③) hover 상세 ──
+   마커에 올리면 그 수의 예상 진행을 유령돌로 그리고, 승률·형세를 툴팁으로 표시 */
+function mouseToGrid(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scale = BOARD_PX / rect.width;      // 반응형 축소 대비
+    const mx = (e.clientX - rect.left) * scale;
+    const my = (e.clientY - rect.top)  * scale;
+    const gx = Math.round((mx - PAD) / CELL);
+    const gy = 18 - Math.round((my - PAD) / CELL);
+    return { gx, gy };
+}
+function renderCandidateHover(marker) {
+    const ctx = canvas.getContext('2d');
+    const cur = moves[currentIdx];
+    drawBoard(ctx);
+    const base = buildBoardState(currentIdx - 1);   // 현재 수 두기 직전 국면
+    const prevG = currentIdx > 0 ? gtpToGrid(moves[currentIdx - 1].move) : null;
+    for (let x = 0; x < 19; x++)
+        for (let y = 0; y < 19; y++)
+            if (base[x][y]) drawStone(ctx, x, y, base[x][y], prevG && x === prevG.x && y === prevG.y);
+    const pv = (marker.cand.pv && marker.cand.pv.length) ? marker.cand.pv : [marker.cand.move];
+    drawPvSequence(ctx, base, cur.color, pv);
+}
+function showCandTooltip(marker, e) {
+    const c = marker.cand;
+    const tip = document.getElementById('candTooltip');
+    const wr = (typeof c.winrate === 'number') ? (c.winrate * 100).toFixed(1) + '%' : '-';
+    let score = '-';
+    if (typeof c.scoreLead === 'number')
+        score = c.scoreLead >= 0 ? `흑 +${c.scoreLead.toFixed(1)}집` : `백 +${Math.abs(c.scoreLead).toFixed(1)}집`;
+    tip.innerHTML = `<b>${marker.rank}순위 · ${c.move}</b><br>흑 승률 ${wr}<br>예상 형세 ${score}`;
+    tip.style.display = 'block';
+    positionCandTooltip(e);
+}
+function positionCandTooltip(e) {
+    const tip = document.getElementById('candTooltip');
+    let x = e.clientX + 14, y = e.clientY + 14;
+    const w = tip.offsetWidth || 150, h = tip.offsetHeight || 60;
+    if (x + w > window.innerWidth)  x = e.clientX - w - 14;
+    if (y + h > window.innerHeight) y = e.clientY - h - 14;
+    tip.style.left = x + 'px';
+    tip.style.top  = y + 'px';
+}
+function clearCandHover() {
+    hoveredCandIdx = -1;
+    const tip = document.getElementById('candTooltip');
+    if (tip) tip.style.display = 'none';
+    if (currentIdx >= 0) showMove(currentIdx);
+}
+canvas.addEventListener('mousemove', function(e) {
+    if (currentIdx < 0 || candMarkers.length === 0) { if (hoveredCandIdx !== -1) clearCandHover(); return; }
+    const { gx, gy } = mouseToGrid(e);
+    const hit = candMarkers.findIndex(m => m.gx === gx && m.gy === gy);
+    if (hit !== hoveredCandIdx) {
+        hoveredCandIdx = hit;
+        if (hit >= 0) { renderCandidateHover(candMarkers[hit]); showCandTooltip(candMarkers[hit], e); }
+        else { const t = document.getElementById('candTooltip'); if (t) t.style.display = 'none'; showMove(currentIdx); }
+    } else if (hit >= 0) {
+        positionCandTooltip(e);
+    }
+});
+canvas.addEventListener('mouseleave', function() { if (hoveredCandIdx !== -1) clearCandHover(); });
+
+/* ── 집 손해 정렬 토글 ── */
+let sortedByLoss = false, originalRows = null;
+
+function toggleSortByLoss() {
+    const tbody = document.querySelector('table tbody');
+    const th = document.getElementById('thLoss');
+    if (!sortedByLoss) {
+        originalRows = Array.from(tbody.querySelectorAll('tr'));
+        [...originalRows].sort((a, b) => moves[parseInt(b.dataset.idx)].scoreLoss - moves[parseInt(a.dataset.idx)].scoreLoss)
+                         .forEach(r => tbody.appendChild(r));
+        th.textContent = '집 손해 ↓'; sortedByLoss = true;
+    } else {
+        originalRows.forEach(r => tbody.appendChild(r));
+        th.textContent = '집 손해 ↕'; sortedByLoss = false;
+    }
+}
+
+/* ── 전체 수 분석 테이블 필터 (초반 0집/최선 행이 많아 가독성 저하 → 선택적 표시) ── */
+function setFilter(btn) {
+    const mode = btn.dataset.filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+    let visible = 0;
+    document.querySelectorAll('tr.move-row').forEach(row => {
+        const m = moves[parseInt(row.dataset.idx)];
+        let show = true;
+        if (mode === 'key') show = m.grade === '실수' || m.grade === '악수';
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    document.getElementById('filterEmpty').style.display = visible === 0 ? '' : 'none';
+}
+
+/* ── 핵심 실수 카드 클릭 ── */
+function jumpToMove(idx) {
+    showMove(idx);
+    document.getElementById('boardCanvas').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ── 형세 변화 차트 ── */
+const labels     = moves.map(m => m.turnNumber);
+const scoreData  = moves.map(m => m.scoreLeadAfter);
+const pointColors = labels.map(t => mistakeTurns.has(t) ? '#e74c3c' : 'transparent');
+const pointRadius = labels.map(t => mistakeTurns.has(t) ? 4 : 0);
+
+scoreChartInst = new Chart(document.getElementById('scoreChart').getContext('2d'), {
+    plugins: [cursorPlugin],
+    type: 'line',
+    data: {
+        labels,
+        datasets: [{
+            data: scoreData,
+            borderColor: '#4a90d9',
+            borderWidth: 2,
+            fill: { target: { value: 0 }, above: 'rgba(74,144,217,0.12)', below: 'rgba(231,76,60,0.10)' },
+            tension: 0.3,
+            pointBackgroundColor: pointColors,
+            pointRadius,
+            pointBorderColor: '#e74c3c',
+            pointBorderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            cursorLine: { cursorX: -1 },
+            tooltip: {
+                callbacks: {
+                    title: ctx => `${ctx[0].label}수`,
+                    label: ctx => {
+                        const v = ctx.raw;
+                        return (v > 0 ? '흑 유리 ' : v < 0 ? '백 유리 ' : '균형 ') + Math.abs(v).toFixed(1) + '집';
+                    }
+                }
+            }
+        },
+        scales: {
+            x: { title: { display: true, text: '수번', color: '#aaa', font: { size: 11 } }, ticks: { maxTicksLimit: 20, color: '#bbb', font: { size: 11 } } },
+            y: { title: { display: true, text: '집 차이', color: '#aaa', font: { size: 11 } }, ticks: { color: '#bbb', font: { size: 11 } }, grid: { color: ctx => ctx.tick.value === 0 ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' } }
+        },
+        onClick: (e, elements) => { if (elements.length > 0) showMove(elements[0].index); }
+    }
+});
+
+/* ── 승률 변화 차트 ── */
+const wrData = moves.map(m => parseFloat((m.winrateAfter * 100).toFixed(1)));
+winrateChartInst = new Chart(document.getElementById('winrateChart').getContext('2d'), {
+    plugins: [cursorPlugin],
+    type: 'line',
+    data: {
+        labels,
+        datasets: [{
+            data: wrData,
+            borderColor: '#27ae60',
+            borderWidth: 2,
+            fill: { target: { value: 50 }, above: 'rgba(39,174,96,0.1)', below: 'rgba(231,76,60,0.1)' },
+            tension: 0.3,
+            pointRadius: 0,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            cursorLine: { cursorX: -1 },
+            tooltip: {
+                callbacks: {
+                    title: ctx => `${moves[ctx[0].dataIndex].turnNumber}수`,
+                    label: ctx => `흑 승률 ${ctx.raw}%`
+                }
+            }
+        },
+        scales: {
+            x: { ticks: { maxTicksLimit: 20, color: '#bbb', font: { size: 11 } } },
+            y: {
+                min: 0, max: 100,
+                ticks: { color: '#bbb', font: { size: 11 }, callback: v => v + '%' },
+                grid: { color: ctx => ctx.tick.value === 50 ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' }
+            }
+        },
+        onClick: (e, elements) => { if (elements.length > 0) showMove(elements[0].index); }
+    }
+});
+
+/* ── 핵심 실수 목록 렌더 (실수·악수 전체) ── */
+function renderKeyMistakes() {
+    const list  = document.getElementById('mistakesList');
+    const count = document.getElementById('mistakesCount');
+    if (keyMistakes.length === 0) {
+        count.style.display = 'none';
+        list.innerHTML = '<div class="mistakes-empty">실수·악수로 분류된 수가 없습니다. 훌륭해요!</div>';
+        return;
+    }
+    count.textContent = keyMistakes.length + '개';
+    list.innerHTML = keyMistakes.map((m, i) =>
+        `<div class="mistake-card" onclick="jumpToMove(${m.turnNumber - 1})">
+            <div class="mistake-rank">#${i + 1}</div>
+            <div class="mistake-move">${m.turnNumber}수</div>
+            <div class="mistake-spacer"></div>
+            <div class="mistake-loss">-${m.scoreLoss}집</div>
+            <span class="grade-badge g-${m.grade}">${m.grade}</span>
+        </div>`).join('');
+}
+renderKeyMistakes();
+
+/* ── AI 착수 통계 ── */
+const GRADES = ['최선', '좋음', '보통', '실수', '악수'];
+function aiStats(color) {
+    const ms = moves.filter(m => m.color === color);
+    const counts = GRADES.map(g => ms.filter(m => m.grade === g).length);
+    const matched = ms.filter(m => m.matchesBest).length;
+    return { total: ms.length, counts, rate: ms.length ? matched / ms.length * 100 : 0 };
+}
+const blkStat = aiStats('B'), whtStat = aiStats('W');
+document.getElementById('amrBlackPct').textContent  = blkStat.rate.toFixed(1) + '%';
+document.getElementById('amrWhitePct').textContent  = whtStat.rate.toFixed(1) + '%';
+document.getElementById('amrBlackFill').style.width = blkStat.rate + '%';
+document.getElementById('amrWhiteFill').style.width = whtStat.rate + '%';
+
+new Chart(document.getElementById('aiStatChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: GRADES,
+        datasets: [
+            { label: '흑', data: blkStat.counts, backgroundColor: '#3a3a3a', borderRadius: 3 },
+            { label: '백', data: whtStat.counts, backgroundColor: '#d0d0d0', borderColor: '#aaa', borderWidth: 1, borderRadius: 3 }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
+            tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}수` } }
+        },
+        scales: {
+            x: { grid: { display: false }, ticks: { color: '#666', font: { size: 12 } } },
+            y: { beginAtZero: true, ticks: { precision: 0, color: '#bbb', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
+    }
+});
+
+/* ── side 컬럼 높이를 바둑판 높이에 맞춤 (그 안에서 6:4 분할) ── */
+function syncSideHeight() {
+    const board = document.querySelector('.area-board');
+    const side  = document.querySelector('.area-side');
+    if (!board || !side) return;
+    if (window.matchMedia('(max-width: 1100px)').matches) {
+        side.style.height = '';                       // 모바일: 자연 높이
+    } else {
+        side.style.height = board.offsetHeight + 'px'; // 데스크톱: 바둑판 높이에 일치
+    }
+}
+window.addEventListener('resize', syncSideHeight);
+
+/* ── 초기 표시 ── */
+document.addEventListener('DOMContentLoaded', () => {
+    if (moves.length > 0) {
+        // 오답노트 등에서 ?move=N 으로 딥링크하면 그 수번으로 바로 이동
+        const qMove = parseInt(new URLSearchParams(location.search).get('move'));
+        let initIdx = (!isNaN(qMove) && qMove >= 1 && qMove <= moves.length) ? qMove - 1
+                    : (keyMistakes.length > 0 ? keyMistakes[0].turnNumber - 1 : 0);
+        showMove(initIdx >= 0 ? initIdx : 0);
+    }
+    syncSideHeight();
+});
+window.addEventListener('load', syncSideHeight);
+
+/* ── 키보드 ── */
+document.addEventListener('keydown', e => {
+    if (document.activeElement === document.getElementById('moveInput')) {
+        if (e.key === 'Enter') jumpToInput();
+        return;
+    }
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); e.shiftKey ? skipMove(-5) : prevMove(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? skipMove(5)  : nextMove(); }
+    if (e.key === 'Home')       { e.preventDefault(); showMove(0); }
+    if (e.key === 'End')        { e.preventDefault(); showMove(moves.length - 1); }
+    if (e.key === 'Escape')     { closeCompare(); }
+});
+document.getElementById('compareModal').addEventListener('click', e => {
+    if (e.target.id === 'compareModal') closeCompare();  // 배경 클릭 시 닫기
+});
+</script>
+</div>
+</body>
+</html>

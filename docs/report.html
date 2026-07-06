@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>바둑 실력 분석</title>
+    
+    <link rel="stylesheet" href="css/common.css">
+    <script src="js/chart.min.js"></script>
+    <style>
+        /* h1, .subtitle, .badge, .gauge-label, table, @keyframes spin 베이스는 common.css 공통 규칙 사용 */
+        .summary-banner { background: #fff; border-radius: 12px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; flex-wrap: wrap; gap: 24px 32px; align-items: center; }
+        .summary-item { text-align: center; }
+        .summary-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+        .summary-value { font-size: 16px; font-weight: 700; }
+        .summary-divider { width: 1px; background: #eee; align-self: stretch; }
+
+        .cards { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+        .card { flex: 1; min-width: 240px; background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 5px solid #ccc; }
+        .card.strong { border-top-color: #2ecc71; }
+        .card.normal { border-top-color: #f39c12; }
+        .card.weak   { border-top-color: #e74c3c; }
+
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .card-phase { font-size: 16px; font-weight: 700; }
+        .stars { font-size: 18px; letter-spacing: 2px; }
+
+        .gauge-track { background: #eee; border-radius: 99px; height: 10px; margin-bottom: 12px; }
+        .gauge-fill { height: 100%; border-radius: 99px; transition: width 0.8s ease; }
+        .fill-strong { background: #2ecc71; }
+        .fill-normal { background: #f39c12; }
+        .fill-weak   { background: #e74c3c; }
+
+        .stat-row { display: flex; justify-content: space-between; font-size: 13px; color: #666; margin-top: 4px; }
+        .stat-row span:last-child { font-weight: 600; color: #333; }
+
+        .quality-bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin: 12px 0 5px; }
+        .q-excellent { background: #8e44ad; }
+        .q-good      { background: #2ecc71; }
+        .q-normal    { background: #f39c12; }
+        .q-bad       { background: #e67e22; }
+        .q-blunder   { background: #e74c3c; }
+        .quality-legend { display: flex; flex-wrap: wrap; gap: 6px; }
+        .ql-item { display: flex; align-items: center; gap: 3px; font-size: 11px; color: #777; }
+        .ql-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+        .badge.strong { background: #d5f5e3; color: #1e8449; }
+        .badge.normal { background: #fdebd0; color: #b7770d; }
+        .badge.weak   { background: #fadbd8; color: #c0392b; }
+
+        .chart-section { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px; }
+        .chart-section h2 { font-size: 16px; margin: 0 0 6px; }
+        .chart-desc { font-size: 12px; color: #999; margin: 0 0 18px; }
+        .chart-wrap { max-width: 340px; margin: 0 auto; }
+
+        .table-section { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px; }
+        .table-section h2 { font-size: 16px; margin: 0 0 16px; }
+        th { background: #f8f9fa; color: #555; font-size: 13px; padding: 10px 14px; border-bottom: 2px solid #eee; text-align: center; }
+        td { padding: 10px 14px; text-align: center; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #4a90d9; border-radius: 50%; width: 36px; height: 36px; animation: spin 1s linear infinite; margin: 0 auto 12px; }
+        .loading { text-align: center; padding: 60px; }
+        .error-box { background: #ffe0e0; border: 1px solid #e00; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+        .empty { color: #aaa; text-align: center; padding: 40px; }
+        .refresh-link { font-size: 13px; color: #4a90d9; text-decoration: none; }
+        .tygem-notice { background:#fff; border-radius:8px; padding:14px 20px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:4px solid #4a90d9; font-size:13px; color:#555; }
+
+        /* 반복 약점 코칭 코멘트 */
+        .coach-box { background:#fff; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:5px solid #4a90d9; }
+        .coach-box h2 { font-size:17px; margin:0 0 4px; color:#333; }
+        .coach-sub { font-size:12px; color:#999; margin:0 0 14px; }
+        .coach-list { display:flex; flex-direction:column; gap:10px; }
+        .coach-item { display:flex; gap:12px; align-items:flex-start; padding:12px 14px; border-radius:10px; background:#f8f9fb; }
+        .coach-item.high { background:#fdecea; }
+        .coach-item.mid  { background:#fef5e7; }
+        .coach-item.good { background:#eafaf1; }
+        .coach-icon { font-size:20px; line-height:1.2; flex-shrink:0; }
+        .coach-title { font-weight:700; font-size:14px; color:#333; margin-bottom:2px; }
+        .coach-detail { font-size:13px; color:#555; line-height:1.5; }
+    </style>
+</head>
+<body>
+    <nav class="topnav">
+        <div class="topnav-inner">
+            <a class="brand" href="index.html">⚫ 바둑 분석</a>
+            <div class="topnav-links">
+                <a href="report.html" class="active">실력 리포트</a>
+                <a href="index.html">오답노트</a>
+                <a href="index.html">갤러리</a>
+                <a href="index.html">기보 복기</a>
+                <a href="index.html">AI 대국</a>
+                <a href="index.html">소개</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="page narrow">
+    <h1>바둑 실력 분석</h1>
+    <p class="subtitle">KataGo AI 기반 구간별 기력 리포트</p>
+
+    <div class="tygem-notice">타이젬 자동 연동 중 — 대국 종료 후 기보가 자동으로 분석됩니다.</div>
+
+    
+
+    
+
+    <script>
+        const userResultsData  = [{"phase":"\uCD08\uBC18","matchRate":17.24,"winRateLoss":0.002,"scoreLoss":1.3,"excellentRate":27.59,"goodRate":24.14,"normalRate":44.83,"badRate":3.45,"blunderRate":0.0}];
+        const proResultsData   = [{"phase":"\uCD08\uBC18","matchRate":59.33,"winRateLoss":0.012,"scoreLoss":0.15,"excellentRate":77.56,"goodRate":4.78,"normalRate":0.67,"badRate":0.11,"blunderRate":0.22},{"phase":"\uC911\uBC18","matchRate":47.9,"winRateLoss":0.017,"scoreLoss":0.47,"excellentRate":64.26,"goodRate":12.27,"normalRate":4.62,"badRate":1.78,"blunderRate":1.07},{"phase":"\uC885\uBC18","matchRate":52.78,"winRateLoss":0.004,"scoreLoss":0.37,"excellentRate":74.42,"goodRate":8.04,"normalRate":2.34,"badRate":0.58,"blunderRate":0.88}];
+        const proWinrateTrend  = null;
+        const userWinrateTrend = null;
+        const userGameCount = 1;
+        const proGameCount  = 18;
+        const userWeaknesses = [{"icon":"\uD83C\uDFAF","title":"\uC9D1\uC911 \uBCF5\uAE30: \uCD08\uBC18","detail":"\uC544\uC9C1 <b>\uCD08\uBC18<\/b> \uAD6C\uAC04 \uB370\uC774\uD130\uAC00 \uC8FC\uB85C \uC313\uC600\uC5B4\uC694. AI \uC720\uC0AC\uB3C4 17.2% \u2014 \uC774 \uAD6C\uAC04\uBD80\uD130 \uBCF5\uAE30\uD558\uBA74 \uD6A8\uACFC\uAC00 \uCEE4\uC694. (\uAE30\uBCF4\uAC00 \uB354 \uC313\uC774\uBA74 \uC911\u00B7\uC885\uBC18 \uBD84\uC11D\uB3C4 \uB098\uC640\uC694)","severity":"high"},{"icon":"\uD83D\uDCA7","title":"\uCD08\uBC18 \uC9D1 \uC190\uC2E4","detail":"<b>\uCD08\uBC18<\/b>\uC5D0\uC11C \uD55C \uC218\uB2F9 \uD3C9\uADE0 <b>1.3\uC9D1<\/b>\uC529 \uC190\uD574\uBD10\uC694. \uD3EC\uC11D\u00B7\uC815\uC11D \uC774\uD6C4 \uBC29\uD5A5 \uC120\uD0DD\uC744 \uBCF5\uAE30\uD574 \uBCF4\uC138\uC694.","severity":"mid"}];
+    </script>
+
+    <div id="weakness-root"></div>
+    <div id="user-root"></div>
+    <div id="pro-root"></div>
+
+    
+
+    <p><a class="refresh-link" href="report.html">↻ 새로고침</a></p>
+
+    <script>
+    (function() {
+
+        function stars(rate) {
+            if (rate >= 75) return '⭐⭐⭐⭐⭐';
+            if (rate >= 60) return '⭐⭐⭐⭐';
+            if (rate >= 45) return '⭐⭐⭐';
+            if (rate >= 30) return '⭐⭐';
+            return '⭐';
+        }
+        function level(rate) {
+            if (rate >= 60) return 'strong';
+            if (rate >= 40) return 'normal';
+            return 'weak';
+        }
+        function levelLabel(rate) {
+            if (rate >= 60) return 'AI와 잘 맞아요';
+            if (rate >= 40) return '보통이에요';
+            return '연습이 필요해요';
+        }
+        function wrLabel(loss) {
+            if (loss < 0.05) return { text: '안정적', color: '#27ae60' };
+            if (loss < 0.10) return { text: '조금 불안정', color: '#f39c12' };
+            if (loss < 0.20) return { text: '기복 있음', color: '#e67e22' };
+            return { text: '기복 심함', color: '#e74c3c' };
+        }
+        function scoreLabel(loss) {
+            if (loss < 2)  return { text: '안정적',      color: '#27ae60' };
+            if (loss < 5)  return { text: '조금 불안정', color: '#f39c12' };
+            if (loss < 10) return { text: '기복 있음',   color: '#e67e22' };
+            return { text: '기복 심함', color: '#e74c3c' };
+        }
+        function interpret(r) {
+            const matchHigh   = r.matchRate >= 60;
+            const scoreStable = r.scoreLoss < 5;
+            if (matchHigh  && scoreStable)  return 'AI와 비슷하게 두면서 형세를 잘 유지했어요.';
+            if (matchHigh  && !scoreStable) return 'AI와 비슷하게 뒀지만 가끔 큰 실수가 있었어요.';
+            if (!matchHigh && scoreStable)  return 'AI와 다르게 뒀어도 형세는 잘 지켰어요.';
+            return '실수가 형세에 영향을 줬어요. 이 구간 복기를 추천해요.';
+        }
+
+        let chartIdx = 0;
+        const pendingCharts = [];
+
+        function renderAnalysis(results, rootId, title, color, gameCount) {
+            if (!results || results.length === 0) return;
+            const root = document.getElementById(rootId);
+            const countTag = gameCount ? ' <span style="font-size:13px;color:#888;font-weight:400;">· ' + gameCount + '판 집계</span>' : '';
+            const sorted = [...results].sort((a, b) => b.matchRate - a.matchRate);
+            const best = sorted[0], worst = sorted[sorted.length - 1];
+            const avgMatch = (results.reduce((s, r) => s + r.matchRate, 0) / results.length).toFixed(1);
+
+            let summaryMsg = results.length >= 2
+                ? '<b>' + best.phase + '</b>을 가장 잘 뒀고, <b>' + worst.phase + '</b> 연습이 가장 필요해요.'
+                : '<b>' + best.phase + '</b> 구간 분석 완료 — 기보가 더 쌓이면 전체 리포트가 나와요.';
+
+            root.innerHTML = '<h2 style="font-size:18px;margin:0 0 16px;color:#333;">' + title + countTag + '</h2>';
+
+            // 요약 배너
+            root.innerHTML += '<div class="summary-banner">'
+                + '<div class="summary-item">'
+                + '<div class="summary-label">전체 AI 유사도</div>'
+                + '<div class="summary-value" style="color:' + color + '">' + avgMatch + '%</div>'
+                + '</div>'
+                + '<div class="summary-divider"></div>'
+                + '<div class="summary-item">'
+                + '<div class="summary-label">가장 잘한 구간</div>'
+                + '<div class="summary-value" style="color:#2ecc71">' + best.phase + ' (' + best.matchRate + '%)</div>'
+                + '</div>'
+                + '<div class="summary-divider"></div>'
+                + '<div class="summary-item">'
+                + '<div class="summary-label">가장 아쉬운 구간</div>'
+                + '<div class="summary-value" style="color:#e74c3c">' + worst.phase + ' (' + worst.matchRate + '%)</div>'
+                + '</div>'
+                + '<div class="summary-divider"></div>'
+                + '<div style="font-size:13px;color:#555;flex:1;">' + summaryMsg + '</div>'
+                + '</div>';
+
+            // 구간 카드
+            const cardsHtml = results.map(function(r) {
+                const lv = level(r.matchRate), sg = stars(r.matchRate);
+                const fillW = Math.min(r.matchRate, 100);
+                const ex = r.excellentRate||0, gd = r.goodRate||0,
+                      nm = r.normalRate||0, bd = r.badRate||0, bl = r.blunderRate||0;
+                const approxPer100 = Math.round(r.matchRate);
+                return '<div class="card ' + lv + '">'
+                     + '<div class="card-header">'
+                     + '<div><div class="card-phase">' + r.phase + '</div>'
+                     + '<span class="badge ' + lv + '">' + levelLabel(r.matchRate) + '</span></div>'
+                     + '<div class="stars">' + sg + '</div>'
+                     + '</div>'
+                     + '<div style="font-size:12px;color:#888;margin-bottom:10px;">100수 중 약 <b style="color:#333;">' + approxPer100 + '수</b>를 AI와 같이 뒀어요</div>'
+                     + '<div class="gauge-label"><span>AI 유사도</span><span>' + r.matchRate + '%</span></div>'
+                     + '<div class="gauge-track"><div class="gauge-fill fill-' + lv + '" style="width:' + fillW + '%"></div></div>'
+                     + '<div class="quality-bar">'
+                     + '<div class="q-excellent" style="width:' + ex + '%" title="아주 좋은 수 ' + ex + '%"></div>'
+                     + '<div class="q-good"      style="width:' + gd + '%" title="좋은 수 ' + gd + '%"></div>'
+                     + '<div class="q-normal"    style="width:' + nm + '%" title="평범한 수 ' + nm + '%"></div>'
+                     + '<div class="q-bad"       style="width:' + bd + '%" title="나쁜 수 ' + bd + '%"></div>'
+                     + '<div class="q-blunder"   style="width:' + bl + '%" title="큰 실수 ' + bl + '%"></div>'
+                     + '</div>'
+                     + '<div class="quality-legend">'
+                     + '<span class="ql-item"><span class="ql-dot" style="background:#8e44ad"></span>아주 좋은 수 ' + ex + '%</span>'
+                     + '<span class="ql-item"><span class="ql-dot" style="background:#2ecc71"></span>좋은 수 ' + gd + '%</span>'
+                     + '<span class="ql-item"><span class="ql-dot" style="background:#f39c12"></span>평범한 수 ' + nm + '%</span>'
+                     + '<span class="ql-item"><span class="ql-dot" style="background:#e67e22"></span>나쁜 수 ' + bd + '%</span>'
+                     + '<span class="ql-item"><span class="ql-dot" style="background:#e74c3c"></span>큰 실수 ' + bl + '%</span>'
+                     + '</div>'
+                     + '<div class="stat-row" style="margin-top:10px">'
+                     + '<span>실수로 인한 승률 변화</span>'
+                     + '<span style="display:flex;align-items:center;gap:6px;">'
+                     + '<span style="color:#aaa;font-size:12px;">' + (r.winRateLoss*100).toFixed(1) + '%</span>'
+                     + '<span style="color:' + wrLabel(r.winRateLoss).color + ';font-weight:700;font-size:12px;">' + wrLabel(r.winRateLoss).text + '</span>'
+                     + '</span></div>'
+                     + '<div class="stat-row">'
+                     + '<span>실수로 잃은 집 수</span>'
+                     + '<span style="display:flex;align-items:center;gap:6px;">'
+                     + '<span style="color:#aaa;font-size:12px;">' + r.scoreLoss + '집</span>'
+                     + '<span style="color:' + scoreLabel(r.scoreLoss).color + ';font-weight:700;font-size:12px;">' + scoreLabel(r.scoreLoss).text + '</span>'
+                     + '</span></div>'
+                     + '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:12px;color:#777;font-style:italic;">'
+                     + interpret(r) + '</div>'
+                     + '</div>';
+            }).join('');
+            root.innerHTML += '<div class="cards">' + cardsHtml + '</div>';
+
+            // 레이더 차트
+            const cid = 'radarChart' + (chartIdx++);
+            root.innerHTML += '<div class="chart-section">'
+                + '<h2>구간별 AI 유사도</h2>'
+                + '<p class="chart-desc">각 구간에서 AI와 얼마나 비슷하게 뒀는지 한눈에 보여줘요.</p>'
+                + '<div class="chart-wrap"><canvas id="' + cid + '"></canvas></div>'
+                + '</div>';
+
+            // 상세 테이블
+            const tableRows = results.map(function(r) {
+                return '<tr>'
+                    + '<td><strong>' + r.phase + '</strong></td>'
+                    + '<td>' + r.matchRate + '%</td>'
+                    + '<td><span style="color:' + wrLabel(r.winRateLoss).color + '">' + wrLabel(r.winRateLoss).text + '</span> <span style="color:#ccc;font-size:11px;">' + (r.winRateLoss*100).toFixed(1) + '%</span></td>'
+                    + '<td><span style="color:' + scoreLabel(r.scoreLoss).color + '">' + scoreLabel(r.scoreLoss).text + '</span> <span style="color:#ccc;font-size:11px;">' + r.scoreLoss + '집</span></td>'
+                    + '<td>' + stars(r.matchRate) + '</td>'
+                    + '</tr>';
+            }).join('');
+            root.innerHTML += '<div class="table-section">'
+                + '<h2 style="font-size:15px;">상세 수치</h2>'
+                + '<table><thead><tr><th>구간</th><th>AI 유사도</th><th>승률 변화</th><th>잃은 집</th><th>평가</th></tr></thead>'
+                + '<tbody>' + tableRows + '</tbody></table>'
+                + '</div>';
+
+            // 차트 초기화는 나중에 일괄 실행 (한 섹션 실패가 다른 섹션을 막지 않도록)
+            pendingCharts.push({ cid, results, color });
+        }
+
+        function initCharts() {
+            if (typeof Chart === 'undefined') return;
+            pendingCharts.forEach(function(c) {
+                try {
+                    new Chart(document.getElementById(c.cid).getContext('2d'), {
+                        type: 'radar',
+                        data: {
+                            labels: c.results.map(function(r) { return r.phase; }),
+                            datasets: [{
+                                label: 'AI 유사도 (%)',
+                                data: c.results.map(function(r) { return r.matchRate; }),
+                                backgroundColor: c.color + '33', borderColor: c.color,
+                                borderWidth: 2, pointBackgroundColor: c.color
+                            }]
+                        },
+                        options: {
+                            scales: { r: { min: 0, max: 100, ticks: { stepSize: 25 } } },
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                } catch(e) { console.warn('chart init failed', e); }
+            });
+        }
+
+        function renderWeaknesses(list) {
+            const root = document.getElementById('weakness-root');
+            if (!root || !list || list.length === 0) return;
+            const items = list.map(function(w) {
+                return '<div class="coach-item ' + (w.severity || '') + '">'
+                     + '<div class="coach-icon">' + w.icon + '</div>'
+                     + '<div><div class="coach-title">' + w.title + '</div>'
+                     + '<div class="coach-detail">' + w.detail + '</div></div>'
+                     + '</div>';
+            }).join('');
+            root.innerHTML = '<div class="coach-box">'
+                + '<h2>📋 코칭 코멘트</h2>'
+                + '<p class="coach-sub">내 기보 여러 판을 모아 찾은 반복 패턴이에요. 자동 생성된 참고용 코멘트입니다.</p>'
+                + '<div class="coach-list">' + items + '</div></div>';
+        }
+
+        renderWeaknesses(userWeaknesses);
+        renderAnalysis(userResultsData, 'user-root', '내 기보 분석',          '#4a90d9', userGameCount);
+        renderAnalysis(proResultsData,  'pro-root',  '신진서 프로 기보 분석', '#8e44ad', proGameCount);
+        initCharts();
+    })();
+    </script>
+    </div>
+</body>
+</html>

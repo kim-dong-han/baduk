@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>바둑 AI 분석 — 정적 데모</title>
+    <link rel="stylesheet" href="css/common.css">
+    <style>
+        .demo-banner { background:#fff8e1; border:1px solid #ffe082; color:#8a6d3b; font-size:13px; padding:10px 16px; border-radius:10px; max-width:1000px; margin:0 auto 22px; text-align:center; }
+        .hero { text-align:center; padding:20px 0 12px; }
+        .hero h1 { font-size:30px; margin:0 0 10px; color:#222; }
+        .hero p { font-size:15px; color:#666; margin:0 auto; max-width:640px; line-height:1.6; }
+        .hero .cta { margin-top:18px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+        .hero .cta a { text-decoration:none; font-size:14px; font-weight:600; padding:10px 20px; border-radius:24px; }
+        .cta-primary { background:#4a90d9; color:#fff; }
+        .cta-ghost { background:#fff; color:#4a90d9; border:1px solid #cfe0f3; }
+        .sec-title { max-width:1000px; margin:32px auto 14px; font-size:18px; color:#333; }
+
+        .gal-grid { max-width:1000px; margin:0 auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px; }
+        .gal-card { background:#fff; border-radius:12px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.08); display:flex; flex-direction:column; gap:12px; text-decoration:none; color:inherit; transition:transform .12s, box-shadow .12s; border-top:4px solid #8e44ad; }
+        .gal-card.mine { border-top-color:#4a90d9; }
+        .gal-card:hover { transform:translateY(-3px); box-shadow:0 6px 18px rgba(0,0,0,0.13); }
+        .gal-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+        .gal-title { font-size:15px; font-weight:700; color:#333; line-height:1.35; word-break:break-word; }
+        .gal-tag { font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; white-space:nowrap; flex-shrink:0; }
+        .gal-tag.pro  { background:#f3e6fb; color:#8e44ad; }
+        .gal-tag.mine { background:#e8f1fb; color:#2471a3; }
+        .gal-meta { font-size:12px; color:#999; }
+        .gal-match-lbl { display:flex; justify-content:space-between; font-size:12px; color:#666; margin-bottom:4px; }
+        .gal-match-lbl b { color:#333; }
+        .gal-track { background:#eee; border-radius:99px; height:8px; overflow:hidden; }
+        .gal-fill { height:100%; border-radius:99px; background:#4a90d9; }
+        .gal-pills { display:flex; gap:6px; flex-wrap:wrap; }
+        .gal-pill { font-size:11px; padding:2px 8px; border-radius:6px; }
+        .gal-pill.good { background:#eafaf1; color:#1e8449; }
+        .gal-pill.warn { background:#fef5e7; color:#b7770d; }
+        .gal-pill.bad  { background:#fdecea; color:#c0392b; }
+        .gal-foot { font-size:12px; color:#8e44ad; font-weight:600; margin-top:auto; }
+        .gal-card.mine .gal-foot { color:#2471a3; }
+        .foot-note { max-width:1000px; margin:34px auto 0; font-size:12px; color:#999; text-align:center; line-height:1.7; }
+        .foot-note a { color:#4a90d9; }
+    </style>
+</head>
+<body>
+    <nav class="topnav">
+        <div class="topnav-inner">
+            <a class="brand" href="index.html">⚫ 바둑 분석</a>
+            <div class="topnav-links">
+                <a href="index.html" class="active">샘플 기보</a>
+                <a href="report.html">실력 리포트</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="page">
+        <div class="demo-banner">
+            📦 <b>정적 데모(읽기 전용)</b> — KataGo로 미리 분석해 둔 결과를 그대로 보여줍니다.
+            실시간 분석·AI 대국·오답노트 등 연산이 필요한 기능은 로컬 실행에서 동작합니다.
+        </div>
+
+        <div class="hero">
+            <h1>바둑 기보 AI 복기 분석</h1>
+            <p>내 기보를 KataGo와 비교해 초반·중반·종반 구간별 실력을 수치화하고,
+               프로 기보(신진서 대국)와 나란히 비교합니다. 아래 카드를 눌러 상세 복기를 확인하세요.</p>
+            <div class="cta">
+                <a class="cta-primary" href="result-6214e435.html">▶ 복기 뷰어 살펴보기</a>
+                <a class="cta-ghost" href="report.html">📊 실력 리포트 보기</a>
+            </div>
+        </div>
+
+        <h2 class="sec-title">샘플 기보</h2>
+        <div class="gal-grid">
+            <!-- 프로: 신진서 vs 강승민 -->
+            <a class="gal-card" href="result-6214e435.html">
+                <div class="gal-top"><div class="gal-title">Shin Jinseo vs Kang Seungmin</div><span class="gal-tag pro">프로</span></div>
+                <div class="gal-meta">2026-07-06 · 179수</div>
+                <div>
+                    <div class="gal-match-lbl"><span>전체 AI 유사도</span><b>52.5%</b></div>
+                    <div class="gal-track"><div class="gal-fill" style="width:52.5%"></div></div>
+                </div>
+                <div class="gal-pills">
+                    <span class="gal-pill good">초반 0.32집</span>
+                    <span class="gal-pill good">중반 0.37집</span>
+                    <span class="gal-pill warn">종반 1.62집</span>
+                </div>
+                <div class="gal-foot">복기 보기 →</div>
+            </a>
+
+            <!-- 프로: 최정 vs 신진서 (집 예측 히트맵 볼거리) -->
+            <a class="gal-card" href="result-c9ba1000.html">
+                <div class="gal-top"><div class="gal-title">Choi Jeong vs Shin Jinseo</div><span class="gal-tag pro">프로</span></div>
+                <div class="gal-meta">2026-07-03 · 176수</div>
+                <div>
+                    <div class="gal-match-lbl"><span>전체 AI 유사도</span><b>44.3%</b></div>
+                    <div class="gal-track"><div class="gal-fill" style="width:44.3%"></div></div>
+                </div>
+                <div class="gal-pills">
+                    <span class="gal-pill good">초반 0.14집</span>
+                    <span class="gal-pill good">중반 0.42집</span>
+                    <span class="gal-pill good">종반 0.58집</span>
+                </div>
+                <div class="gal-foot">복기 보기 →</div>
+            </a>
+
+            <!-- 내 기보 -->
+            <a class="gal-card mine" href="result-2525a1e9.html">
+                <div class="gal-top"><div class="gal-title">내 대국 (kjkim805 vs LXL1988)</div><span class="gal-tag mine">내 기보</span></div>
+                <div class="gal-meta">2026-07-03 · 29수</div>
+                <div>
+                    <div class="gal-match-lbl"><span>전체 AI 유사도</span><b>17.2%</b></div>
+                    <div class="gal-track"><div class="gal-fill" style="width:17.2%"></div></div>
+                </div>
+                <div class="gal-pills">
+                    <span class="gal-pill warn">초반 1.3집</span>
+                </div>
+                <div class="gal-foot">복기 보기 →</div>
+            </a>
+        </div>
+
+        <p class="foot-note">
+            전체 프로젝트(실시간 분석·AI 대국·사활 문제·타이젬 연동)는 로컬 Spring Boot 앱에서 동작합니다.<br>
+            소스: <a href="https://github.com/kim-dong-han/baduk">github.com/kim-dong-han/baduk</a>
+        </p>
+    </div>
+</body>
+</html>
