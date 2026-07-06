@@ -515,19 +515,21 @@ function moverWr(m, before) {
     return m.color === 'B' ? w : 1 - w;
 }
 function findLosingMove() {
-    // 후보 = 실수·악수(실제 손해수)만. 큰 winrate 흔들림이 '좋음'인 경우는
-    // 본인 실수가 아니라 흐름/상대 호착이라 패착이 아니다. (저visits winrate 노이즈도 배제)
+    // 후보 = '보통' 이상의 실착(집손해 ≥1.5집). 패착은 집으로는 조금 잃어도
+    // 승률을 확 무너뜨리는 수일 수 있어(예: 집손해 1.9집인데 승률 -27%p) 등급만 보면 놓친다.
+    // 반대로 '좋음/최선'(집손해<1.5)의 큰 승률 흔들림은 본인 실수가 아니라 흐름/노이즈라 제외.
     const cand = [];
     for (let i = 0; i < moves.length; i++) {
         const m = moves[i];
-        if (m.grade !== '실수' && m.grade !== '악수') continue;
+        if (!(m.scoreLoss >= 1.5)) continue;
         if (m.winrateBefore == null || m.winrateAfter == null) continue;
         const pre = moverWr(m, true), post = moverWr(m, false);
         // 팽팽하거나 유리했는데(≥40%) 이 수로 열세(<50%)로 넘어간 실수·악수
         if (pre < 0.40 || post >= 0.50 || pre - post <= 0) continue;
-        let recovered = false;   // 이후 이 쪽이 다시 50%↑ → 그 수는 결정적이지 않았음
+        let recovered = false;   // 이후 '이 수를 둔 쪽'이 다시 50%↑ → 그 수는 결정적이지 않았음
         for (let j = i + 1; j < moves.length; j++) {
-            if (moverWr(moves[j], false) >= 0.50) { recovered = true; break; }
+            const meWr = m.color === 'B' ? moves[j].winrateAfter : 1 - moves[j].winrateAfter;
+            if (meWr >= 0.50) { recovered = true; break; }
         }
         cand.push({ i, swing: pre - post, recovered });
     }
@@ -1218,7 +1220,13 @@ function renderKeyMistakes() {
         return;
     }
     count.textContent = keyMistakes.length + '개';
-    list.innerHTML = keyMistakes.map((m, i) => {
+    // 패착이 '보통'이라 실수·악수 목록에 없으면 함께 보이도록 끼워넣는다
+    const listMoves = keyMistakes.slice();
+    if (losingMove && !listMoves.some(m => m.turnNumber === losingMove.turnNumber)) {
+        listMoves.push(losingMove);
+        listMoves.sort((a, b) => b.scoreLoss - a.scoreLoss);
+    }
+    list.innerHTML = listMoves.map((m, i) => {
         const isLosing = losingMove && m.turnNumber === losingMove.turnNumber;
         // 패착 이후, 진 쪽(패착 둔 쪽)의 실수·악수 = 이미 기운 뒤라 승부수
         const isDesperate = losingMove && !isLosing && m.color === losingMove.color
