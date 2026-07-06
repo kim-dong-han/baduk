@@ -16,11 +16,11 @@
 - `.card` box-shadow 통합은 HTML 공용 클래스 필요해 보수적 보류 유지
 
 ## 최근 완료 (최신순, 5건 유지)
+- **listResults 성능 개선(요약 파서+캐시)**: 목록·집계용 `listResultSummaries()` 신설 — 수당 무거운 필드(ownership·candidates·bestPv·topMoves, 상세 페이지에서만 사용)를 MoveDetailSummaryMixin으로 스킵하고, result-dir 서명(개수·이름·mtime) 동일하면 캐시 재사용(saveResult에서 무효화). AnalysisService(집계·약점·오답·갤러리·count)·getResultMap·인덱스뷰가 이걸 사용. 상세는 기존 getResult(full)·API `/api/game/results`는 full 유지(계약 불변). 검증: 갤러리19·리포트 matchRate·오답노트 동일, 상세 179수 candidates/bestPv/ownership 유지, 반복요청 ~4ms
 - **면접용 정적 데모(`docs/`)**: 실행 중 서버의 렌더 결과를 스냅샷→GitHub Pages용 정적 파일. 손수 만든 index.html(랜딩+큐레이션 갤러리 3판: 프로 6214e435/c9ba1000+내기보 2525a1e9)+report.html(실력리포트 스냅샷)+result-*.html 3장+css/js 복사+.nojekyll. sed로 절대경로→상대·백엔드링크는 데모내로·재대국버튼 hidden. scripts/build-docs.sh로 재생성, README 안내. node 정적서버(8090)로 브라우저 검증: 랜딩·복기(179수·판·차트·replay숨김)·리포트(코칭·radar) 정상. **Pages 활성화(공개 배포)는 사용자 몫 — 미실행**
 - **샘플 기보 갤러리(`/gallery`)**: AnalysisService.getGalleryItems() — 저장 결과를 카드 요약(제목=대국자 or 파일명, 프로/내기보, 날짜·수, 전체 AI유사도=구간 수가중평균, 구간 집손해 pill, best/worst구간)으로. 프로 먼저 정렬. GalleryItem DTO, AnalysisController `/gallery`, gallery.html(반응형 grid+필터 전체/프로/내기보). 전 페이지 topnav "갤러리" 링크. 브라우저 렌더+필터(전체19/프로18/내1) 검증 완료
 - **분석 메타 패널**: result.html 헤더에 🧠엔진net·🔎visits/수·⏱소요시간 추가. SingleGameResult에 engineNet/analysisVisits/analysisDurationMs 필드, SingleGameService.analyze()가 분석시간 측정+KataGoService 값(getNetName 짧은블록 b28c512nbt/getAnalysisVisits) 저장. 구 JSON은 null→th:if로 숨김. 신규 분석부터 표기. 검증: 메타주입 임시JSON으로 렌더 확인(삭제)+구 JSON 무필드 정상 렌더
 - **오답노트/북마크(`/notes`)**: AnalysisService.getUserMistakeNotes() — 내 기보 실수·악수 수를 집손해순 수집(상한200). MistakeNote DTO, AnalysisController `/notes`. notes.html: 카드(집손해·등급·색·수번·실제→최선·구간·기보명)+필터(전체/악수만/⭐북마크)+localStorage 북마크(`badukNoteBookmarks`, key=`gameId:turn`). result.html에 `?move=N` 딥링크 지원(init에서 우선). 전 페이지 topnav "오답노트" 링크 추가. 브라우저서 렌더·북마크 persist·딥링크(move=6→6수) 검증 완료
-- **실력 리포트 "반복 약점" 자동 코멘트**: AnalysisService.getUserWeaknesses() — 내 기보(non-pro) 전체를 구간·등급·집손해·수번으로 집계해 WeaknessInsight 리스트 생성(재분석 X). 코멘트: ①반복 약점 구간(최저 유사도, 2구간이면 비교/1구간이면 집중복기 안내) ②큰 실수(악수) 빈도+몰리는 구간 ③구간 집손해+구간별 팁 ④강점 격려. batch.html 상단 "📋 코칭 코멘트" 카드(severity high/mid/good 색상). AnalysisController + /api 배선. 서버 재기동 후 브라우저 렌더 검증 완료(현 데이터=초반만 있어 2건 표시). 주의: 구 등급 JSON은 악수 미집계
 
 ## 주의/미해결
 - 기존 저장 JSON 일부 구 등급(S/A/B/C/D) → 재분석해야 새 등급 반영.

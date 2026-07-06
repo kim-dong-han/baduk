@@ -43,7 +43,7 @@ public class AnalysisService {
     private List<AnalysisResponse> aggregate(boolean pro) {
         List<SingleGameResult> games;
         try {
-            games = singleGameService.listResults();   // 파일명 기준 최신 분석만(중복 제거)
+            games = singleGameService.listResultSummaries();   // 파일명 기준 최신 분석만(중복 제거)
             errorMessage = null;
         } catch (Exception e) {
             errorMessage = "분석 결과를 읽지 못했습니다: " + e.getMessage();
@@ -98,7 +98,7 @@ public class AnalysisService {
     public List<WeaknessInsight> getUserWeaknesses() {
         List<SingleGameResult> games;
         try {
-            games = singleGameService.listResults();
+            games = singleGameService.listResultSummaries();
         } catch (Exception e) {
             return List.of();
         }
@@ -218,7 +218,7 @@ public class AnalysisService {
     public List<MistakeNote> getUserMistakeNotes() {
         List<SingleGameResult> games;
         try {
-            games = singleGameService.listResults();
+            games = singleGameService.listResultSummaries();
         } catch (Exception e) {
             return List.of();
         }
@@ -266,7 +266,7 @@ public class AnalysisService {
     public List<GalleryItem> getGalleryItems() {
         List<SingleGameResult> games;
         try {
-            games = singleGameService.listResults();   // 파일명 기준 최신, 분석 최신순 정렬됨
+            games = singleGameService.listResultSummaries();   // 파일명 기준 최신, 분석 최신순 정렬됨
         } catch (Exception e) {
             return List.of();
         }
@@ -319,7 +319,7 @@ public class AnalysisService {
 
     private int countGames(boolean pro) {
         try {
-            return (int) singleGameService.listResults().stream()
+            return (int) singleGameService.listResultSummaries().stream()
                     .filter(g -> (g.getFileName() != null && g.getFileName().contains(PRO_MARKER)) == pro)
                     .count();
         } catch (Exception e) {

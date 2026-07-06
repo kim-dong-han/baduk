@@ -28,7 +28,7 @@ public class SingleGameViewController {
     public String index(Model model) throws Exception {
         model.addAttribute("files", singleGameService.listGameFiles());
         model.addAttribute("proFiles", singleGameService.listProGameFiles());
-        model.addAttribute("results", singleGameService.listResults());
+        model.addAttribute("results", singleGameService.listResultSummaries());
         model.addAttribute("resultMap", singleGameService.getResultMap());
         return "game/index";
     }

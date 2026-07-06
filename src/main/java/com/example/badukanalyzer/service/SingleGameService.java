@@ -6,6 +6,8 @@ import com.example.badukanalyzer.dto.SingleGameResult;
 import com.example.badukanalyzer.parser.GibParser;
 import com.example.badukanalyzer.parser.SgfParser;
 import com.example.badukanalyzer.util.CoordinateConverter;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -26,6 +28,18 @@ public class SingleGameService {
     private final KataGoService kataGoService;
     private final AnalysisJobStore jobStore;
     private final ObjectMapper objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+
+    /** 목록·집계 전용 경량 파서: 수당 무거운 필드(ownership·candidates·bestPv·topMoves)는 건너뛴다.
+     *  이 필드들은 상세 복기 페이지(getResult)에서만 쓰이므로 목록/리포트에는 불필요. */
+    @JsonIgnoreProperties({"ownership", "candidates", "bestPv", "topMoves"})
+    private abstract static class MoveDetailSummaryMixin {}
+    private final ObjectMapper summaryMapper = new ObjectMapper()
+            .addMixIn(MoveDetail.class, MoveDetailSummaryMixin.class)
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    // 목록 요약 캐시 (result-dir 상태 서명이 같으면 재파싱 생략)
+    private volatile List<SingleGameResult> cachedSummaries;
+    private volatile String cachedSig;
 
     @Value("${katago.record-dir}")
     private String recordDir;
@@ -123,11 +137,53 @@ public class SingleGameService {
 
         // 같은 기보를 재분석하면 결과 JSON이 누적됨 → 파일명 기준 최신 분석만 남김
         // (정렬이 최신순이므로 putIfAbsent가 가장 최근 분석을 보존)
+        return dedupeLatestByFile(results);
+    }
+
+    /**
+     * 목록·집계용 결과 요약. listResults()와 같은 내용이되 수당 무거운 필드를 생략하고,
+     * result-dir 상태가 그대로면 캐시를 재사용한다. 갤러리/실력리포트/오답노트/인덱스가 사용.
+     */
+    public List<SingleGameResult> listResultSummaries() {
+        File dir = new File(resultDir);
+        if (!dir.exists()) return List.of();
+        File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
+        if (files == null) return List.of();
+
+        String sig = dirSignature(files);
+        List<SingleGameResult> cached = cachedSummaries;
+        if (cached != null && sig.equals(cachedSig)) return cached;
+
+        List<SingleGameResult> results = new ArrayList<>();
+        for (File f : files) {
+            try {
+                results.add(summaryMapper.readValue(f, SingleGameResult.class));
+            } catch (Exception e) {
+                System.err.println("결과 요약 읽기 실패: " + f.getName());
+            }
+        }
+        results.sort(Comparator.comparing(SingleGameResult::getAnalyzedAt).reversed());
+        List<SingleGameResult> deduped = dedupeLatestByFile(results);
+
+        cachedSummaries = deduped;
+        cachedSig = sig;
+        return deduped;
+    }
+
+    // 같은 기보 재분석분 누적 → 파일명 기준 최신 분석만 남김 (입력은 최신순 정렬 가정)
+    private List<SingleGameResult> dedupeLatestByFile(List<SingleGameResult> results) {
         Map<String, SingleGameResult> latestByFile = new LinkedHashMap<>();
         for (SingleGameResult r : results) {
             latestByFile.putIfAbsent(r.getFileName(), r);
         }
         return new ArrayList<>(latestByFile.values());
+    }
+
+    // 파일 개수·이름·수정시각 기반 서명 — 새 분석/재저장/삭제 시 값이 바뀌어 캐시가 갱신됨
+    private String dirSignature(File[] files) {
+        long h = files.length;
+        for (File f : files) h = h * 31 + f.getName().hashCode() * 1315423911L + f.lastModified();
+        return files.length + ":" + h;
     }
 
     public SingleGameResult getResult(String id) throws Exception {
@@ -186,9 +242,9 @@ public class SingleGameService {
         return result;
     }
 
-    public Map<String, String> getResultMap() throws Exception {
+    public Map<String, String> getResultMap() {
         Map<String, String> map = new LinkedHashMap<>();
-        for (SingleGameResult r : listResults()) {
+        for (SingleGameResult r : listResultSummaries()) {
             map.putIfAbsent(r.getFileName(), r.getId());
         }
         return map;
@@ -340,6 +396,7 @@ public class SingleGameService {
         File dir = new File(resultDir);
         if (!dir.exists()) dir.mkdirs();
         objectMapper.writeValue(new File(resultDir + "/" + result.getId() + ".json"), result);
+        cachedSummaries = null;   // 새 결과 → 요약 캐시 무효화
         System.out.println("[SingleGame] 결과 저장: " + result.getId() + ".json");
     }
 
