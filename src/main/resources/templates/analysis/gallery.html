@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>샘플 기보 갤러리</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .gal-filters { display:flex; gap:8px; margin-bottom:18px; }
+        .gf-btn { border:1px solid #ddd; background:#fff; color:#666; font-size:13px; padding:6px 14px; border-radius:20px; cursor:pointer; }
+        .gf-btn.active { background:#4a90d9; color:#fff; border-color:#4a90d9; }
+
+        .gal-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px; }
+        .gal-card { background:#fff; border-radius:12px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.08); display:flex; flex-direction:column; gap:12px; text-decoration:none; color:inherit; transition:transform .12s, box-shadow .12s; border-top:4px solid #8e44ad; }
+        .gal-card.mine { border-top-color:#4a90d9; }
+        .gal-card:hover { transform:translateY(-3px); box-shadow:0 6px 18px rgba(0,0,0,0.13); }
+        .gal-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+        .gal-title { font-size:15px; font-weight:700; color:#333; line-height:1.35; word-break:break-word; }
+        .gal-tag { font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; white-space:nowrap; flex-shrink:0; }
+        .gal-tag.pro  { background:#f3e6fb; color:#8e44ad; }
+        .gal-tag.mine { background:#e8f1fb; color:#2471a3; }
+        .gal-meta { font-size:12px; color:#999; }
+        .gal-match-lbl { display:flex; justify-content:space-between; font-size:12px; color:#666; margin-bottom:4px; }
+        .gal-match-lbl b { color:#333; }
+        .gal-track { background:#eee; border-radius:99px; height:8px; overflow:hidden; }
+        .gal-fill { height:100%; border-radius:99px; background:#4a90d9; }
+        .gal-pills { display:flex; gap:6px; flex-wrap:wrap; }
+        .gal-pill { font-size:11px; padding:2px 8px; border-radius:6px; background:#f2f4f7; color:#555; }
+        .gal-pill.good { background:#eafaf1; color:#1e8449; }
+        .gal-pill.warn { background:#fef5e7; color:#b7770d; }
+        .gal-pill.bad  { background:#fdecea; color:#c0392b; }
+        .gal-foot { font-size:12px; color:#8e44ad; font-weight:600; margin-top:auto; }
+        .gal-card.mine .gal-foot { color:#2471a3; }
+        .empty { color:#aaa; text-align:center; padding:50px; background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
+    </style>
+</head>
+<body>
+    <nav class="topnav">
+        <div class="topnav-inner">
+            <a class="brand" href="/analysis/batch">⚫ 바둑 분석</a>
+            <div class="topnav-links">
+                <a href="/analysis/batch">실력 리포트</a>
+                <a href="/notes">오답노트</a>
+                <a href="/gallery" class="active">갤러리</a>
+                <a href="/game">기보 복기</a>
+                <a href="/play">AI 대국</a>
+                <a href="/about">소개</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="page narrow">
+    <h1>샘플 기보 갤러리</h1>
+    <p class="subtitle">KataGo로 분석한 기보 모음이에요. 카드를 누르면 상세 복기로 이동합니다.</p>
+
+    <div class="gal-filters" th:if="${not #lists.isEmpty(items)}">
+        <button class="gf-btn active" data-f="all" onclick="galFilter(this)">전체</button>
+        <button class="gf-btn" data-f="pro" onclick="galFilter(this)">프로 기보</button>
+        <button class="gf-btn" data-f="mine" onclick="galFilter(this)">내 기보</button>
+    </div>
+
+    <p th:if="${#lists.isEmpty(items)}" class="empty">아직 분석된 기보가 없어요. 기보를 복기하면 여기에 모입니다.</p>
+
+    <div class="gal-grid" id="galGrid">
+        <a th:each="it : ${items}"
+           th:href="'/game/result/' + ${it.id}"
+           th:classappend="${it.pro ? '' : 'mine'}"
+           class="gal-card" th:attr="data-pro=${it.pro}">
+            <div class="gal-top">
+                <div class="gal-title" th:text="${it.title}">제목</div>
+                <span th:class="${it.pro ? 'gal-tag pro' : 'gal-tag mine'}" th:text="${it.pro ? '프로' : '내 기보'}">태그</span>
+            </div>
+            <div class="gal-meta">
+                <span th:text="${it.dateText}"></span> · <span th:text="${it.totalMoves} + '수'"></span>
+            </div>
+            <div>
+                <div class="gal-match-lbl"><span>전체 AI 유사도</span><b th:text="${it.matchRate} + '%'"></b></div>
+                <div class="gal-track"><div class="gal-fill" th:style="'width:' + ${it.matchRate} + '%'"></div></div>
+            </div>
+            <div class="gal-pills">
+                <span th:if="${it.openingLoss > 0 or it.middleLoss > 0 or it.endgameLoss > 0}"
+                      th:class="${it.openingLoss < 1.5 ? 'gal-pill good' : (it.openingLoss < 3 ? 'gal-pill warn' : 'gal-pill bad')}"
+                      th:text="'초반 ' + ${it.openingLoss} + '집'"></span>
+                <span th:if="${it.middleLoss > 0}"
+                      th:class="${it.middleLoss < 1.5 ? 'gal-pill good' : (it.middleLoss < 3 ? 'gal-pill warn' : 'gal-pill bad')}"
+                      th:text="'중반 ' + ${it.middleLoss} + '집'"></span>
+                <span th:if="${it.endgameLoss > 0}"
+                      th:class="${it.endgameLoss < 1.5 ? 'gal-pill good' : (it.endgameLoss < 3 ? 'gal-pill warn' : 'gal-pill bad')}"
+                      th:text="'종반 ' + ${it.endgameLoss} + '집'"></span>
+            </div>
+            <div class="gal-foot">복기 보기 →</div>
+        </a>
+    </div>
+    </div>
+
+    <script>
+    function galFilter(btn) {
+        document.querySelectorAll('.gf-btn').forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        const f = btn.dataset.f;
+        document.querySelectorAll('.gal-card').forEach(function(c){
+            const isPro = c.dataset.pro === 'true';
+            const show = f === 'all' || (f === 'pro' && isPro) || (f === 'mine' && !isPro);
+            c.style.display = show ? '' : 'none';
+        });
+    }
+    </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 package com.example.badukanalyzer.service;
 
 import com.example.badukanalyzer.dto.AnalysisResponse;
+import com.example.badukanalyzer.dto.GalleryItem;
 import com.example.badukanalyzer.dto.MistakeNote;
 import com.example.badukanalyzer.dto.MoveDetail;
 import com.example.badukanalyzer.dto.SingleGameResult;
@@ -256,6 +257,64 @@ public class AnalysisService {
             case "종반" -> "끝내기 크기 비교·사활 마무리 연습이 도움돼요.";
             default -> "해당 구간 복기를 추천해요.";
         };
+    }
+
+    /**
+     * 샘플 기보 갤러리 — 저장된 모든 복기 결과를 카드용 요약으로 변환.
+     * 프로 기보 먼저, 그 안에서 분석 최신순.
+     */
+    public List<GalleryItem> getGalleryItems() {
+        List<SingleGameResult> games;
+        try {
+            games = singleGameService.listResults();   // 파일명 기준 최신, 분석 최신순 정렬됨
+        } catch (Exception e) {
+            return List.of();
+        }
+
+        List<GalleryItem> pro = new ArrayList<>();
+        List<GalleryItem> mine = new ArrayList<>();
+        for (SingleGameResult g : games) {
+            if (g.getMoves() == null || g.getMoves().isEmpty()) continue;
+            boolean isPro = g.getFileName() != null && g.getFileName().contains(PRO_MARKER);
+
+            // 전체 AI 유사도 = 구간 일치율의 수 가중 평균, 최고/최저 구간
+            double mSum = 0; int cSum = 0;
+            String bestPhase = null, worstPhase = null; double bestM = -1, worstM = 101;
+            SingleGameResult.PhaseStats[] ps = { g.getOpening(), g.getMiddle(), g.getEndgame() };
+            for (SingleGameResult.PhaseStats p : ps) {
+                if (p == null || p.getMoveCount() == 0) continue;
+                mSum += p.getMatchRate() * p.getMoveCount();
+                cSum += p.getMoveCount();
+                if (p.getMatchRate() > bestM)  { bestM = p.getMatchRate();  bestPhase = p.getPhase(); }
+                if (p.getMatchRate() < worstM) { worstM = p.getMatchRate(); worstPhase = p.getPhase(); }
+            }
+            double matchRate = cSum > 0 ? round1(mSum / cSum) : 0;
+
+            GalleryItem item = GalleryItem.builder()
+                    .id(g.getId())
+                    .title(galleryTitle(g, isPro))
+                    .pro(isPro)
+                    .dateText(g.getAnalyzedAt() != null && g.getAnalyzedAt().length() >= 10
+                            ? g.getAnalyzedAt().substring(0, 10) : "")
+                    .totalMoves(g.getTotalMoves())
+                    .matchRate(matchRate)
+                    .openingLoss(g.getOpening() != null ? g.getOpening().getAvgScoreLoss() : 0)
+                    .middleLoss(g.getMiddle()  != null ? g.getMiddle().getAvgScoreLoss()  : 0)
+                    .endgameLoss(g.getEndgame() != null ? g.getEndgame().getAvgScoreLoss() : 0)
+                    .bestPhase(bestPhase)
+                    .worstPhase(worstPhase)
+                    .build();
+            (isPro ? pro : mine).add(item);
+        }
+        pro.addAll(mine);   // 프로 먼저
+        return pro;
+    }
+
+    private String galleryTitle(SingleGameResult g, boolean isPro) {
+        String b = g.getBlackPlayer(), w = g.getWhitePlayer();
+        if (b != null && !b.isBlank() && w != null && !w.isBlank()) return b + " vs " + w;
+        String f = g.getFileName() == null ? "기보" : g.getFileName();
+        return f.replaceFirst("(?i)\\.(gib|sgf)$", "");
     }
 
     private int countGames(boolean pro) {

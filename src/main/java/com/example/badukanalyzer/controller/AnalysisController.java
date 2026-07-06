@@ -39,6 +39,12 @@ public class AnalysisController {
         return "analysis/notes";
     }
 
+    @GetMapping("/gallery")
+    public String gallery(Model model) {
+        model.addAttribute("items", analysisService.getGalleryItems());
+        return "analysis/gallery";
+    }
+
     @GetMapping("/analysis/batch/api")
     @ResponseBody
     public Map<String, Object> analyzeBatchApi() {
