@@ -64,6 +64,19 @@
         .empty { color: #aaa; text-align: center; padding: 40px; }
         .refresh-link { font-size: 13px; color: #4a90d9; text-decoration: none; }
         .tygem-notice { background:#fff; border-radius:8px; padding:14px 20px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:4px solid #4a90d9; font-size:13px; color:#555; }
+
+        /* 반복 약점 코칭 코멘트 */
+        .coach-box { background:#fff; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left:5px solid #4a90d9; }
+        .coach-box h2 { font-size:17px; margin:0 0 4px; color:#333; }
+        .coach-sub { font-size:12px; color:#999; margin:0 0 14px; }
+        .coach-list { display:flex; flex-direction:column; gap:10px; }
+        .coach-item { display:flex; gap:12px; align-items:flex-start; padding:12px 14px; border-radius:10px; background:#f8f9fb; }
+        .coach-item.high { background:#fdecea; }
+        .coach-item.mid  { background:#fef5e7; }
+        .coach-item.good { background:#eafaf1; }
+        .coach-icon { font-size:20px; line-height:1.2; flex-shrink:0; }
+        .coach-title { font-weight:700; font-size:14px; color:#333; margin-bottom:2px; }
+        .coach-detail { font-size:13px; color:#555; line-height:1.5; }
     </style>
 </head>
 <body>
@@ -101,8 +114,10 @@
         const userWinrateTrend = /*[[${userWinrateTrend}]]*/ null;
         const userGameCount = /*[[${userGameCount}]]*/ 0;
         const proGameCount  = /*[[${proGameCount}]]*/ 0;
+        const userWeaknesses = /*[[${userWeaknesses}]]*/ [];
     </script>
 
+    <div id="weakness-root"></div>
     <div id="user-root"></div>
     <div id="pro-root"></div>
 
@@ -288,6 +303,23 @@
             });
         }
 
+        function renderWeaknesses(list) {
+            const root = document.getElementById('weakness-root');
+            if (!root || !list || list.length === 0) return;
+            const items = list.map(function(w) {
+                return '<div class="coach-item ' + (w.severity || '') + '">'
+                     + '<div class="coach-icon">' + w.icon + '</div>'
+                     + '<div><div class="coach-title">' + w.title + '</div>'
+                     + '<div class="coach-detail">' + w.detail + '</div></div>'
+                     + '</div>';
+            }).join('');
+            root.innerHTML = '<div class="coach-box">'
+                + '<h2>📋 코칭 코멘트</h2>'
+                + '<p class="coach-sub">내 기보 여러 판을 모아 찾은 반복 패턴이에요. 자동 생성된 참고용 코멘트입니다.</p>'
+                + '<div class="coach-list">' + items + '</div></div>';
+        }
+
+        renderWeaknesses(userWeaknesses);
         renderAnalysis(userResultsData, 'user-root', '내 기보 분석',          '#4a90d9', userGameCount);
         renderAnalysis(proResultsData,  'pro-root',  '신진서 프로 기보 분석', '#8e44ad', proGameCount);
         initCharts();

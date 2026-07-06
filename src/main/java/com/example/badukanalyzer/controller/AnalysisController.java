@@ -25,6 +25,7 @@ public class AnalysisController {
         model.addAttribute("proResults", analysisService.getProResults());
         model.addAttribute("userGameCount", analysisService.getUserGameCount());
         model.addAttribute("proGameCount", analysisService.getProGameCount());
+        model.addAttribute("userWeaknesses", analysisService.getUserWeaknesses());
         model.addAttribute("proWinrateTrend", analysisService.getProWinrateTrend());
         model.addAttribute("userWinrateTrend", analysisService.getUserWinrateTrend());
         model.addAttribute("error", analysisService.getErrorMessage());
@@ -38,6 +39,7 @@ public class AnalysisController {
         Map<String, Object> map = new java.util.HashMap<>();
         map.put("userResults", analysisService.getUserResults());
         map.put("proResults", analysisService.getProResults());
+        map.put("userWeaknesses", analysisService.getUserWeaknesses());
         map.put("proWinrateTrend", analysisService.getProWinrateTrend());
         map.put("userWinrateTrend", analysisService.getUserWinrateTrend());
         map.put("error", analysisService.getErrorMessage());

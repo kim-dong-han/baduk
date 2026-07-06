@@ -11,26 +11,19 @@
 - 초점: **세부 페이지 콘텐츠 고도화**.
 
 ## 예정 / 후보 (페이지 콘텐츠, 우선순위 ⭐)
-- 실력 리포트 "반복 약점" 자동 코멘트, 오답노트/북마크
+- 실력 리포트 오답노트/북마크 (반복 약점 자동 코멘트는 완료)
 - 분석 메타 패널(net·visits·소요시간·수), 샘플 기보 갤러리(정적 데모 결합)
 - **면접용 정적 데모**: 결과 뷰어+실력 리포트만 정적 배포(GitHub Pages)
 - `.card` box-shadow 통합은 HTML 공용 클래스 필요해 보수적 보류 유지
 
 ## 최근 완료 (최신순, 5건 유지)
+- **실력 리포트 "반복 약점" 자동 코멘트**: AnalysisService.getUserWeaknesses() — 내 기보(non-pro) 전체를 구간·등급·집손해·수번으로 집계해 WeaknessInsight 리스트 생성(재분석 X). 코멘트: ①반복 약점 구간(최저 유사도, 2구간이면 비교/1구간이면 집중복기 안내) ②큰 실수(악수) 빈도+몰리는 구간 ③구간 집손해+구간별 팁 ④강점 격려. batch.html 상단 "📋 코칭 코멘트" 카드(severity high/mid/good 색상). AnalysisController + /api 배선. 서버 재기동 후 브라우저 렌더 검증 완료(현 데이터=초반만 있어 2건 표시). 주의: 구 등급 JSON은 악수 미집계
 - **내 수 vs 최선수 나란히 비교**: result.html 모달(`나란히 비교` 버튼, 최선수와 다를 때만 활성). 같은 직전 국면에서 좌=실제 진행(내 수+이후 실착 6수), 우=bestPv를 두 판에 유령돌로 나란히. 각 판 흑승률·예상형세(우측은 candidates[0], 없으면 winrateBefore)·PV텍스트·손해 요약. drawPvSequence 재사용, ESC/배경클릭 닫기. 기존 저장 JSON으로 브라우저 렌더·버튼 disable·닫기 검증 완료
 - 후보수(①②③) hover 상세: MoveDetail.candidates(move·winrate·scoreLead·pv 상위3) 추가 → result.html에서 마커 hover 시 그 수의 예상 진행을 유령돌로, 승률·형세를 툴팁으로 표시(drawPvSequence로 변화도 로직 재사용). 재분석 필요. 로컬 재분석으로 hover·원복 검증 완료
 - ⭐ About/기술 페이지(`/about`) + README.md: 히어로·기능카드·아키텍처 다이어그램·스택·직접구현 하이라이트·설계결정. 전 페이지 topnav에 "소개" 링크 추가(result.html은 AI 대국 링크도 누락됐어 함께 보강). README는 스크린샷 `<details>`로 배선, 이미지는 `docs/images/` 가이드대로 추가 필요. About 페이지 렌더 검증 완료
 - `/api/play/pass` 엔드포인트 추가 — 패스 버튼이 404였던 기존 버그 수정(playUserMove("pass") 위임, 2연속 패스 종료). curl 검증 완료
 - ⭐ "이 수부터 AI와 다시 두기": result 버튼→선택 수 직전 국면을 sessionStorage로 `/play` 이관(`POST /api/play/from`가 PlayService.history 시드). **부수 수정**: 차례 판정을 수순 파리티→마지막 수 반대색(`sideToMove`/`currentColor`)으로 변경해 백선착·접바둑·이어두기 국면 대응(일반 흑선착 회귀 없음). 백선착 실제 기보로 전체 흐름(시드→백 착수→AI 응수) 검증 완료. 참고: `/api/play/pass` 엔드포인트 부재(패스 버튼 미동작)는 기존 이슈로 잔존
 - ⭐ AI 집(영역) 히트맵: 쿼리에 `includeOwnership:true` → MoveDetail.ownership(361, 착점후 국면) 저장 → result.html "집예측" 토글로 반투명 오버레이(+흑/−백, reportAnalysisWinratesAs=BLACK). 재분석 필요. 로컬 재분석 1판으로 방향·부호 검증 완료. 주의: ownership로 결과 JSON 커짐(200수 ~0.6-1MB) → listResults 인덱스 로드 다소 무거워질 수 있음(추후 lazy-load 최적화 후보)
-- 사활 바둑 기본규칙(따냄/착수금지) + waiting 무한로딩 수정(UNKNOWN 처리·즉시폴링·pageshow)
-- 사활 문제 60개(쉬움/보통/어려움 각 20) 추가: d180cf SGF→KataGo 정답검증→난이도 3등분. 파서 보드크기(SZ) 지원
-- 사활 위젯 "다음 문제" 버그 수정 + 난이도 선택(쉬움/보통/어려움) (a92f4a1)
-- 사활(Tsumego) 위젯: 대기 중 랜덤 문제 풀이, `/api/tsumego/*` + `resources/tsumego/*.sgf` (원격 병합)
-- 파일 목록 인라인 진행바 + 최선수 변화도(bestPv) (836fd5c)
-- 분석 대기 페이지 실시간 진행률 % 표시 (ed1da4b)
-- 한글 파일명 redirect UnmappableCharacterException 수정 (e836128)
-- 원격/로컬 히스토리 분기 → rebase로 정리, 동기화 완료
 
 ## 주의/미해결
 - 기존 저장 JSON 일부 구 등급(S/A/B/C/D) → 재분석해야 새 등급 반영.
