@@ -15,7 +15,6 @@ import java.util.List;
  */
 @Service
 public class AnalysisService {
-
     private static final String[] PHASES = {"초반", "중반", "종반"};
     private static final String PRO_MARKER = "신진서 vs";
 

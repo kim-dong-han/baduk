@@ -193,6 +193,23 @@
         .g-보통 { background: #fdf3d7; color: #b7770d; }
         .g-실수 { background: #fde3cf; color: #d35400; }
         .g-악수 { background: #fadbd8; color: #c0392b; }
+        /* 나란히 비교 모달 */
+        .cmp-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: rgba(20,20,35,0.72); align-items: center; justify-content: center; padding: 20px; }
+        .cmp-box { background: #fff; border-radius: 14px; max-width: 1120px; width: 100%; max-height: 94vh; overflow-y: auto; padding: 22px 24px 26px; box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+        .cmp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .cmp-head h3 { margin: 0; font-size: 18px; color: #222; }
+        .cmp-close { border: none; background: #f0f0f0; width: 32px; height: 32px; border-radius: 8px; font-size: 18px; cursor: pointer; color: #555; }
+        .cmp-close:hover { background: #e2e2e2; }
+        .cmp-diff { text-align: center; font-size: 14px; color: #555; margin: 6px 0 14px; }
+        .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .cmp-panel { display: flex; flex-direction: column; align-items: center; }
+        .cmp-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; padding: 5px 12px; border-radius: 20px; }
+        .cmp-title.mine { background: #fdecea; color: #c0392b; }
+        .cmp-title.best { background: #eaf2fb; color: #2471a3; }
+        .cmp-panel canvas { width: 100%; max-width: 460px; height: auto; border-radius: 8px; }
+        .cmp-stat { margin-top: 10px; font-size: 14px; color: #333; }
+        .cmp-pv { margin-top: 6px; font-size: 12px; color: #888; text-align: center; max-width: 460px; }
+        @media (max-width: 760px) { .cmp-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -331,6 +348,7 @@
             <button class="nav-btn sm" onclick="jumpToInput()">이동</button>
             <button class="nav-btn sm" id="btnSeq" onclick="toggleSequence()">수순</button>
             <button class="nav-btn sm" id="btnVar" onclick="toggleVariation()" title="최선수를 뒀을 때의 예상 진행">변화도</button>
+            <button class="nav-btn sm" id="btnCmp" onclick="openCompare()" title="내가 둔 수와 AI 최선수의 이후 진행을 나란히 비교">나란히 비교</button>
             <button class="nav-btn sm" id="btnTerr" onclick="toggleOwnership()" title="AI가 예측한 집(영역)">집예측</button>
         </div>
 
@@ -341,6 +359,31 @@
                 style="width:100%;margin-top:12px;padding:11px;border:none;border-radius:10px;background:#2ecc71;color:#fff;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(46,204,113,0.35);">
             ▶ 이 수부터 AI와 다시 두기
         </button>
+    </div>
+
+    <!-- ══ 내 수 vs 최선수 나란히 비교 모달 ══ -->
+    <div class="cmp-overlay" id="compareModal">
+        <div class="cmp-box">
+            <div class="cmp-head">
+                <h3 id="cmpHeading">이 수 비교</h3>
+                <button class="cmp-close" onclick="closeCompare()" title="닫기">✕</button>
+            </div>
+            <div class="cmp-diff" id="cmpDiff"></div>
+            <div class="cmp-grid">
+                <div class="cmp-panel">
+                    <div class="cmp-title mine" id="cmpTitleL">내가 둔 수</div>
+                    <canvas id="cmpCanvasL"></canvas>
+                    <div class="cmp-stat" id="cmpStatL"></div>
+                    <div class="cmp-pv" id="cmpPvL"></div>
+                </div>
+                <div class="cmp-panel">
+                    <div class="cmp-title best" id="cmpTitleR">AI 최선수</div>
+                    <canvas id="cmpCanvasR"></canvas>
+                    <div class="cmp-stat" id="cmpStatR"></div>
+                    <div class="cmp-pv" id="cmpPvR"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ══ AI 착수 통계 (위) + 핵심 실수 (아래) ══ -->
@@ -752,6 +795,7 @@ function showMove(idx) {
     document.getElementById('btnNext').disabled  = idx === moves.length - 1;
     document.getElementById('btnNext5').disabled = idx === moves.length - 1;
     document.getElementById('btnLast').disabled  = idx === moves.length - 1;
+    document.getElementById('btnCmp').disabled = !(cur.bestMove && cur.move !== cur.bestMove);
 
     const lossColor = cur.scoreLoss >= 5 ? '#e74c3c' : cur.scoreLoss >= 3 ? '#e67e22' : cur.scoreLoss <= 0 ? '#2ecc71' : '#555';
     const lossText  = cur.scoreLoss > 0 ? `-${cur.scoreLoss}집` : cur.scoreLoss < 0 ? `+${Math.abs(cur.scoreLoss)}집 (득점)` : '0집';
@@ -835,6 +879,51 @@ function toggleOwnership() {
     document.getElementById('btnTerr').classList.toggle('active', showOwnership);
     if (currentIdx >= 0) showMove(currentIdx);
 }
+
+/* ── 내 수 vs 최선수 나란히 비교 ──
+   같은 직전 국면에서, 실제 대국 진행(내 수 이후)과 AI 최선수 예상 진행을 두 판에 나란히 그린다. */
+function drawCompareBoard(canvasEl, pv) {
+    canvasEl.width = BOARD_PX; canvasEl.height = BOARD_PX;
+    const ctx = canvasEl.getContext('2d');
+    drawBoard(ctx);
+    const base = buildBoardState(currentIdx - 1);
+    const prevG = currentIdx > 0 ? gtpToGrid(moves[currentIdx - 1].move) : null;
+    for (let x = 0; x < 19; x++)
+        for (let y = 0; y < 19; y++)
+            if (base[x][y]) drawStone(ctx, x, y, base[x][y], prevG && x === prevG.x && y === prevG.y);
+    drawPvSequence(ctx, base, moves[currentIdx].color, pv);
+}
+function cmpStat(wr, score) {
+    const w = (Math.max(0, Math.min(1, wr)) * 100).toFixed(1);
+    const s = score >= 0 ? `흑 +${score.toFixed(1)}집` : `백 +${Math.abs(score).toFixed(1)}집`;
+    return `흑 승률 <b>${w}%</b> · 예상 형세 <b>${s}</b>`;
+}
+function openCompare() {
+    if (currentIdx < 0) return;
+    const cur = moves[currentIdx];
+    if (!cur.bestMove || cur.move === cur.bestMove) return;  // 최선수와 같으면 비교 불필요
+
+    const actualPv = moves.slice(currentIdx, currentIdx + 6).map(m => m.move);  // 내 수 + 실제 진행
+    const bestPv   = (cur.bestPv && cur.bestPv.length) ? cur.bestPv : [cur.bestMove];
+    drawCompareBoard(document.getElementById('cmpCanvasL'), actualPv);
+    drawCompareBoard(document.getElementById('cmpCanvasR'), bestPv);
+
+    const best = (cur.candidates && cur.candidates.length) ? cur.candidates[0] : null;
+    const bWr  = best ? best.winrate   : cur.winrateBefore;
+    const bScr = best ? best.scoreLead : cur.scoreLeadBefore;
+    document.getElementById('cmpHeading').textContent = `${cur.turnNumber}수 비교 (${cur.color === 'B' ? '흑' : '백'})`;
+    document.getElementById('cmpTitleL').textContent = `내가 둔 수 · ${cur.move}`;
+    document.getElementById('cmpTitleR').textContent = `AI 최선수 · ${cur.bestMove}`;
+    document.getElementById('cmpStatL').innerHTML = cmpStat(cur.winrateAfter, cur.scoreLeadAfter);
+    document.getElementById('cmpStatR').innerHTML = cmpStat(bWr, bScr);
+    document.getElementById('cmpPvL').textContent = '이후 실제 진행: ' + actualPv.slice(0, 6).join(' → ');
+    document.getElementById('cmpPvR').textContent = '예상 진행: ' + bestPv.slice(0, 6).join(' → ');
+    document.getElementById('cmpDiff').textContent = cur.scoreLoss > 0
+        ? `이 수로 최선수 대비 약 ${cur.scoreLoss.toFixed(1)}집을 손해봤어요.`
+        : '최선수에 가까운 좋은 수였어요.';
+    document.getElementById('compareModal').style.display = 'flex';
+}
+function closeCompare() { document.getElementById('compareModal').style.display = 'none'; }
 
 /* ── 이 수부터 AI와 다시 두기: 선택 수 직전 국면을 /play로 넘겨 이어 두기 ──
    유저는 그 수를 둔 쪽을 잡아, 그 자리에서 다른 수를 시도할 수 있다. */
@@ -1126,6 +1215,10 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? skipMove(5)  : nextMove(); }
     if (e.key === 'Home')       { e.preventDefault(); showMove(0); }
     if (e.key === 'End')        { e.preventDefault(); showMove(moves.length - 1); }
+    if (e.key === 'Escape')     { closeCompare(); }
+});
+document.getElementById('compareModal').addEventListener('click', e => {
+    if (e.target.id === 'compareModal') closeCompare();  // 배경 클릭 시 닫기
 });
 </script>
 </div>
