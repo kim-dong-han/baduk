@@ -219,6 +219,7 @@
         <a class="brand" href="/analysis/batch">⚫ 바둑 분석</a>
         <div class="topnav-links">
             <a href="/analysis/batch">실력 리포트</a>
+            <a href="/notes">오답노트</a>
             <a href="/game" class="active">기보 복기</a>
             <a href="/play">AI 대국</a>
             <a href="/about">소개</a>
@@ -1198,7 +1199,10 @@ window.addEventListener('resize', syncSideHeight);
 /* ── 초기 표시 ── */
 document.addEventListener('DOMContentLoaded', () => {
     if (moves.length > 0) {
-        const initIdx = keyMistakes.length > 0 ? (keyMistakes[0].turnNumber - 1) : 0;
+        // 오답노트 등에서 ?move=N 으로 딥링크하면 그 수번으로 바로 이동
+        const qMove = parseInt(new URLSearchParams(location.search).get('move'));
+        let initIdx = (!isNaN(qMove) && qMove >= 1 && qMove <= moves.length) ? qMove - 1
+                    : (keyMistakes.length > 0 ? keyMistakes[0].turnNumber - 1 : 0);
         showMove(initIdx >= 0 ? initIdx : 0);
     }
     syncSideHeight();

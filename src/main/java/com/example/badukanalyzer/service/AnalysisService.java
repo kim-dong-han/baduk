@@ -1,12 +1,14 @@
 package com.example.badukanalyzer.service;
 
 import com.example.badukanalyzer.dto.AnalysisResponse;
+import com.example.badukanalyzer.dto.MistakeNote;
 import com.example.badukanalyzer.dto.MoveDetail;
 import com.example.badukanalyzer.dto.SingleGameResult;
 import com.example.badukanalyzer.dto.WeaknessInsight;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -206,6 +208,45 @@ public class AnalysisService {
                     .build());
         }
         return out;
+    }
+
+    /**
+     * 오답노트 — 내 기보(non-pro) 전체에서 실수·악수로 분류된 수를 모아 집손해 큰 순으로 반환.
+     * 재분석 없이 저장된 결과만 사용. 과도한 양 방지를 위해 상한(200) 적용.
+     */
+    public List<MistakeNote> getUserMistakeNotes() {
+        List<SingleGameResult> games;
+        try {
+            games = singleGameService.listResults();
+        } catch (Exception e) {
+            return List.of();
+        }
+
+        List<MistakeNote> notes = new ArrayList<>();
+        for (SingleGameResult g : games) {
+            boolean isPro = g.getFileName() != null && g.getFileName().contains(PRO_MARKER);
+            if (isPro || g.getMoves() == null) continue;
+            for (MoveDetail m : g.getMoves()) {
+                String grade = m.getGrade() == null ? "" : m.getGrade();
+                if (!"실수".equals(grade) && !"악수".equals(grade)) continue;
+                notes.add(MistakeNote.builder()
+                        .gameId(g.getId())
+                        .fileName(g.getFileName())
+                        .blackPlayer(g.getBlackPlayer())
+                        .whitePlayer(g.getWhitePlayer())
+                        .analyzedAt(g.getAnalyzedAt())
+                        .turnNumber(m.getTurnNumber())
+                        .color(m.getColor())
+                        .move(m.getMove())
+                        .bestMove(m.getBestMove())
+                        .grade(grade)
+                        .scoreLoss(round1(Math.max(0, m.getScoreLoss())))
+                        .phase(m.getPhase())
+                        .build());
+            }
+        }
+        notes.sort(Comparator.comparingDouble(MistakeNote::getScoreLoss).reversed());
+        return notes.size() > 200 ? notes.subList(0, 200) : notes;
     }
 
     private String phaseTip(String phase) {

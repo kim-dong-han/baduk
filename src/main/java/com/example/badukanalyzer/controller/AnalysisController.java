@@ -33,6 +33,12 @@ public class AnalysisController {
         return "analysis/batch";
     }
 
+    @GetMapping("/notes")
+    public String mistakeNotes(Model model) {
+        model.addAttribute("notes", analysisService.getUserMistakeNotes());
+        return "analysis/notes";
+    }
+
     @GetMapping("/analysis/batch/api")
     @ResponseBody
     public Map<String, Object> analyzeBatchApi() {
