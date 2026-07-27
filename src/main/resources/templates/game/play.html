@@ -89,6 +89,8 @@
         .btn-secondary:hover:not(:disabled) { background: #e4e8ec; }
         .btn-danger   { background: #fadbd8; color: #c0392b; }
         .btn-danger:hover:not(:disabled)  { background: #f1948a; color: #fff; }
+        .btn-hint     { background: #f1c40f; color: #5b4a06; }
+        .btn-hint:hover:not(:disabled)    { background: #e6b800; }
 
         .btn-group { display: flex; flex-direction: column; gap: 8px; }
         .divider { border: none; border-top: 1px solid #eee; margin: 4px 0; }
@@ -195,6 +197,7 @@
 
             <!-- 액션 버튼 -->
             <div class="btn-group">
+                <button class="panel-btn btn-hint" id="btnHint" onclick="requestHint()" title="지금 둘 곳 중 AI가 추천하는 최선수를 바둑판에 반짝여 알려줍니다">💡 최선수 힌트</button>
                 <button class="panel-btn btn-secondary" id="btnPass"   onclick="passMove()">패스</button>
                 <button class="panel-btn btn-secondary" id="btnUndo"   onclick="undoMove()">무르기 (2수)</button>
                 <button class="panel-btn btn-danger"    id="btnResign" onclick="resignGame()">불계패</button>
@@ -257,6 +260,8 @@ let blackCaptures = 0;
 let whiteCaptures = 0;
 let hoverCell     = null;
 let lastAiMove    = null;
+let hintCell      = null;  // 최선수 힌트 위치(grid) — 좌표 대신 판에 반짝임으로 표시
+let hintRaf       = null;  // 힌트 펄스 애니메이션 프레임
 
 // 다음 착수 색 = 마지막 수의 반대 (빈 판이면 흑). 백선착·이어두기 국면 대응
 function sideToMove() {
@@ -426,6 +431,26 @@ function drawHover(gx, gy, color) {
     if (color === 'W') { ctx.strokeStyle = '#999'; ctx.lineWidth = 0.8; ctx.stroke(); }
     ctx.restore();
 }
+/* 최선수 힌트: 좌표 대신 판 위 그 자리에 금색 펄스 링 + 중심점 (시간 t로 맥동) */
+function drawHintMarker(t) {
+    if (!hintCell) return;
+    const cx = px(hintCell.x), cy = py(hintCell.y);
+    const phase = (t % 1200) / 1200;                   // 0..1 반복
+    const wave  = 0.5 + 0.5 * Math.sin(phase * Math.PI * 2);
+    const r     = CELL * (0.34 + 0.22 * wave);
+    ctx.save();
+    // 바깥으로 퍼지는 펄스 링
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(241,196,15,${(0.35 + 0.55 * wave).toFixed(2)})`;
+    ctx.lineWidth = Math.max(2, CELL * 0.09);
+    ctx.stroke();
+    // 중심 금색 점
+    ctx.beginPath(); ctx.arc(cx, cy, CELL * 0.15, 0, Math.PI * 2);
+    ctx.fillStyle = '#f1c40f';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(120,80,0,0.6)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+}
 function redraw() {
     drawBoard();
     const board = buildBoard();
@@ -442,6 +467,9 @@ function redraw() {
             drawHover(hoverCell.x, hoverCell.y, nextColor);
         }
     }
+
+    // 최선수 힌트 마커 (활성 시)
+    if (hintCell) drawHintMarker(performance.now());
 
     // UI 갱신
     document.getElementById('blackCaptures').textContent = blackCaptures;
@@ -491,12 +519,14 @@ function updateTurnUI() {
     tc.className = 'info-card turn-card ' + (isUser ? 'your-turn' : 'ai-turn');
     const colorLabel = nextColor === 'B' ? '⚫ 흑' : '⚪ 백';
     txt.textContent  = colorLabel + (isUser ? ' (내 차례)' : ' (AI)');
+    const bh = document.getElementById('btnHint');
+    if (bh && !waitingForAI) bh.disabled = !isUser;   // 내 차례에만 힌트 가능
 }
 function setWaiting(on) {
     waitingForAI = on;
     canvas.className = on ? 'waiting' : '';
     document.getElementById('thinkingCard').style.display = on ? '' : 'none';
-    ['btnPass','btnUndo','btnResign'].forEach(id => {
+    ['btnPass','btnUndo','btnResign','btnHint'].forEach(id => {
         document.getElementById(id).disabled = on;
     });
 }
@@ -563,6 +593,7 @@ function startGame(color) {
 }
 
 function sendMove(gtp) {
+    clearHint();
     setWaiting(true); hoverCell = null;
     history.push({color: userColor, gtp});
     updateTurnUI(); redraw();
@@ -594,6 +625,7 @@ function sendMove(gtp) {
 
 function passMove() {
     if (waitingForAI || isOver) return;
+    clearHint();
     setWaiting(true); hoverCell = null;
     const color = sideToMove();
     history.push({color, gtp: 'pass'});
@@ -631,6 +663,7 @@ function undoMove() {
         if (!data.ok) return;
         history = data.history.map(h => ({color: h.color, gtp: h.gtp}));
         isOver = false;
+        clearHint();
         document.getElementById('aiLastCard').style.display = 'none';
         updateTurnUI(); redraw();
     });
@@ -643,12 +676,54 @@ function resignGame() {
 }
 
 function resetToSetup() {
+    clearHint();
     gameStarted = false; isOver = false; waitingForAI = false;
     history = []; blackCaptures = 0; whiteCaptures = 0; hoverCell = null; lastAiMove = null;
     document.querySelector('.panel-sub').textContent = 'KataGo AI와 실시간 대국';
     document.getElementById('setupSection').style.display    = '';
     document.getElementById('gameSection').style.display     = 'none';
     document.getElementById('gameOverSection').style.display = 'none';
+    redraw();
+}
+
+/* ══════════════════════════════════
+   최선수 힌트 (판 위 위치로 표시)
+══════════════════════════════════ */
+function requestHint() {
+    if (!gameStarted || waitingForAI || isOver) return;
+    if (sideToMove() !== userColor) return;               // 내 차례에만
+    const btn = document.getElementById('btnHint');
+    btn.disabled = true;
+    btn.textContent = '💡 분석 중...';
+    fetch('/api/play/hint', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+    .then(r => r.json())
+    .then(data => {
+        btn.textContent = '💡 최선수 힌트';
+        btn.disabled = false;
+        if (!data.ok || !data.hint) return;
+        if (data.hint.toLowerCase() === 'pass') {         // 최선수가 패스인 경우
+            clearHint();
+            btn.textContent = '💡 최선수는 패스';
+            setTimeout(() => { btn.textContent = '💡 최선수 힌트'; }, 2000);
+            return;
+        }
+        const g = gtpToGrid(data.hint);
+        if (!g) return;
+        hintCell = g;
+        startHintAnim();
+    })
+    .catch(() => { btn.textContent = '💡 최선수 힌트'; btn.disabled = false; });
+}
+function startHintAnim() {
+    cancelAnimationFrame(hintRaf);
+    const loop = () => { redraw(); hintRaf = requestAnimationFrame(loop); };  // redraw가 마커도 그림
+    hintRaf = requestAnimationFrame(loop);
+}
+function clearHint() {
+    if (hintCell === null && hintRaf === null) return;
+    hintCell = null;
+    cancelAnimationFrame(hintRaf);
+    hintRaf = null;
     redraw();
 }
 

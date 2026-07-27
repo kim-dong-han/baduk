@@ -225,6 +225,30 @@
         .cmp-stat { margin-top: 10px; font-size: 14px; color: #333; }
         .cmp-pv { margin-top: 6px; font-size: 12px; color: #888; text-align: center; max-width: 460px; }
         @media (max-width: 760px) { .cmp-grid { grid-template-columns: 1fr; } }
+
+        /* ── 놓아보기 '검토중' 애니메이션 배지 ── */
+        .reviewing-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 3px 10px 3px 8px; border-radius: 20px;
+            background: linear-gradient(135deg, #f3e8ff, #e9d5ff);
+            color: #7e22ce; font-size: 12px; font-weight: 800;
+            box-shadow: 0 0 0 0 rgba(147,51,234,0.45);
+            animation: revGlow 1.6s ease-in-out infinite;
+        }
+        .reviewing-badge .rev-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #9333ea; flex-shrink: 0;
+            animation: revPulse 1s ease-in-out infinite;
+        }
+        @keyframes revGlow {
+            0%   { box-shadow: 0 0 0 0    rgba(147,51,234,0.45); }
+            70%  { box-shadow: 0 0 0 9px  rgba(147,51,234,0); }
+            100% { box-shadow: 0 0 0 0    rgba(147,51,234,0); }
+        }
+        @keyframes revPulse {
+            0%, 100% { transform: scale(0.7); opacity: 0.55; }
+            50%      { transform: scale(1.15); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -373,7 +397,7 @@
             <button class="nav-btn sm" id="btnTry" onclick="toggleTryMode()" title="바둑판에 직접 돌을 놓아보며 이후 수를 시험해봅니다">놓아보기</button>
         </div>
         <div id="tryToolbar" class="nav-row2" style="display:none;">
-            <span style="font-size:12px;color:#8e44ad;font-weight:700;">🧪 놓아보기</span>
+            <span id="reviewingBadge" class="reviewing-badge"><span class="rev-dot"></span><span id="revText">검토중</span></span>
             <button class="nav-btn sm" onclick="tryUndo()"  title="마지막에 놓은 돌 되돌리기">되돌리기</button>
             <button class="nav-btn sm" onclick="tryReset()" title="놓은 돌 모두 지우기">처음으로</button>
             <button class="nav-btn sm" onclick="exitTryMode()" title="놓아보기 종료하고 복기로 돌아가기">나가기</button>
@@ -382,17 +406,10 @@
         <div id="moveInfo" class="move-info-panel">
             <div class="info-placeholder">수를 클릭하거나 화살표 버튼으로 이동하세요</div>
         </div>
-        <div id="hintLabel" style="display:none;margin-top:12px;padding:9px 12px;border-radius:10px;background:#fef9e7;border:1px solid #f1c40f;font-size:13px;line-height:1.5;color:#7d6608;"></div>
-        <div style="display:flex;gap:8px;margin-top:12px;">
-            <button id="btnHint" onclick="toggleHint()" title="이 국면에서 AI가 추천하는 가장 효율적인 수를 바둑판에 ★로 알려줍니다"
-                    style="flex:0 0 auto;padding:11px 14px;border:none;border-radius:10px;background:#f1c40f;color:#5b4a06;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(241,196,15,0.35);">
-                💡 최선수 힌트
-            </button>
-            <button id="btnReplay" onclick="replayFromHere()" title="이 국면에서 KataGo와 직접 이어 둡니다"
-                    style="flex:1;padding:11px;border:none;border-radius:10px;background:#2ecc71;color:#fff;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(46,204,113,0.35);">
-                ▶ 이 수부터 AI와 다시 두기
-            </button>
-        </div>
+        <button id="btnReplay" onclick="replayFromHere()" title="이 국면에서 KataGo와 직접 이어 둡니다"
+                style="width:100%;margin-top:12px;padding:11px;border:none;border-radius:10px;background:#2ecc71;color:#fff;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(46,204,113,0.35);">
+            ▶ 이 수부터 AI와 다시 두기
+        </button>
     </div>
 
     <!-- ══ 내 수 vs 최선수 나란히 비교 모달 ══ -->
@@ -566,7 +583,7 @@ let hoveredCandIdx = -1;   // 현재 hover 중인 후보 인덱스
 let tryMode = false;       // 놓아보기 모드 여부
 let tryStones = [];        // 놓아보기로 놓은 돌 [{x,y,color}] (놓은 순서)
 let tryBaseIdx = -1;       // 놓아보기 시작 시의 기준 수번
-let hintOn = false;        // 최선수 힌트(★) 표시 여부
+let reviewingTimer = null; // '검토중' 말줄임 애니메이션 타이머
 
 /* ── 현재 수 커서 플러그인 ── */
 const cursorPlugin = {
@@ -891,8 +908,6 @@ function showMove(idx) {
         }
     }
 
-    if (hintOn && !tryMode) drawHintMarker(ctx);
-
     document.getElementById('moveCounter').textContent = `${idx + 1} / ${moves.length}수`;
     document.getElementById('btnFirst').disabled = idx === 0;
     document.getElementById('btnPrev5').disabled = idx === 0;
@@ -957,8 +972,6 @@ function showMove(idx) {
     // 두 차트의 현재 수 커서 갱신
     if (scoreChartInst)   { scoreChartInst.options.plugins.cursorLine.cursorX   = idx; scoreChartInst.update('none'); }
     if (winrateChartInst) { winrateChartInst.options.plugins.cursorLine.cursorX = idx; winrateChartInst.update('none'); }
-
-    if (hintOn && !tryMode) updateHintLabel();
 }
 
 function prevMove() { showMove(currentIdx - 1); }
@@ -1076,7 +1089,6 @@ function renderTry() {
     for (let x = 0; x < 19; x++)
         for (let y = 0; y < 19; y++)
             if (board[x][y]) drawStone(ctx, x, y, board[x][y], last && x === last.x && y === last.y);
-    if (hintOn) drawHintMarker(ctx);
     const nextKr = tryNextColor() === 'B' ? '흑' : '백';
     document.getElementById('moveCounter').textContent = `놓아보기 · ${tryStones.length}수 (다음: ${nextKr})`;
 }
@@ -1086,73 +1098,39 @@ function toggleTryMode() {
     tryMode = true;
     tryBaseIdx = currentIdx;
     tryStones = [];
-    hintOn = false;
     document.getElementById('btnTry').classList.add('active');
-    document.getElementById('btnHint').classList.remove('active');
     document.getElementById('tryToolbar').style.display = 'flex';
-    document.getElementById('hintLabel').style.display = 'none';
     canvas.style.cursor = 'pointer';
+    startReviewingAnim();
     renderTry();
 }
 function exitTryMode() {
     tryMode = false;
     tryStones = [];
-    hintOn = false;
     document.getElementById('btnTry').classList.remove('active');
-    document.getElementById('btnHint').classList.remove('active');
     document.getElementById('tryToolbar').style.display = 'none';
-    document.getElementById('hintLabel').style.display = 'none';
     canvas.style.cursor = '';
+    stopReviewingAnim();
     showMove(tryBaseIdx >= 0 ? tryBaseIdx : 0);
 }
-function tryUndo()  { if (tryStones.length) { tryStones.pop(); renderTry(); if (hintOn) updateHintLabel(); } }
-function tryReset() { tryStones = []; renderTry(); if (hintOn) updateHintLabel(); }
+function tryUndo()  { if (tryStones.length) { tryStones.pop(); renderTry(); } }
+function tryReset() { tryStones = []; renderTry(); }
 
-/* ── 최선수 힌트 (★) ──
-   현재 보이는 국면에서 '다음에 둘' 가장 효율적인 수를 알려준다. */
-function currentHintBase() { return tryMode ? tryBaseIdx : (currentIdx < 0 ? 0 : currentIdx); }
-function currentHintMove() {
-    const base = currentHintBase();
-    for (const src of [moves[base + 1], moves[base]]) {
-        if (!src) continue;
-        if (src.candidates && src.candidates.length && src.candidates[0].move) return { move: src.candidates[0].move, src };
-        if (src.bestMove) return { move: src.bestMove, src };
-    }
-    return null;
+/* ── '검토중' 말줄임 애니메이션 (검토중 → 검토중· → ·· → ···) ── */
+function startReviewingAnim() {
+    const el = document.getElementById('revText');
+    if (!el) return;
+    let n = 0;
+    el.textContent = '검토중';
+    clearInterval(reviewingTimer);
+    reviewingTimer = setInterval(() => {
+        n = (n + 1) % 4;
+        el.textContent = '검토중' + '·'.repeat(n);
+    }, 450);
 }
-function drawHintMarker(ctx) {
-    const h = currentHintMove();
-    if (!h) return;
-    const g = gtpToGrid(h.move);
-    if (!g) return;
-    const cx = px(g.x), cy = py(g.y), r = CELL * 0.46;
-    ctx.save();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 3.5; ctx.stroke();
-    ctx.fillStyle = '#f1c40f';
-    ctx.font = `bold ${Math.round(CELL * 0.5)}px sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('★', cx, cy);
-    ctx.restore();
-}
-function updateHintLabel() {
-    const el = document.getElementById('hintLabel');
-    if (!hintOn) { el.style.display = 'none'; return; }
-    const h = currentHintMove();
-    if (!h) { el.innerHTML = '💡 이 국면의 최선수 정보가 없어요.'; el.style.display = 'block'; return; }
-    const sideKr = sideToMoveAt(currentHintBase()) === 'B' ? '흑' : '백';
-    let extra = '';
-    const c = (h.src && h.src.candidates && h.src.candidates.length) ? h.src.candidates[0] : null;
-    if (c && typeof c.scoreLead === 'number')
-        extra = c.scoreLead >= 0 ? ` · 예상 형세 흑 +${c.scoreLead.toFixed(1)}집` : ` · 예상 형세 백 +${Math.abs(c.scoreLead).toFixed(1)}집`;
-    el.innerHTML = `💡 <b>${sideKr}</b>의 최선수는 <b style="color:#b7950b;">${h.move}</b> — 바둑판의 ★ 자리가 가장 효율적이에요.${extra}`;
-    el.style.display = 'block';
-}
-function toggleHint() {
-    hintOn = !hintOn;
-    document.getElementById('btnHint').classList.toggle('active', hintOn);
-    updateHintLabel();
-    if (tryMode) renderTry(); else showMove(currentIdx < 0 ? 0 : currentIdx);
+function stopReviewingAnim() {
+    clearInterval(reviewingTimer);
+    reviewingTimer = null;
 }
 
 /* ── 후보수(①②③) hover 상세 ──
@@ -1212,11 +1190,6 @@ canvas.addEventListener('click', function(e) {
     const color = tryNextColor();
     tryStones.push({ x: gx, y: gy, color });
     if (buildTryBoard()[gx][gy] !== color) { tryStones.pop(); return; }   // 자살수 금지
-    if (hintOn) {
-        hintOn = false;
-        document.getElementById('btnHint').classList.remove('active');
-        document.getElementById('hintLabel').style.display = 'none';
-    }
     renderTry();
 });
 canvas.addEventListener('mousemove', function(e) {

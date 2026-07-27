@@ -109,6 +109,20 @@ public class PlayController {
         return result;
     }
 
+    @PostMapping("/api/play/hint")
+    @ResponseBody
+    public Map<String, Object> hint() {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            result.put("ok", true);
+            result.put("hint", playService.getHint());   // 최선수 GTP (null=종료)
+        } catch (Exception e) {
+            result.put("ok", false);
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
     @PostMapping("/api/play/undo")
     @ResponseBody
     public Map<String, Object> undoMove() {

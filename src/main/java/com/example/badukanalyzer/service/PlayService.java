@@ -81,6 +81,12 @@ public class PlayService {
     public String getUserColor()     { return userColor; }
     public boolean isGameOver()      { return gameOver; }
 
+    /** 현재 국면(둘 차례)의 최선수 GTP. 힌트용 — 판을 바꾸지 않는다. */
+    public synchronized String getHint() throws Exception {
+        if (gameOver) return null;
+        return kataGoService.getBestMove(new ArrayList<>(history));
+    }
+
     // 차례 = 마지막 착수의 반대 색 (빈 판이면 흑).
     // 파리티(짝=흑) 대신 실제 마지막 색 기준 → 백선착·접바둑·복기 이어두기 국면에서도 정확.
     private String currentColor() {
