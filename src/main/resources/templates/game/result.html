@@ -249,6 +249,18 @@
             0%, 100% { transform: scale(0.7); opacity: 0.55; }
             50%      { transform: scale(1.15); opacity: 1; }
         }
+
+        /* ── 예상 기력 배너 ── */
+        .rank-estimate {
+            margin: 0 0 16px; padding: 12px 16px; border-radius: 12px;
+            background: linear-gradient(135deg, #f5f3ff, #eef2ff);
+            border: 1px solid #ddd6fe;
+        }
+        .rank-estimate .re-head { font-size: 12px; color: #7c3aed; font-weight: 800; margin-bottom: 8px; }
+        .rank-estimate .re-row  { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 14px; padding: 3px 0; }
+        .rank-estimate .re-band { font-weight: 800; }
+        .rank-estimate .re-sub  { font-size: 12px; color: #888; }
+        .rank-estimate .re-note { margin-top: 6px; font-size: 11px; color: #a78bda; }
     </style>
 </head>
 <body>
@@ -279,6 +291,8 @@
         <span th:if="${result.analysisDurationMs != null and result.analysisDurationMs > 0}" title="이 기보 분석에 걸린 시간">⏱ <span th:text="${#numbers.formatDecimal(result.analysisDurationMs / 1000.0, 1, 1)}"></span>초</span>
     </div>
 </div>
+
+<div id="rankEstimate" class="rank-estimate" style="display:none;"></div>
 
 <div class="review-grid">
 
@@ -394,6 +408,7 @@
             <button class="nav-btn sm" id="btnVar" onclick="toggleVariation()" title="최선수를 뒀을 때의 예상 진행">변화도</button>
             <button class="nav-btn sm" id="btnCmp" onclick="openCompare()" title="내가 둔 수와 AI 최선수의 이후 진행을 나란히 비교">나란히 비교</button>
             <button class="nav-btn sm" id="btnTerr" onclick="toggleOwnership()" title="AI가 예측한 집(영역)">집예측</button>
+            <button class="nav-btn sm" id="btnHeat" onclick="toggleHeatmap()" title="추천수를 승률 색(초록=좋음/빨강=나쁨)으로 표시">추천 히트맵</button>
             <button class="nav-btn sm" id="btnTry" onclick="toggleTryMode()" title="바둑판에 직접 돌을 놓아보며 이후 수를 시험해봅니다">놓아보기</button>
         </div>
         <div id="tryToolbar" class="nav-row2" style="display:none;">
@@ -410,6 +425,10 @@
                 style="width:100%;margin-top:12px;padding:11px;border:none;border-radius:10px;background:#2ecc71;color:#fff;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(46,204,113,0.35);">
             ▶ 이 수부터 AI와 다시 두기
         </button>
+        <a th:href="@{/game/result/{id}/sgf(id=${result.id})}" title="등급·집손해·최선수 코멘트가 달린 SGF 파일로 내려받기 (다른 바둑 프로그램에서 열람)"
+           style="display:block;text-align:center;margin-top:8px;padding:9px;border-radius:10px;background:#eef2f7;color:#456;font-weight:700;font-size:13px;text-decoration:none;">
+            📄 주석 SGF 내려받기
+        </a>
     </div>
 
     <!-- ══ 내 수 vs 최선수 나란히 비교 모달 ══ -->
@@ -584,6 +603,7 @@ let tryMode = false;       // 놓아보기 모드 여부
 let tryStones = [];        // 놓아보기로 놓은 돌 [{x,y,color}] (놓은 순서)
 let tryBaseIdx = -1;       // 놓아보기 시작 시의 기준 수번
 let reviewingTimer = null; // '검토중' 말줄임 애니메이션 타이머
+let showHeatmap = false;   // 추천수 승률 색 히트맵 표시 여부
 
 /* ── 현재 수 커서 플러그인 ── */
 const cursorPlugin = {
@@ -724,6 +744,28 @@ function drawCandidateMarker(ctx, gx, gy, rank) {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(rank), cx, cy);
+}
+
+/* ── 추천수 승률 색 히트맵 마커 (초록=좋음/빨강=나쁨, 둘 차례 기준) ── */
+function winColorHsl(p) {           // p = 0..1 (둘 쪽 승률)
+    const hue = Math.max(0, Math.min(120, p * 120));   // 0=빨강 → 120=초록
+    return `hsl(${hue.toFixed(0)}, 68%, 44%)`;
+}
+function drawCandidateHeat(ctx, gx, gy, cand, playerColor) {
+    const cx = px(gx), cy = py(gy), r = CELL * 0.46;
+    const p = playerColor === 'B' ? cand.winrate : (1 - cand.winrate);  // 둘 쪽 관점 승률
+    ctx.save();
+    ctx.globalAlpha = 0.72;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = winColorHsl(p);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.round(CELL * 0.26)}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(p * 100) + '%', cx, cy);
+    ctx.restore();
 }
 
 /* ── 따냄 로직 ── */
@@ -887,7 +929,8 @@ function showMove(idx) {
             if (!c.move || c.move === cur.move) return;
             const g = gtpToGrid(c.move);
             if (g && !board[g.x][g.y]) {
-                drawCandidateMarker(ctx, g.x, g.y, i + 1);
+                if (showHeatmap && typeof c.winrate === 'number') drawCandidateHeat(ctx, g.x, g.y, c, cur.color);
+                else drawCandidateMarker(ctx, g.x, g.y, i + 1);
                 if (typeof c.winrate === 'number') candMarkers.push({ gx: g.x, gy: g.y, rank: i + 1, cand: c });
             }
         });
@@ -998,6 +1041,12 @@ function toggleVariation() {
 function toggleOwnership() {
     showOwnership = !showOwnership;
     document.getElementById('btnTerr').classList.toggle('active', showOwnership);
+    if (currentIdx >= 0) showMove(currentIdx);
+}
+
+function toggleHeatmap() {
+    showHeatmap = !showHeatmap;
+    document.getElementById('btnHeat').classList.toggle('active', showHeatmap);
     if (currentIdx >= 0) showMove(currentIdx);
 }
 
@@ -1445,6 +1494,46 @@ function syncSideHeight() {
 window.addEventListener('resize', syncSideHeight);
 
 /* ── 초기 표시 ── */
+/* ── 예상 기력 추정 (착수 정밀도 기반 근사) ──
+   색깔별 평균 집손해·최선율로 대략적인 기력대를 추정. 정확한 급수가 아니라 이 판 기준 근사치. */
+function rankBand(avgLoss) {
+    if (avgLoss < 0.6) return { label: '아마 최상위 · 프로급', sub: '약 5단 이상',  color: '#8e44ad' };
+    if (avgLoss < 1.0) return { label: '아마 고단자',          sub: '약 1~4단',    color: '#2980b9' };
+    if (avgLoss < 1.8) return { label: '아마 상급',            sub: '약 1~5급',    color: '#16a085' };
+    if (avgLoss < 3.0) return { label: '아마 중급',            sub: '약 6~12급',   color: '#27ae60' };
+    if (avgLoss < 5.0) return { label: '아마 초·중급',         sub: '약 13~18급',  color: '#e67e22' };
+    return { label: '입문 · 초급', sub: '약 19급 이하', color: '#e74c3c' };
+}
+function renderRankEstimate() {
+    const el = document.getElementById('rankEstimate');
+    if (!el || !moves.length) return;
+    const stat = { B: { loss: 0, n: 0, match: 0 }, W: { loss: 0, n: 0, match: 0 } };
+    for (const m of moves) {
+        const s = stat[m.color];
+        if (!s) continue;
+        s.n++;
+        s.loss += Math.max(0, m.scoreLoss || 0);
+        if (m.bestMove && m.move === m.bestMove) s.match++;
+    }
+    const rowHtml = (color) => {
+        const s = stat[color];
+        if (!s.n) return '';
+        const avg = s.loss / s.n;
+        const b = rankBand(avg);
+        const matchPct = Math.round(s.match / s.n * 100);
+        const disc = color === 'B' ? '⚫ 흑' : '⚪ 백';
+        return `<div class="re-row">
+            <span>${disc}</span>
+            <span class="re-band" style="color:${b.color};">${b.label}</span>
+            <span class="re-sub">(${b.sub}) · 평균 실수 ${avg.toFixed(1)}집 · 최선율 ${matchPct}%</span>
+        </div>`;
+    };
+    el.innerHTML = `<div class="re-head">🎯 예상 기력 <span style="font-weight:400;color:#a78bda;">— 이 대국 착수 정밀도 기반</span></div>
+        ${rowHtml('B')}${rowHtml('W')}
+        <div class="re-note">※ 정확한 급수가 아니라 이 한 판의 최선수 대비 정밀도로 계산한 재미용 근사치예요.</div>`;
+    el.style.display = 'block';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     if (moves.length > 0) {
         // 오답노트 등에서 ?move=N 으로 딥링크하면 그 수번으로 바로 이동
@@ -1452,6 +1541,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let initIdx = (!isNaN(qMove) && qMove >= 1 && qMove <= moves.length) ? qMove - 1
                     : (keyMistakes.length > 0 ? keyMistakes[0].turnNumber - 1 : 0);
         showMove(initIdx >= 0 ? initIdx : 0);
+        renderRankEstimate();
     }
     syncSideHeight();
 });

@@ -270,6 +270,13 @@ public class KataGoService {
 
     /** 현재 국면에서 KataGo 최선수 GTP 좌표 반환 (실시간 대국용, 영구 프로세스) */
     public synchronized String getBestMove(List<Move> moves) throws IOException {
+        return getBestMoveEval(moves).move();
+    }
+
+    /** 최선수 + 현재 국면 rootInfo.scoreLead(흑 기준). 실시간 수 평가용. */
+    public record MoveEval(String move, double rootScoreLead) {}
+
+    public synchronized MoveEval getBestMoveEval(List<Move> moves) throws IOException {
         ensurePlayProcess();
 
         ArrayNode movesArray = objectMapper.createArrayNode();
@@ -298,12 +305,13 @@ public class KataGoService {
             try {
                 JsonNode node = objectMapper.readTree(line);
                 if (queryId.equals(node.path("id").asText())) {
+                    double lead = node.path("rootInfo").path("scoreLead").asDouble(0);
                     JsonNode mi = node.path("moveInfos");
-                    if (mi.isArray() && mi.size() > 0) return mi.get(0).path("move").asText("pass");
-                    return "pass";
+                    String best = (mi.isArray() && mi.size() > 0) ? mi.get(0).path("move").asText("pass") : "pass";
+                    return new MoveEval(best, lead);
                 }
             } catch (Exception ignored) {}
         }
-        return "pass";
+        return new MoveEval("pass", 0);
     }
 }

@@ -85,6 +85,7 @@ public class PlayController {
             String aiMove = playService.playUserMove(gtp);
             result.put("ok", true);
             result.put("aiMove", aiMove);
+            result.put("userLoss", playService.getLastUserLoss());  // 방금 둔 수의 최선 대비 집손해
             result.put("gameOver", playService.isGameOver());
         } catch (Exception e) {
             result.put("ok", false);

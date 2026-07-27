@@ -209,6 +209,36 @@ public class SingleGameService {
         return result;
     }
 
+    /** 분석 결과를 코멘트(수번·등급·집손해·최선수) 달린 SGF 문자열로 변환. 어떤 바둑 뷰어에서도 열림. */
+    public String buildAnnotatedSgf(SingleGameResult r) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("(;GM[1]FF[4]CA[UTF-8]SZ[19]AP[baduk-analyzer]");
+        if (r.getBlackPlayer() != null) sb.append("PB[").append(escSgf(r.getBlackPlayer())).append("]");
+        if (r.getWhitePlayer() != null) sb.append("PW[").append(escSgf(r.getWhitePlayer())).append("]");
+        if (r.getMoves() != null) {
+            for (MoveDetail m : r.getMoves()) {
+                sb.append(";").append(m.getColor()).append("[");
+                String gtp = m.getMove();
+                if (gtp != null && !gtp.isEmpty() && !gtp.equalsIgnoreCase("pass")) {
+                    Move mv = CoordinateConverter.fromGtp(m.getColor(), gtp);
+                    sb.append(CoordinateConverter.toSgfX(mv.getX())).append(CoordinateConverter.toSgfY(mv.getY()));
+                }
+                sb.append("]");
+                StringBuilder c = new StringBuilder();
+                c.append(m.getTurnNumber()).append("수 · 등급 ").append(m.getGrade());
+                if (m.getScoreLoss() > 0.05) c.append(" · 집손해 ").append(String.format("%.1f", m.getScoreLoss())).append("집");
+                if (m.getBestMove() != null && !m.getBestMove().equalsIgnoreCase(gtp)) c.append(" · 최선수 ").append(m.getBestMove());
+                sb.append("C[").append(escSgf(c.toString())).append("]");
+            }
+        }
+        sb.append(")");
+        return sb.toString();
+    }
+
+    private static String escSgf(String s) {
+        return s == null ? "" : s.replace("\\", "\\\\").replace("]", "\\]");
+    }
+
     public List<String> listGameFiles() {
         File dir = new File(recordDir);
         File[] files = dir.listFiles((d, name) -> {

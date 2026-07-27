@@ -17,6 +17,7 @@ public class PlayService {
     private volatile String userColor = "B";
     private volatile boolean gameOver = false;
     private volatile int consecutivePasses = 0;
+    private volatile Double lastUserLoss = null;  // 직전 사용자 착수의 '최선 대비 집손해' (실시간 평가)
 
     public PlayService(KataGoService kataGoService) {
         this.kataGoService = kataGoService;
@@ -55,15 +56,46 @@ public class PlayService {
         String color = currentColor();
         if (!color.equals(userColor)) throw new IllegalStateException("AI 차례입니다");
 
+        lastUserLoss = null;
+        boolean isPass = "pass".equalsIgnoreCase(gtp);
+        // 착수 직전 국면의 최선 기대값(흑 기준) — 실착 평가 기준. 패스는 평가 생략.
+        Double beforeLead = null;
+        if (!isPass) {
+            try { beforeLead = kataGoService.getBestMoveEval(new ArrayList<>(history)).rootScoreLead(); }
+            catch (Exception ignored) {}
+        }
+
         history.add(CoordinateConverter.fromGtp(color, gtp));
-        if ("pass".equalsIgnoreCase(gtp)) {
+        if (isPass) {
             consecutivePasses++;
             if (consecutivePasses >= 2) { gameOver = true; return null; }
         } else {
             consecutivePasses = 0;
         }
-        return addAiMove();
+
+        // AI 응답 = 착수 후 국면 분석. rootInfo.scoreLead로 실착 손해를 완성.
+        String aiColor = "B".equals(userColor) ? "W" : "B";
+        if (!currentColor().equals(aiColor)) return null;
+        KataGoService.MoveEval post = kataGoService.getBestMoveEval(new ArrayList<>(history));
+        if (beforeLead != null) {
+            boolean isBlack = "B".equals(color);
+            double raw = isBlack ? beforeLead - post.rootScoreLead()
+                                 : post.rootScoreLead() - beforeLead;
+            lastUserLoss = Math.max(0, raw);
+        }
+
+        String move = post.move();
+        history.add(CoordinateConverter.fromGtp(aiColor, move));
+        if ("pass".equalsIgnoreCase(move)) {
+            consecutivePasses++;
+            if (consecutivePasses >= 2) gameOver = true;
+        } else {
+            consecutivePasses = 0;
+        }
+        return move;
     }
+
+    public Double getLastUserLoss() { return lastUserLoss; }
 
     /** 무르기: 마지막 2수(AI+유저) 제거 */
     public synchronized void undo() {

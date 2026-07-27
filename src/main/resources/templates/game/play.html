@@ -166,6 +166,12 @@
                 </div>
             </div>
 
+            <!-- 방금 둔 내 수 평가 (실시간) -->
+            <div class="info-card" id="moveEvalCard" style="display:none;border-left:4px solid #4a90d9;">
+                <div class="info-label">방금 둔 내 수</div>
+                <div class="info-value" id="moveEvalText" style="margin-top:4px;">-</div>
+            </div>
+
             <!-- AI 마지막 착수 -->
             <div class="info-card" id="aiLastCard" style="display:none;">
                 <div class="info-label">AI 착수</div>
@@ -537,6 +543,22 @@ function showAiMove(gtp) {
     card.style.display = '';
     lbl.textContent    = gtp === 'pass' ? '패스' : gtp;
 }
+/* 실시간 수 평가: 방금 둔 내 수의 '최선 대비 집손해'를 등급·색으로 표시 */
+function showMoveEval(loss) {
+    const card = document.getElementById('moveEvalCard');
+    const txt  = document.getElementById('moveEvalText');
+    if (loss === null || loss === undefined) { card.style.display = 'none'; return; }
+    let grade, color;
+    if      (loss < 0.5) { grade = '최선'; color = '#2ecc71'; }
+    else if (loss < 1.5) { grade = '좋음'; color = '#27ae60'; }
+    else if (loss < 3.0) { grade = '보통'; color = '#f1c40f'; }
+    else if (loss < 5.0) { grade = '실수'; color = '#e67e22'; }
+    else                 { grade = '악수'; color = '#e74c3c'; }
+    const lossTxt = loss < 0.05 ? '최선과 동일' : `최선 대비 -${loss.toFixed(1)}집`;
+    card.style.borderLeftColor = color;
+    txt.innerHTML = `<span style="color:${color};font-weight:800;">${grade}</span> <span style="font-size:12px;color:#666;">· ${lossTxt}</span>`;
+    card.style.display = '';
+}
 function showGameOver(title, sub) {
     isOver = true;
     document.getElementById('gameSection').style.display    = 'none';
@@ -568,6 +590,7 @@ function startGame(color) {
         document.getElementById('gameOverSection').style.display = 'none';
         document.getElementById('gameSection').style.display     = '';
         document.getElementById('aiLastCard').style.display      = 'none';
+        document.getElementById('moveEvalCard').style.display    = 'none';
 
         if (data.aiMove) {
             history.push({color: color === 'B' ? 'W' : 'B', gtp: data.aiMove});
@@ -585,6 +608,7 @@ function startGame(color) {
         document.getElementById('gameSection').style.display     = '';
         document.getElementById('gameOverSection').style.display = 'none';
         document.getElementById('aiLastCard').style.display      = 'none';
+        document.getElementById('moveEvalCard').style.display    = 'none';
         gameStarted = true;
         setWaiting(true);
         updateTurnUI();
@@ -607,6 +631,8 @@ function sendMove(gtp) {
     .then(data => {
         setWaiting(false);
         if (!data.ok) { history.pop(); redraw(); alert('착수 불가: ' + data.error); return; }
+
+        showMoveEval(data.userLoss);   // 방금 둔 내 수 실시간 평가
 
         if (data.aiMove) {
             const aiColor = userColor === 'B' ? 'W' : 'B';
@@ -665,6 +691,7 @@ function undoMove() {
         isOver = false;
         clearHint();
         document.getElementById('aiLastCard').style.display = 'none';
+        document.getElementById('moveEvalCard').style.display = 'none';
         updateTurnUI(); redraw();
     });
 }

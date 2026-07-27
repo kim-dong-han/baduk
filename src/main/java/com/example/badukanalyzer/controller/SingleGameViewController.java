@@ -81,4 +81,21 @@ public class SingleGameViewController {
             return "redirect:/game";
         }
     }
+
+    /** 분석 결과를 주석 SGF로 내려받기 (등급·집손해·최선수 코멘트 포함) */
+    @GetMapping("/result/{id}/sgf")
+    @ResponseBody
+    public ResponseEntity<byte[]> exportSgf(@PathVariable String id) {
+        try {
+            String sgf = singleGameService.buildAnnotatedSgf(singleGameService.getResult(id));
+            byte[] bytes = sgf.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            String fname = "baduk-review-" + (id.length() >= 8 ? id.substring(0, 8) : id) + ".sgf";
+            return ResponseEntity.ok()
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fname + "\"")
+                    .contentType(org.springframework.http.MediaType.parseMediaType("application/x-go-sgf"))
+                    .body(bytes);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }
