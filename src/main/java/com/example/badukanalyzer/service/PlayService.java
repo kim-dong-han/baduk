@@ -97,6 +97,11 @@ public class PlayService {
 
     public Double getLastUserLoss() { return lastUserLoss; }
 
+    /** 현재 국면 형세 판단/계가 (흑 기준 집차·승률·집 영역) */
+    public synchronized KataGoService.PositionEval estimate() throws Exception {
+        return kataGoService.evaluatePosition(new ArrayList<>(history));
+    }
+
     /** 무르기: 마지막 2수(AI+유저) 제거 */
     public synchronized void undo() {
         int removeCount = Math.min(2, history.size());

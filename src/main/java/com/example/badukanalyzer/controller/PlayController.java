@@ -124,6 +124,23 @@ public class PlayController {
         return result;
     }
 
+    @PostMapping("/api/play/estimate")
+    @ResponseBody
+    public Map<String, Object> estimate() {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            com.example.badukanalyzer.service.KataGoService.PositionEval e = playService.estimate();
+            result.put("ok", true);
+            result.put("scoreLead", e.scoreLead());   // 흑 기준 집차
+            result.put("winrate", e.winrate());        // 흑 승률
+            result.put("ownership", e.ownership());    // 361칸, +흑/−백
+        } catch (Exception e) {
+            result.put("ok", false);
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
     @PostMapping("/api/play/undo")
     @ResponseBody
     public Map<String, Object> undoMove() {

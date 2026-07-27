@@ -314,4 +314,47 @@ public class KataGoService {
         }
         return new MoveEval("pass", 0);
     }
+
+    /** 형세 판단/계가용: 현재 국면의 흑 기준 집차(scoreLead)·흑 승률·집 영역(ownership 361칸). */
+    public record PositionEval(double scoreLead, double winrate, java.util.List<Double> ownership) {}
+
+    public synchronized PositionEval evaluatePosition(List<Move> moves) throws IOException {
+        ensurePlayProcess();
+
+        ArrayNode movesArray = objectMapper.createArrayNode();
+        for (Move move : moves) {
+            ArrayNode entry = movesArray.addArray();
+            entry.add(move.getColor());
+            entry.add(CoordinateConverter.toGtpCoord(move));
+        }
+
+        String queryId = "est_" + System.currentTimeMillis();
+        ObjectNode query = buildQuery(queryId, movesArray, List.of(moves.size()), 300, true);  // 집 영역 포함
+        playWriter.write(query.toString());
+        playWriter.newLine();
+        playWriter.flush();
+
+        long deadline = System.currentTimeMillis() + 15_000;
+        String line;
+        while (System.currentTimeMillis() < deadline) {
+            if (!playReader.ready()) {
+                try { Thread.sleep(20); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+                continue;
+            }
+            line = playReader.readLine();
+            if (line == null) break;
+            try {
+                JsonNode node = objectMapper.readTree(line);
+                if (queryId.equals(node.path("id").asText())) {
+                    double lead = node.path("rootInfo").path("scoreLead").asDouble(0);
+                    double wr   = node.path("rootInfo").path("winrate").asDouble(0.5);
+                    List<Double> own = new ArrayList<>();
+                    JsonNode ownNode = node.path("ownership");
+                    if (ownNode.isArray()) for (JsonNode v : ownNode) own.add(v.asDouble());
+                    return new PositionEval(lead, wr, own);
+                }
+            } catch (Exception ignored) {}
+        }
+        return new PositionEval(0, 0.5, java.util.List.of());
+    }
 }

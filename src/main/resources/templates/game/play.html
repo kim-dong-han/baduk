@@ -172,6 +172,12 @@
                 <div class="info-value" id="moveEvalText" style="margin-top:4px;">-</div>
             </div>
 
+            <!-- 형세 판단 / 계가 결과 -->
+            <div class="info-card" id="estimateCard" style="display:none;border-left:4px solid #16a085;">
+                <div class="info-label" id="estimateLabel">형세 판단</div>
+                <div class="info-value" id="estimateText" style="margin-top:4px;">-</div>
+            </div>
+
             <!-- AI 마지막 착수 -->
             <div class="info-card" id="aiLastCard" style="display:none;">
                 <div class="info-label">AI 착수</div>
@@ -204,6 +210,8 @@
             <!-- 액션 버튼 -->
             <div class="btn-group">
                 <button class="panel-btn btn-hint" id="btnHint" onclick="requestHint()" title="지금 둘 곳 중 AI가 추천하는 최선수를 바둑판에 반짝여 알려줍니다">💡 최선수 힌트</button>
+                <button class="panel-btn btn-secondary" id="btnEstimate" onclick="requestEstimate(false)" title="현재 국면의 형세(집 차·승률)와 집 영역을 판정">📊 형세 판단</button>
+                <button class="panel-btn btn-secondary" id="btnScore" onclick="requestEstimate(true)" title="지금까지의 국면으로 예상 계가 (누가 몇 집 이겼는지)">🏁 계가하기</button>
                 <button class="panel-btn btn-secondary" id="btnPass"   onclick="passMove()">패스</button>
                 <button class="panel-btn btn-secondary" id="btnUndo"   onclick="undoMove()">무르기 (2수)</button>
                 <button class="panel-btn btn-danger"    id="btnResign" onclick="resignGame()">불계패</button>
@@ -268,6 +276,7 @@ let hoverCell     = null;
 let lastAiMove    = null;
 let hintCell      = null;  // 최선수 힌트 위치(grid) — 좌표 대신 판에 반짝임으로 표시
 let hintRaf       = null;  // 힌트 펄스 애니메이션 프레임
+let estOwnership  = null;  // 형세 판단/계가 시 집 영역(361칸) 오버레이
 
 // 다음 착수 색 = 마지막 수의 반대 (빈 판이면 흑). 백선착·이어두기 국면 대응
 function sideToMove() {
@@ -457,9 +466,26 @@ function drawHintMarker(t) {
     ctx.strokeStyle = 'rgba(120,80,0,0.6)'; ctx.lineWidth = 1; ctx.stroke();
     ctx.restore();
 }
+/* 집 영역(ownership) 오버레이: +값=흑·−값=백, 확신할수록 큰 사각형 (돌보다 먼저 그림) */
+function drawOwnershipPlay(own) {
+    if (!own || own.length !== 361) return;
+    for (let gx = 0; gx < 19; gx++) {
+        for (let gy = 0; gy < 19; gy++) {
+            const v = own[(18 - gy) * 19 + gx];
+            if (v == null) continue;
+            const a = Math.abs(v);
+            if (a < 0.15) continue;
+            const side = CELL * 0.82 * a;
+            ctx.fillStyle = v > 0 ? `rgba(0,0,0,${(0.55 * a).toFixed(3)})`
+                                  : `rgba(255,255,255,${(0.85 * a).toFixed(3)})`;
+            ctx.fillRect(px(gx) - side / 2, py(gy) - side / 2, side, side);
+        }
+    }
+}
 function redraw() {
     drawBoard();
     const board = buildBoard();
+    if (estOwnership) drawOwnershipPlay(estOwnership);   // 돌 아래에 집 영역
     const lastGtp = history.length > 0 ? history[history.length - 1].gtp : null;
     const lastG   = lastGtp ? gtpToGrid(lastGtp) : null;
     for (let x = 0; x < 19; x++)
@@ -532,7 +558,7 @@ function setWaiting(on) {
     waitingForAI = on;
     canvas.className = on ? 'waiting' : '';
     document.getElementById('thinkingCard').style.display = on ? '' : 'none';
-    ['btnPass','btnUndo','btnResign','btnHint'].forEach(id => {
+    ['btnPass','btnUndo','btnResign','btnHint','btnEstimate','btnScore'].forEach(id => {
         document.getElementById(id).disabled = on;
     });
 }
@@ -617,7 +643,7 @@ function startGame(color) {
 }
 
 function sendMove(gtp) {
-    clearHint();
+    clearHint(); clearEstimate();
     setWaiting(true); hoverCell = null;
     history.push({color: userColor, gtp});
     updateTurnUI(); redraw();
@@ -641,6 +667,7 @@ function sendMove(gtp) {
         }
         if (data.gameOver) {
             showGameOver('더블 패스', '쌍방 패스로 대국이 종료되었습니다.');
+            requestFinalScore();   // 종료 시 자동 계가
         } else {
             updateTurnUI();
         }
@@ -651,7 +678,7 @@ function sendMove(gtp) {
 
 function passMove() {
     if (waitingForAI || isOver) return;
-    clearHint();
+    clearHint(); clearEstimate();
     setWaiting(true); hoverCell = null;
     const color = sideToMove();
     history.push({color, gtp: 'pass'});
@@ -673,6 +700,7 @@ function passMove() {
         }
         if (data.gameOver) {
             showGameOver('더블 패스', '쌍방 패스로 대국이 종료되었습니다.');
+            requestFinalScore();   // 종료 시 자동 계가
         } else {
             updateTurnUI();
         }
@@ -689,7 +717,7 @@ function undoMove() {
         if (!data.ok) return;
         history = data.history.map(h => ({color: h.color, gtp: h.gtp}));
         isOver = false;
-        clearHint();
+        clearHint(); clearEstimate();
         document.getElementById('aiLastCard').style.display = 'none';
         document.getElementById('moveEvalCard').style.display = 'none';
         updateTurnUI(); redraw();
@@ -703,7 +731,7 @@ function resignGame() {
 }
 
 function resetToSetup() {
-    clearHint();
+    clearHint(); clearEstimate();
     gameStarted = false; isOver = false; waitingForAI = false;
     history = []; blackCaptures = 0; whiteCaptures = 0; hoverCell = null; lastAiMove = null;
     document.querySelector('.panel-sub').textContent = 'KataGo AI와 실시간 대국';
@@ -752,6 +780,62 @@ function clearHint() {
     cancelAnimationFrame(hintRaf);
     hintRaf = null;
     redraw();
+}
+
+/* ══════════════════════════════════
+   형세 판단 / 계가 (집 영역 + 집 차·승률)
+══════════════════════════════════ */
+function clearEstimate() {
+    estOwnership = null;
+    const card = document.getElementById('estimateCard');
+    if (card) card.style.display = 'none';
+}
+function requestEstimate(isFinal) {
+    if (!gameStarted || waitingForAI) return;
+    const btn  = document.getElementById(isFinal ? 'btnScore' : 'btnEstimate');
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '분석 중...';
+    fetch('/api/play/estimate', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false; btn.textContent = orig;
+        if (!data.ok) return;
+        estOwnership = (data.ownership && data.ownership.length === 361) ? data.ownership : null;
+        redraw();
+        const lead    = data.scoreLead;               // 흑 기준 집차
+        const leadAbs = Math.abs(lead).toFixed(1);
+        const leader  = lead >= 0 ? '흑' : '백';
+        const wr      = Math.round((data.winrate || 0) * 100);
+        const card = document.getElementById('estimateCard');
+        const lbl  = document.getElementById('estimateLabel');
+        const txt  = document.getElementById('estimateText');
+        if (isFinal) {
+            lbl.textContent = '예상 계가';
+            txt.innerHTML = `<span style="font-weight:800;color:#16a085;">${leader} ${leadAbs}집 승</span> <span style="font-size:11px;color:#999;">· 집 예측 기준</span>`;
+        } else {
+            lbl.textContent = '형세 판단';
+            txt.innerHTML = `${leader} <b style="color:#16a085;">+${leadAbs}집</b> 유리 <span style="font-size:12px;color:#666;">· 흑 승률 ${wr}%</span>`;
+        }
+        card.style.display = '';
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = orig; });
+}
+/* 대국 종료(더블 패스) 시 자동 계가 → 종료 카드에 승패 표시 */
+function requestFinalScore() {
+    const sub = document.getElementById('gameOverSub');
+    sub.textContent = '계가 중...';
+    fetch('/api/play/estimate', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
+    .then(r => r.json())
+    .then(data => {
+        if (!data.ok) { sub.textContent = ''; return; }
+        estOwnership = (data.ownership && data.ownership.length === 361) ? data.ownership : null;
+        redraw();
+        const lead = data.scoreLead;
+        const leader = lead >= 0 ? '흑' : '백';
+        document.getElementById('gameOverTitle').textContent = '계가 결과';
+        sub.textContent = `${leader} ${Math.abs(lead).toFixed(1)}집 승 (집 예측 기준)`;
+    })
+    .catch(() => { sub.textContent = ''; });
 }
 
 /* ══════════════════════════════════
