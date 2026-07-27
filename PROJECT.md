@@ -30,5 +30,5 @@
 
 ## 진행 현황
 - 상태/할 일은 **TODO.md** 한 곳에서만 관리 (memory 중복 금지)
-- 실행: `.\gradlew.bat bootRun` → http://localhost:8081
+- 실행: `.\gradlew.bat bootRun` → http://localhost:8083
 - GitHub: https://github.com/kim-dong-han/baduk

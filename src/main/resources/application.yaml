@@ -5,7 +5,7 @@ spring:
     cache: false
 
 server:
-  port: 8081
+  port: 8083
 
 katago:
   path: C:/KataGo/katago-v1.16.5-opencl-windows-x64/katago.exe
