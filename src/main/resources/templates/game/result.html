@@ -201,31 +201,6 @@
         .cmp-pv { margin-top: 6px; font-size: 12px; color: #888; text-align: center; max-width: 460px; }
         @media (max-width: 760px) { .cmp-grid { grid-template-columns: 1fr; } }
 
-        /* ── 놓아보기 '검토중' 애니메이션 배지 ── */
-        .reviewing-badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 3px 10px 3px 8px; border-radius: 20px;
-            background: linear-gradient(135deg, #f3e8ff, #e9d5ff);
-            color: #7e22ce; font-size: 12px; font-weight: 800;
-            box-shadow: 0 0 0 0 rgba(147,51,234,0.45);
-            animation: revGlow 1.6s ease-in-out infinite;
-        }
-        .try-hint { font-size: 12px; color: #6b7280; align-self: center; }
-        .reviewing-badge .rev-dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            background: #9333ea; flex-shrink: 0;
-            animation: revPulse 1s ease-in-out infinite;
-        }
-        @keyframes revGlow {
-            0%   { box-shadow: 0 0 0 0    rgba(147,51,234,0.45); }
-            70%  { box-shadow: 0 0 0 9px  rgba(147,51,234,0); }
-            100% { box-shadow: 0 0 0 0    rgba(147,51,234,0); }
-        }
-        @keyframes revPulse {
-            0%, 100% { transform: scale(0.7); opacity: 0.55; }
-            50%      { transform: scale(1.15); opacity: 1; }
-        }
-
         /* ── 예상 기력 배너 ── */
         .rank-estimate {
             margin: 0 0 16px; padding: 12px 16px; border-radius: 12px;
@@ -386,12 +361,7 @@
             <button class="nav-btn sm" id="btnVar" onclick="toggleVariation()" title="최선수를 뒀을 때의 예상 진행">변화도</button>
             <button class="nav-btn sm" id="btnCmp" onclick="openCompare()" title="내가 둔 수와 AI 최선수의 이후 진행을 나란히 비교">나란히 비교</button>
             <button class="nav-btn sm" id="btnTerr" onclick="toggleOwnership()" title="AI가 예측한 집(영역)">집예측</button>
-            <button class="nav-btn sm" id="btnTry" onclick="toggleTryMode()" title="바둑판에 직접 돌을 놓아보며 이후 수를 시험해봅니다">놓아보기</button>
-        </div>
-        <div id="tryToolbar" class="nav-row2" style="display:none;">
-            <span id="reviewingBadge" class="reviewing-badge"><span class="rev-dot"></span><span id="revText">검토중</span></span>
-            <span class="try-hint">‹ 버튼으로 한 수씩 되돌리기</span>
-            <button class="nav-btn sm" onclick="exitTryMode()" title="놓아보기 종료하고 복기로 돌아가기">나가기</button>
+            <button class="nav-btn sm" id="btnTry" onclick="toggleTryMode()" title="바둑판에 직접 돌을 놓아보며 이후 수를 시험해봅니다. ‹ 로 한 수씩 되돌리고, 다시 누르면 종료">놓아보기</button>
         </div>
 
         <div id="moveInfo" class="move-info-panel">
@@ -525,7 +495,6 @@ let hoveredCandIdx = -1;   // 현재 hover 중인 후보 인덱스
 let tryMode = false;       // 놓아보기 모드 여부
 let tryStones = [];        // 놓아보기로 놓은 돌 [{x,y,color}] (놓은 순서)
 let tryBaseIdx = -1;       // 놓아보기 시작 시의 기준 수번
-let reviewingTimer = null; // '검토중' 말줄임 애니메이션 타이머
 
 /* ── 바둑판 상수 ── */
 const CELL = 30;
@@ -1021,39 +990,22 @@ function toggleTryMode() {
     tryMode = true;
     tryBaseIdx = currentIdx;
     tryStones = [];
-    document.getElementById('btnTry').classList.add('active');
-    document.getElementById('tryToolbar').style.display = 'flex';
+    const btn = document.getElementById('btnTry');
+    btn.classList.add('active');
+    btn.textContent = '놓아보기 종료';    // 같은 버튼으로 종료
     canvas.style.cursor = 'pointer';
-    startReviewingAnim();
     renderTry();
 }
 function exitTryMode() {
     tryMode = false;
     tryStones = [];
-    document.getElementById('btnTry').classList.remove('active');
-    document.getElementById('tryToolbar').style.display = 'none';
+    const btn = document.getElementById('btnTry');
+    btn.classList.remove('active');
+    btn.textContent = '놓아보기';
     canvas.style.cursor = '';
-    stopReviewingAnim();
     showMove(tryBaseIdx >= 0 ? tryBaseIdx : 0);
 }
 function tryUndo()  { if (tryStones.length) { tryStones.pop(); renderTry(); } }
-
-/* ── '검토중' 말줄임 애니메이션 (검토중 → 검토중· → ·· → ···) ── */
-function startReviewingAnim() {
-    const el = document.getElementById('revText');
-    if (!el) return;
-    let n = 0;
-    el.textContent = '검토중';
-    clearInterval(reviewingTimer);
-    reviewingTimer = setInterval(() => {
-        n = (n + 1) % 4;
-        el.textContent = '검토중' + '·'.repeat(n);
-    }, 450);
-}
-function stopReviewingAnim() {
-    clearInterval(reviewingTimer);
-    reviewingTimer = null;
-}
 
 /* ── 후보수(①②③) hover 상세 ──
    마커에 올리면 그 수의 예상 진행을 유령돌로 그리고, 승률·형세를 툴팁으로 표시 */

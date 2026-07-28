@@ -369,10 +369,20 @@ public class SingleGameService {
             List<MoveDetail.Candidate> candidates = new ArrayList<>();
             double scoreLoss;
             if (moveInfos.isArray() && moveInfos.size() > 0) {
-                bestMove = moveInfos.get(0).path("move").asText();
-                // 상위 3개 후보수: 좌표 + hover 상세(승률·집차·예상 진행)
-                for (int j = 0; j < Math.min(3, moveInfos.size()); j++) {
-                    JsonNode mi = moveInfos.get(j);
+                bestMove = moveInfos.get(0).path("move").asText();   // 최선수 = KataGo 1순위(방문·신뢰도 종합)
+                // 추천수 top3 = KataGo 방문순이 아니라 '둘 쪽 승률이 높은 순'.
+                // (winrate는 흑 기준 → 백 차례면 1-winrate가 그 쪽 승률) 동률이면 방문 많은 수 우선.
+                final boolean playerIsBlack = isBlack;
+                List<JsonNode> byWinrate = new ArrayList<>();
+                for (JsonNode mi : moveInfos) byWinrate.add(mi);
+                byWinrate.sort((a, b) -> {
+                    double pa = playerIsBlack ? a.path("winrate").asDouble() : 1 - a.path("winrate").asDouble();
+                    double pb = playerIsBlack ? b.path("winrate").asDouble() : 1 - b.path("winrate").asDouble();
+                    if (pb != pa) return Double.compare(pb, pa);
+                    return Long.compare(b.path("visits").asLong(), a.path("visits").asLong());
+                });
+                for (int j = 0; j < Math.min(3, byWinrate.size()); j++) {
+                    JsonNode mi = byWinrate.get(j);
                     topMoves.add(mi.path("move").asText());
                     List<String> cpv = new ArrayList<>();
                     JsonNode cpvNode = mi.path("pv");
