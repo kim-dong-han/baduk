@@ -12,23 +12,19 @@
         .header-meta { font-size: 13px; color: #999; display: flex; gap: 16px; }
 
         /* ── 리뷰 그리드 레이아웃 ──
-           구간카드(전체폭) / 바둑판 | 핵심실수+AI통계 / 형세변화(전체폭) / 전체수분석(전체폭) */
+           구간카드(전체폭) / 바둑판 | 핵심실수+AI통계 */
         .review-grid {
             display: grid;
             gap: 16px;
             grid-template-columns: 636px minmax(0, 1fr);
             grid-template-areas:
                 "phases phases"
-                "board  side"
-                "chart  chart"
-                "table  table";
+                "board  side";
             align-items: start;
         }
         .area-phases { grid-area: phases; }
         .area-board  { grid-area: board; }
         .area-side   { grid-area: side; display: flex; flex-direction: column; gap: 16px; }
-        .area-chart  { grid-area: chart; }
-        .area-table  { grid-area: table; }
 
         /* AI 착수 통계(위, 6) : 핵심 실수(아래, 4) = 6:4.
            side 컬럼 높이는 JS가 바둑판 높이에 맞춰 설정 → 바둑판 기준 6:4 분할 */
@@ -44,9 +40,7 @@
                 grid-template-areas:
                     "phases"
                     "board"
-                    "side"
-                    "chart"
-                    "table";
+                    "side";
             }
             .area-board.card-box { display: flex; flex-direction: column; align-items: center; }
             .area-board.card-box > * { width: 100%; max-width: 596px; }
@@ -155,10 +149,6 @@
         .mistake-spacer { flex: 1; }
         .mistake-loss { font-size: 16px; font-weight: 700; color: #e74c3c; flex-shrink: 0; }
 
-        /* ── 형세 변화 차트 ── */
-        .chart-holder { height: 190px; }
-        .chart-holder-wr { height: 160px; margin-top: 14px; }
-
         /* ── 실시간 AI 승률 바 ── */
         .wr-bar-section { margin-top: 10px; background: #1a1a2e; border-radius: 8px; padding: 10px 14px; }
         .wr-bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; font-size: 12px; }
@@ -170,22 +160,6 @@
         .wr-bar-white { flex: 1; background: linear-gradient(90deg, #ccc, #eee); }
         .wr-score-line { text-align: center; margin-top: 6px; font-size: 13px; font-weight: 700; color: #e0e0e0; letter-spacing: 0.5px; }
 
-        /* ── 수 테이블 ── */
-        .table-filters { display: flex; gap: 6px; margin: 0 0 12px; flex-wrap: wrap; }
-        .filter-btn { background: #f0f2f5; border: 1px solid #ddd; border-radius: 6px; padding: 5px 13px; font-size: 12px; cursor: pointer; color: #666; transition: background 0.15s, color 0.15s; }
-        .filter-btn:hover:not(.active) { background: #e4e8ec; }
-        .filter-btn.active { background: #4a90d9; color: #fff; border-color: #4a90d9; }
-        .filter-empty { color: #bbb; font-size: 13px; text-align: center; padding: 24px 0; }
-        .table-wrap { overflow-y: auto; max-height: 520px; }
-        .table-wrap::-webkit-scrollbar { width: 5px; }
-        .table-wrap::-webkit-scrollbar-thumb { background: #ddd; border-radius: 99px; }
-        th { background: #f8f9fa; color: #555; font-size: 12px; padding: 8px 10px; border-bottom: 2px solid #eee; text-align: center; position: sticky; top: 0; z-index: 1; }
-        td { padding: 7px 10px; text-align: center; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
-        tr.move-row { cursor: pointer; transition: background 0.1s; }
-        tr.move-row:hover { background: #f0f7ff !important; }
-        tr.move-row.selected-row { background: #e8f4fd !important; outline: 2px solid #4a90d9; outline-offset: -2px; }
-        tr.grade-d { background: #fff5f5; }
-        tr.grade-c { background: #fffaf4; }
         .grade-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
         /* 등급 배지: 초록(좋음)에서 빨강(나쁨)으로 직관적 그라데이션 */
         .g-최선 { background: #d3f0dd; color: #1e8449; }
@@ -235,6 +209,7 @@
             box-shadow: 0 0 0 0 rgba(147,51,234,0.45);
             animation: revGlow 1.6s ease-in-out infinite;
         }
+        .try-hint { font-size: 12px; color: #6b7280; align-self: center; }
         .reviewing-badge .rev-dot {
             width: 8px; height: 8px; border-radius: 50%;
             background: #9333ea; flex-shrink: 0;
@@ -408,13 +383,11 @@
             <button class="nav-btn sm" id="btnVar" onclick="toggleVariation()" title="최선수를 뒀을 때의 예상 진행">변화도</button>
             <button class="nav-btn sm" id="btnCmp" onclick="openCompare()" title="내가 둔 수와 AI 최선수의 이후 진행을 나란히 비교">나란히 비교</button>
             <button class="nav-btn sm" id="btnTerr" onclick="toggleOwnership()" title="AI가 예측한 집(영역)">집예측</button>
-            <button class="nav-btn sm" id="btnHeat" onclick="toggleHeatmap()" title="추천수를 승률 색(초록=좋음/빨강=나쁨)으로 표시">추천 히트맵</button>
             <button class="nav-btn sm" id="btnTry" onclick="toggleTryMode()" title="바둑판에 직접 돌을 놓아보며 이후 수를 시험해봅니다">놓아보기</button>
         </div>
         <div id="tryToolbar" class="nav-row2" style="display:none;">
             <span id="reviewingBadge" class="reviewing-badge"><span class="rev-dot"></span><span id="revText">검토중</span></span>
-            <button class="nav-btn sm" onclick="tryUndo()"  title="마지막에 놓은 돌 되돌리기">되돌리기</button>
-            <button class="nav-btn sm" onclick="tryReset()" title="놓은 돌 모두 지우기">처음으로</button>
+            <span class="try-hint">‹ 버튼으로 한 수씩 되돌리기</span>
             <button class="nav-btn sm" onclick="exitTryMode()" title="놓아보기 종료하고 복기로 돌아가기">나가기</button>
         </div>
 
@@ -493,58 +466,6 @@
 
     </div>
 
-    <!-- ══ 형세 변화 + 승률 (전체 폭) ══ -->
-    <div class="card-box area-chart">
-        <p class="section-title">형세 변화</p>
-        <p class="section-desc">위로 올라갈수록 흑 유리, 아래로 내려갈수록 백 유리. 붉은 점은 핵심 실수, 붉은 점선은 현재 수입니다.</p>
-        <div class="chart-holder"><canvas id="scoreChart"></canvas></div>
-        <p class="section-title" style="margin-top:16px;">승률 변화</p>
-        <p class="section-desc">흑의 AI 승률(0~100%) 추이입니다. 50% 기준선 위면 흑 유리, 아래면 백 유리.</p>
-        <div class="chart-holder-wr"><canvas id="winrateChart"></canvas></div>
-    </div>
-
-    <!-- ══ 전체 수 분석 (전체 폭) ══ -->
-    <div class="card-box area-table">
-        <p class="section-title">전체 수 분석</p>
-        <p class="section-desc">수를 클릭하면 바둑판에 해당 시점의 국면이 표시됩니다. <span style="color:#e74c3c;">●</span> 착점 &nbsp; <span style="background:#1a5276;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:50%;">1</span> <span style="background:#2471a3;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:50%;">2</span> <span style="background:#5dade2;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:50%;">3</span> AI 추천수</p>
-        <div class="table-filters">
-            <button class="filter-btn active" data-filter="all"  onclick="setFilter(this)">전체</button>
-            <button class="filter-btn"        data-filter="key"  onclick="setFilter(this)">실수·악수만</button>
-        </div>
-        <div class="filter-empty" id="filterEmpty" style="display:none;">해당하는 수가 없습니다.</div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>수번</th>
-                        <th>색</th>
-                        <th id="thLoss" title="클릭: 손해 큰 순 정렬 / 다시 클릭: 원래 순서" style="cursor:pointer;user-select:none;" onclick="toggleSortByLoss()">집 손해 ↕</th>
-                        <th>등급</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr th:each="m, stat : ${result.moves}"
-                        th:data-idx="${stat.index}"
-                        th:class="${'move-row ' + (m.grade == '악수' ? 'grade-d' : (m.grade == '실수' ? 'grade-c' : ''))}"
-                        th:onclick="'jumpToMove(' + ${stat.index} + ')'">
-                        <td th:text="${m.turnNumber}"></td>
-                        <td>
-                            <span th:if="${m.color == 'B'}" style="color:#333;font-weight:700;">흑</span>
-                            <span th:if="${m.color == 'W'}" style="color:#888;">백</span>
-                        </td>
-                        <td>
-                            <span th:if="${m.scoreLoss > 0}"
-                                  th:style="${m.scoreLoss >= 5 ? 'color:#e74c3c;font-weight:700;' : (m.scoreLoss >= 3 ? 'color:#e67e22;font-weight:600;' : '')}"
-                                  th:text="${m.scoreLoss}"></span>
-                            <span th:if="${m.scoreLoss <= 0}" style="color:#2ecc71;" th:text="${m.scoreLoss}"></span>
-                        </td>
-                        <td><span th:class="'grade-badge g-' + ${m.grade}" th:text="${m.grade}"></span></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
 </div>
 
 <script th:inline="javascript">
@@ -596,55 +517,12 @@ let currentIdx = -1;
 let showSequence = false;
 let showVariation = false;
 let showOwnership = false;
-let scoreChartInst, winrateChartInst;
 let candMarkers = [];      // 현재 화면의 후보수 마커 위치+상세 (hover 판정용)
 let hoveredCandIdx = -1;   // 현재 hover 중인 후보 인덱스
 let tryMode = false;       // 놓아보기 모드 여부
 let tryStones = [];        // 놓아보기로 놓은 돌 [{x,y,color}] (놓은 순서)
 let tryBaseIdx = -1;       // 놓아보기 시작 시의 기준 수번
 let reviewingTimer = null; // '검토중' 말줄임 애니메이션 타이머
-let showHeatmap = false;   // 추천수 승률 색 히트맵 표시 여부
-
-/* ── 현재 수 커서 플러그인 ── */
-const cursorPlugin = {
-    id: 'cursorLine',
-    afterDatasetsDraw(chart) {
-        const opts = chart.options.plugins.cursorLine;
-        if (!opts || opts.cursorX < 0) return;
-        const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
-        const xPx = x.getPixelForValue(opts.cursorX);
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(xPx, top); ctx.lineTo(xPx, bottom);
-        ctx.strokeStyle = 'rgba(231,76,60,0.8)';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([5, 3]);
-        ctx.stroke();
-        ctx.restore();
-    }
-};
-
-/* ── 패착 표시 플러그인 (승률 차트에 분기점 세로선+라벨) ── */
-const losingPlugin = {
-    id: 'losingLine',
-    afterDatasetsDraw(chart) {
-        if (typeof losingMoveIdx !== 'number' || losingMoveIdx < 0) return;
-        const { ctx, chartArea, scales: { x } } = chart;
-        const xPx = x.getPixelForValue(losingMoveIdx);
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(xPx, chartArea.top); ctx.lineTo(xPx, chartArea.bottom);
-        ctx.strokeStyle = 'rgba(230,126,34,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        const right = xPx > (chartArea.left + chartArea.right) / 2;
-        ctx.fillStyle = '#e67e22';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.textAlign = right ? 'right' : 'left';
-        ctx.fillText('🔑 패착', xPx + (right ? -5 : 5), chartArea.top + 10);
-        ctx.restore();
-    }
-};
 
 /* ── 바둑판 상수 ── */
 const CELL = 30;
@@ -929,7 +807,8 @@ function showMove(idx) {
             if (!c.move || c.move === cur.move) return;
             const g = gtpToGrid(c.move);
             if (g && !board[g.x][g.y]) {
-                if (showHeatmap && typeof c.winrate === 'number') drawCandidateHeat(ctx, g.x, g.y, c, cur.color);
+                // 승률 정보가 있으면 승률 색+% 원반, 없으면(구 데이터) 순위 번호
+                if (typeof c.winrate === 'number') drawCandidateHeat(ctx, g.x, g.y, c, cur.color);
                 else drawCandidateMarker(ctx, g.x, g.y, i + 1);
                 if (typeof c.winrate === 'number') candMarkers.push({ gx: g.x, gy: g.y, rank: i + 1, cand: c });
             }
@@ -995,11 +874,6 @@ function showMove(idx) {
     if (lead >= 0) sd.innerHTML = `현재 형세: <span class="lead-b">흑 ${lead.toFixed(1)}집 유리</span>`;
     else           sd.innerHTML = `현재 형세: <span class="lead-w">백 ${Math.abs(lead).toFixed(1)}집 유리</span>`;
 
-    // 테이블 행 하이라이트만 (바둑판→테이블 자동 스크롤은 하지 않음)
-    document.querySelectorAll('.selected-row').forEach(r => r.classList.remove('selected-row'));
-    const row = document.querySelector(`tr[data-idx="${idx}"]`);
-    if (row) row.classList.add('selected-row');
-
     // 실시간 AI 승률 바
     const wrPct = cur.winrateAfter * 100;
     const sl = cur.scoreLeadAfter;
@@ -1011,13 +885,16 @@ function showMove(idx) {
     document.getElementById('wrBlackVal').textContent = `흑 ${wrPct.toFixed(1)}%`;
     document.getElementById('wrWhiteVal').textContent = `백 ${(100 - wrPct).toFixed(1)}%`;
     document.getElementById('wrScoreText').textContent = scoreText;
-
-    // 두 차트의 현재 수 커서 갱신
-    if (scoreChartInst)   { scoreChartInst.options.plugins.cursorLine.cursorX   = idx; scoreChartInst.update('none'); }
-    if (winrateChartInst) { winrateChartInst.options.plugins.cursorLine.cursorX = idx; winrateChartInst.update('none'); }
 }
 
-function prevMove() { showMove(currentIdx - 1); }
+function prevMove() {
+    if (tryMode) {                       // 놓아보기 중엔 ‹ 로 놓은 돌을 한 수씩 되돌림
+        if (tryStones.length) tryUndo();
+        else exitTryMode();              // 되돌릴 돌이 없으면 놓아보기 종료
+        return;
+    }
+    showMove(currentIdx - 1);
+}
 function nextMove() { showMove(currentIdx + 1); }
 function skipMove(delta) { showMove(Math.max(0, Math.min(moves.length - 1, currentIdx + delta))); }
 
@@ -1041,12 +918,6 @@ function toggleVariation() {
 function toggleOwnership() {
     showOwnership = !showOwnership;
     document.getElementById('btnTerr').classList.toggle('active', showOwnership);
-    if (currentIdx >= 0) showMove(currentIdx);
-}
-
-function toggleHeatmap() {
-    showHeatmap = !showHeatmap;
-    document.getElementById('btnHeat').classList.toggle('active', showHeatmap);
     if (currentIdx >= 0) showMove(currentIdx);
 }
 
@@ -1163,7 +1034,6 @@ function exitTryMode() {
     showMove(tryBaseIdx >= 0 ? tryBaseIdx : 0);
 }
 function tryUndo()  { if (tryStones.length) { tryStones.pop(); renderTry(); } }
-function tryReset() { tryStones = []; renderTry(); }
 
 /* ── '검토중' 말줄임 애니메이션 (검토중 → 검토중· → ·· → ···) ── */
 function startReviewingAnim() {
@@ -1257,130 +1127,11 @@ canvas.addEventListener('mousemove', function(e) {
 canvas.addEventListener('mouseleave', function() { if (hoveredCandIdx !== -1) clearCandHover(); });
 
 /* ── 집 손해 정렬 토글 ── */
-let sortedByLoss = false, originalRows = null;
-
-function toggleSortByLoss() {
-    const tbody = document.querySelector('table tbody');
-    const th = document.getElementById('thLoss');
-    if (!sortedByLoss) {
-        originalRows = Array.from(tbody.querySelectorAll('tr'));
-        [...originalRows].sort((a, b) => moves[parseInt(b.dataset.idx)].scoreLoss - moves[parseInt(a.dataset.idx)].scoreLoss)
-                         .forEach(r => tbody.appendChild(r));
-        th.textContent = '집 손해 ↓'; sortedByLoss = true;
-    } else {
-        originalRows.forEach(r => tbody.appendChild(r));
-        th.textContent = '집 손해 ↕'; sortedByLoss = false;
-    }
-}
-
-/* ── 전체 수 분석 테이블 필터 (초반 0집/최선 행이 많아 가독성 저하 → 선택적 표시) ── */
-function setFilter(btn) {
-    const mode = btn.dataset.filter;
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b === btn));
-    let visible = 0;
-    document.querySelectorAll('tr.move-row').forEach(row => {
-        const m = moves[parseInt(row.dataset.idx)];
-        let show = true;
-        if (mode === 'key') show = m.grade === '실수' || m.grade === '악수';
-        row.style.display = show ? '' : 'none';
-        if (show) visible++;
-    });
-    document.getElementById('filterEmpty').style.display = visible === 0 ? '' : 'none';
-}
-
 /* ── 핵심 실수 카드 클릭 ── */
 function jumpToMove(idx) {
     showMove(idx);
     document.getElementById('boardCanvas').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-
-/* ── 형세 변화 차트 ── */
-const labels     = moves.map(m => m.turnNumber);
-const scoreData  = moves.map(m => m.scoreLeadAfter);
-const pointColors = labels.map(t => mistakeTurns.has(t) ? '#e74c3c' : 'transparent');
-const pointRadius = labels.map(t => mistakeTurns.has(t) ? 4 : 0);
-
-scoreChartInst = new Chart(document.getElementById('scoreChart').getContext('2d'), {
-    plugins: [cursorPlugin],
-    type: 'line',
-    data: {
-        labels,
-        datasets: [{
-            data: scoreData,
-            borderColor: '#4a90d9',
-            borderWidth: 2,
-            fill: { target: { value: 0 }, above: 'rgba(74,144,217,0.12)', below: 'rgba(231,76,60,0.10)' },
-            tension: 0.3,
-            pointBackgroundColor: pointColors,
-            pointRadius,
-            pointBorderColor: '#e74c3c',
-            pointBorderWidth: 2
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            cursorLine: { cursorX: -1 },
-            tooltip: {
-                callbacks: {
-                    title: ctx => `${ctx[0].label}수`,
-                    label: ctx => {
-                        const v = ctx.raw;
-                        return (v > 0 ? '흑 유리 ' : v < 0 ? '백 유리 ' : '균형 ') + Math.abs(v).toFixed(1) + '집';
-                    }
-                }
-            }
-        },
-        scales: {
-            x: { title: { display: true, text: '수번', color: '#aaa', font: { size: 11 } }, ticks: { maxTicksLimit: 20, color: '#bbb', font: { size: 11 } } },
-            y: { title: { display: true, text: '집 차이', color: '#aaa', font: { size: 11 } }, ticks: { color: '#bbb', font: { size: 11 } }, grid: { color: ctx => ctx.tick.value === 0 ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' } }
-        },
-        onClick: (e, elements) => { if (elements.length > 0) showMove(elements[0].index); }
-    }
-});
-
-/* ── 승률 변화 차트 ── */
-const wrData = moves.map(m => parseFloat((m.winrateAfter * 100).toFixed(1)));
-winrateChartInst = new Chart(document.getElementById('winrateChart').getContext('2d'), {
-    plugins: [cursorPlugin, losingPlugin],
-    type: 'line',
-    data: {
-        labels,
-        datasets: [{
-            data: wrData,
-            borderColor: '#27ae60',
-            borderWidth: 2,
-            fill: { target: { value: 50 }, above: 'rgba(39,174,96,0.1)', below: 'rgba(231,76,60,0.1)' },
-            tension: 0.3,
-            pointRadius: 0,
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            cursorLine: { cursorX: -1 },
-            tooltip: {
-                callbacks: {
-                    title: ctx => `${moves[ctx[0].dataIndex].turnNumber}수`,
-                    label: ctx => `흑 승률 ${ctx.raw}%`
-                }
-            }
-        },
-        scales: {
-            x: { ticks: { maxTicksLimit: 20, color: '#bbb', font: { size: 11 } } },
-            y: {
-                min: 0, max: 100,
-                ticks: { color: '#bbb', font: { size: 11 }, callback: v => v + '%' },
-                grid: { color: ctx => ctx.tick.value === 50 ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' }
-            }
-        },
-        onClick: (e, elements) => { if (elements.length > 0) showMove(elements[0].index); }
-    }
-});
 
 /* ── 핵심 실수 목록 렌더 (실수·악수 전체) ── */
 function renderKeyMistakes() {
@@ -1555,7 +1306,8 @@ document.addEventListener('keydown', e => {
     }
     if (tryMode) {
         if (e.key === 'Escape') exitTryMode();
-        return;   // 놓아보기 중엔 이동 단축키 비활성
+        if (e.key === 'ArrowLeft') { e.preventDefault(); prevMove(); }  // ← 로도 한 수 되돌리기
+        return;   // 그 외 이동 단축키는 비활성
     }
     if (e.key === 'ArrowLeft')  { e.preventDefault(); e.shiftKey ? skipMove(-5) : prevMove(); }
     if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? skipMove(5)  : nextMove(); }
