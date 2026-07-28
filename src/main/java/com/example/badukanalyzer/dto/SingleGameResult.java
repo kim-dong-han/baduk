@@ -21,7 +21,9 @@ public class SingleGameResult {
 
     // 분석 메타 (구 JSON은 null/0 → 화면에서 '-' 처리)
     private String engineNet;      // KataGo 네트워크 이름
-    private Integer analysisVisits; // 수당 visits
+    private Integer analysisVisits; // 1차 수당 visits
+    private Integer deepVisits;     // 2차 정밀 분석 visits (실수·악수 국면). 미적용/구 JSON은 null
+    private Integer deepMoveCount;  // 2차 정밀 재분석된 수 개수
     private Long analysisDurationMs; // 분석 소요(ms)
 
     private List<MoveDetail> moves;       // 전체 수 상세

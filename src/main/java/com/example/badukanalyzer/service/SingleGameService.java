@@ -74,10 +74,43 @@ public class SingleGameService {
         System.out.println("[SingleGame] 분석 시작: " + fileName + " (" + moves.size() + "수)");
         long startedAt = System.currentTimeMillis();
         List<JsonNode> nodes = kataGoService.analyzeAllMoves(moves, progressCallback);
-        long durationMs = System.currentTimeMillis() - startedAt;
-        System.out.println("[SingleGame] KataGo 결과 수신: " + nodes.size() + "개 노드");
+        System.out.println("[SingleGame] 1차 KataGo 결과 수신: " + nodes.size() + "개 노드");
 
         List<MoveDetail> moveDetails = buildMoveDetails(moves, nodes);
+
+        // ── 2차 정밀 분석 ── 1차(저visits)에서 실수·악수(집손해≥3)로 잡힌 국면만 고visits로 재분석.
+        // 저visits 오판(형세 착시)을 교정하면서, 전 수를 고visits로 돌리는 낭비는 피한다.
+        int deepVisits = kataGoService.getDeepVisits();
+        int deepMoveCount = 0;
+        if (deepVisits > kataGoService.getAnalysisVisits()) {
+            java.util.TreeSet<Integer> deepTurns = new java.util.TreeSet<>();
+            for (MoveDetail d : moveDetails) {
+                if (d.getScoreLoss() >= 3.0) {           // 실수(≥3)·악수(≥5)
+                    int i = d.getTurnNumber() - 1;
+                    deepTurns.add(i);                    // 착점 전 국면(후보·최선수·변화도·집손해 기준)
+                    deepTurns.add(i + 1);                // 착점 후 국면(형세·집예측)
+                }
+            }
+            if (!deepTurns.isEmpty()) {
+                System.out.println("[SingleGame] 2차 정밀 분석: 실수·악수 국면 " + deepTurns.size() + "턴, visits=" + deepVisits);
+                List<JsonNode> deepNodes = kataGoService.analyzeTurnsAt(moves, deepTurns, deepVisits, true);
+                Map<Integer, JsonNode> byTurn = new HashMap<>();
+                for (JsonNode n : nodes)     byTurn.put(n.get("turnNumber").asInt(), n);
+                for (JsonNode n : deepNodes) byTurn.put(n.get("turnNumber").asInt(), n);  // 정밀분석이 덮어씀
+                for (int idx = 0; idx < moveDetails.size(); idx++) {
+                    if (moveDetails.get(idx).getScoreLoss() >= 3.0) {
+                        int i = moveDetails.get(idx).getTurnNumber() - 1;
+                        MoveDetail rebuilt = buildOneMoveDetail(moves, i, byTurn.get(i), byTurn.get(i + 1), true);
+                        if (rebuilt != null) { moveDetails.set(idx, rebuilt); deepMoveCount++; }
+                    }
+                }
+                System.out.println("[SingleGame] 2차 정밀 재분석 완료: " + deepMoveCount + "수 교정");
+            }
+        }
+
+        long durationMs = System.currentTimeMillis() - startedAt;
+        final int deepMoveCountFinal = deepMoveCount;
+        final Integer deepVisitsMeta = deepMoveCount > 0 ? deepVisits : null;
 
         List<MoveDetail> top3Mistakes = moveDetails.stream()
                 .filter(m -> m.getScoreLoss() > 0)
@@ -105,6 +138,8 @@ public class SingleGameService {
                 .totalMoves(moves.size())
                 .engineNet(kataGoService.getNetName())
                 .analysisVisits(kataGoService.getAnalysisVisits())
+                .deepVisits(deepVisitsMeta)
+                .deepMoveCount(deepMoveCountFinal)
                 .analysisDurationMs(durationMs)
                 .moves(moveDetails)
                 .top3Mistakes(top3Mistakes)
@@ -303,10 +338,16 @@ public class SingleGameService {
 
         List<MoveDetail> details = new ArrayList<>();
         for (int i = 0; i < moves.size(); i++) {
+            MoveDetail d = buildOneMoveDetail(moves, i, byTurn.get(i), byTurn.get(i + 1), false);
+            if (d != null) details.add(d);
+        }
+        return details;
+    }
+
+    /** 한 수(index i)의 MoveDetail 생성. before=turn i, after=turn i+1 노드. 어느 하나 null이면 null 반환. */
+    private MoveDetail buildOneMoveDetail(List<Move> moves, int i, JsonNode before, JsonNode after, boolean deepAnalyzed) {
             Move move = moves.get(i);
-            JsonNode before = byTurn.get(i);
-            JsonNode after  = byTurn.get(i + 1);
-            if (before == null || after == null) continue;
+            if (before == null || after == null) return null;
 
             double scoreLeadBefore = before.path("rootInfo").path("scoreLead").asDouble();
             double scoreLeadAfter  = after.path("rootInfo").path("scoreLead").asDouble();
@@ -378,7 +419,7 @@ public class SingleGameService {
             }
 
             int turnNumber = i + 1;
-            details.add(MoveDetail.builder()
+            return MoveDetail.builder()
                     .turnNumber(turnNumber)
                     .color(move.getColor())
                     .move(actualGtp)
@@ -394,11 +435,10 @@ public class SingleGameService {
                     .scoreLoss(round2(scoreLoss))
                     .grade(calcGrade(scoreLoss))
                     .phase(calcPhase(turnNumber))
+                    .deepAnalyzed(deepAnalyzed)
                     .ownership(extractOwnership(after))  // 착점 후(turn i+1) 국면의 집 예측
                     .candidates(candidates)              // AI 후보수 상세 (hover용)
-                    .build());
-        }
-        return details;
+                    .build();
     }
 
     private SingleGameResult.PhaseStats calcPhaseStats(String phase, List<MoveDetail> phaseMoves) {

@@ -161,6 +161,7 @@
         .wr-score-line { text-align: center; margin-top: 6px; font-size: 13px; font-weight: 700; color: #e0e0e0; letter-spacing: 0.5px; }
 
         .grade-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+        .deep-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #ede9fe; color: #6d28d9; margin-left: 4px; }
         /* 등급 배지: 초록(좋음)에서 빨강(나쁨)으로 직관적 그라데이션 */
         .g-최선 { background: #d3f0dd; color: #1e8449; }
         .g-좋음 { background: #eaf7e1; color: #5a9216; }
@@ -263,6 +264,8 @@
         <span>총 <span th:text="${result.totalMoves}"></span>수</span>
         <span th:if="${result.engineNet != null}" title="KataGo 네트워크">🧠 <span th:text="${result.engineNet}"></span></span>
         <span th:if="${result.analysisVisits != null and result.analysisVisits > 0}" title="수당 탐색 횟수(클수록 정밀)">🔎 <span th:text="${result.analysisVisits}"></span> visits/수</span>
+        <span th:if="${result.deepVisits != null and result.deepMoveCount != null and result.deepMoveCount > 0}"
+              title="실수·악수로 잡힌 국면만 고visits로 2차 정밀 재분석">🎯 실수·악수 <span th:text="${result.deepMoveCount}"></span>수 <span th:text="${result.deepVisits}"></span> visits 정밀</span>
         <span th:if="${result.analysisDurationMs != null and result.analysisDurationMs > 0}" title="이 기보 분석에 걸린 시간">⏱ <span th:text="${#numbers.formatDecimal(result.analysisDurationMs / 1000.0, 1, 1)}"></span>초</span>
     </div>
 </div>
@@ -855,7 +858,7 @@ function showMove(idx) {
     document.getElementById('moveInfo').innerHTML = `
         <div class="info-row"><span class="info-label">수번</span><span><b>${cur.turnNumber}수</b> (${cur.color === 'B' ? '흑' : '백'})</span></div>
         <div class="info-row"><span class="info-label">집 손해</span><span style="color:${lossColor};font-weight:700;">${lossText}</span></div>
-        <div class="info-row"><span class="info-label">등급</span><span class="grade-badge g-${cur.grade}">${cur.grade}</span></div>
+        <div class="info-row"><span class="info-label">등급</span><span class="grade-badge g-${cur.grade}">${cur.grade}</span>${cur.deepAnalyzed ? ' <span class="deep-badge" title="실수·악수 국면이라 고visits로 정밀 재분석한 수예요">🎯 정밀재분석</span>' : ''}</span></div>
         ${bestHtml}
         ${idx === losingMoveIdx ? '<div style="margin-top:8px;font-size:12px;color:#c0392b;font-weight:700;">🔑 이 수가 이 판의 패착이에요. 팽팽하던 승부가 여기서 기울었어요.</div>' : ''}
         ${variationActive ? '<div style="margin-top:8px;font-size:12px;color:#3498db;">바둑판에 표시된 번호는 최선수 이후 예상 진행입니다.</div>' : ''}

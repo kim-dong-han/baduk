@@ -31,6 +31,7 @@ public class MoveDetail {
 
     private String grade;          // S / A / B / C / D
     private String phase;          // 초반 / 중반 / 종반
+    private boolean deepAnalyzed;  // 2차 정밀(고visits) 재분석된 수인지
 
     private List<Double> ownership; // AI 집(영역) 예측 361칸(19x19), +값=흑·−값=백. 착점 후 국면 기준. 구 JSON은 null
 

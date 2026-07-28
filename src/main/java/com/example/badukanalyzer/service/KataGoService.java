@@ -30,10 +30,16 @@ public class KataGoService {
     @Value("${katago.analysis-visits:1000}")
     private int analysisVisits;
 
+    @Value("${katago.deep-visits:0}")
+    private int deepVisits;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** 단일 기보 전수 분석에 쓰는 visits (분석 메타 패널 표기용). */
     public int getAnalysisVisits() { return analysisVisits; }
+
+    /** 2차 정밀 분석 visits (실수·악수 국면 재분석용). */
+    public int getDeepVisits() { return deepVisits; }
 
     /** 모델 파일명에서 네트워크 이름만 뽑아 반환. 짧은 블록 우선(예: b28c512nbt), 없으면 파일명. */
     public String getNetName() {
@@ -186,6 +192,26 @@ public class KataGoService {
 
     // 단일 기보 전수 분석 - 진행률 콜백으로 실시간 % 보고
     public List<JsonNode> analyzeAllMoves(List<Move> moves, IntConsumer progressCallback) throws IOException {
+        List<Integer> allTurns = new ArrayList<>();
+        for (int t = 0; t <= moves.size(); t++) allTurns.add(t);
+        return runTurnAnalysis(moves, allTurns, analysisVisits, true, progressCallback);
+    }
+
+    public List<JsonNode> analyzeAllMoves(List<Move> moves) throws IOException {
+        return analyzeAllMoves(moves, null);
+    }
+
+    /** 특정 턴들만 지정 visits로 재분석 (적응형 2차 정밀 분석용). turns 비면 빈 리스트. */
+    public List<JsonNode> analyzeTurnsAt(List<Move> moves, java.util.Collection<Integer> turns,
+                                         int maxVisits, boolean includeOwnership) throws IOException {
+        if (turns == null || turns.isEmpty()) return List.of();
+        List<Integer> turnList = new ArrayList<>(new java.util.TreeSet<>(turns));  // 정렬·중복제거
+        return runTurnAnalysis(moves, turnList, maxVisits, includeOwnership, null);
+    }
+
+    /** 지정 턴 집합을 한 KataGo 세션에서 maxVisits로 분석해 turnNumber 순 정렬 반환. */
+    private List<JsonNode> runTurnAnalysis(List<Move> moves, List<Integer> turns, int maxVisits,
+                                           boolean includeOwnership, IntConsumer progressCallback) throws IOException {
         ProcessBuilder pb = new ProcessBuilder(kataGoPath, "analysis", "-model", modelPath, "-config", configPath);
         pb.redirectErrorStream(true);
         Process process = pb.start();
@@ -199,17 +225,14 @@ public class KataGoService {
             entry.add(CoordinateConverter.toGtpCoord(move));
         }
 
-        List<Integer> allTurns = new ArrayList<>();
-        for (int t = 0; t <= moves.size(); t++) allTurns.add(t);
-        int totalTurns = allTurns.size();
-
+        int totalTurns = turns.size();
         String queryId = UUID.randomUUID().toString();
-        writer.write(buildQuery(queryId, movesArray, allTurns, analysisVisits, true).toString());
+        writer.write(buildQuery(queryId, movesArray, turns, maxVisits, includeOwnership).toString());
         writer.newLine();
         writer.flush();
         writer.close();
 
-        System.out.println("단일 기보 전수 분석 시작 (" + moves.size() + "수, visits=" + analysisVisits + ")");
+        System.out.println("KataGo 분석 시작 (" + totalTurns + "턴, visits=" + maxVisits + ")");
 
         // 결과를 한 줄씩 받으면서 progress 갱신
         List<JsonNode> allLines = new ArrayList<>();
@@ -234,8 +257,8 @@ public class KataGoService {
             }
         }
 
-        // visits가 클수록 수당 분석이 오래 걸리므로 타임아웃도 비례 확대
-        int timeoutSeconds = Math.max(120, moves.size() * Math.max(4, analysisVisits / 100) + 60);
+        // visits가 클수록 턴당 분석이 오래 걸리므로 타임아웃도 비례 확대
+        int timeoutSeconds = Math.max(120, totalTurns * Math.max(4, maxVisits / 100) + 60);
         try {
             if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
@@ -252,10 +275,6 @@ public class KataGoService {
                 .filter(n -> n.has("turnNumber"))
                 .sorted(java.util.Comparator.comparingInt(n -> n.get("turnNumber").asInt()))
                 .collect(java.util.stream.Collectors.toList());
-    }
-
-    public List<JsonNode> analyzeAllMoves(List<Move> moves) throws IOException {
-        return analyzeAllMoves(moves, null);
     }
 
     /** 실시간 대국용 영구 프로세스 초기화 (죽어 있으면 재시작) */
