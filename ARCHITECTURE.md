@@ -40,7 +40,7 @@ dto/          MoveDetail(bestPv 포함), SingleGameResult, AnalysisResponse, Upl
 ```
 화면 템플릿: `resources/templates/game/{index,result,waiting}.html`, `analysis/batch.html`
 공통 CSS: `resources/static/css/common.css` (topnav/.page/reset/media query)
-사활 문제: `resources/tsumego/*.sgf` (번들 60개=쉬움/보통/어려움 각 20. 파일 추가 시 자동 인식, 재시작 필요)
+사활 문제: `resources/tsumego/*.sgf` (번들 75개=쉬움/보통/어려움 각 25. 파일 추가 시 자동 인식, 재시작 필요)
 
 ## 사활(Tsumego) 위젯 — 대기 중 학습
 - 목적: 분석 대기(waiting.html) 동안 랜덤 사활 문제를 풀게 해 체감 대기시간↓.
@@ -52,7 +52,7 @@ dto/          MoveDetail(bestPv 포함), SingleGameResult, AnalysisResponse, Upl
 - **보드 크기 지원**: SGF `SZ[]`를 읽어 5~19로반 처리(좌표·region·화점 모두 크기 기준). 번들 문제는 5~11로 코너/소반 사활.
 - 좌표는 전부 GTP. 정답 미추출 문제는 로드 시 건너뜀.
 - **UI(타이젬 스타일, waiting.html)**: 패널 헤더(사활+✕ tsumeClose)·서브헤더(오늘의 사활 (n/N)+?도움말, 우측 흑/백차례 dot)·난이도 pill. 나무 프레임 보드, 정해 수순 돌 위 번호(moveNums). 정답 시 "정답입니다!" 축하 오버레이(🐼+확인)→확인 시 완료 도장(.dimmed+ts-done-stamp)·재도전 pulse. 정답 보기(tsumeReveal)도 완료 상태. 이전/다음 문제는 history[] 스택 탐색(fetchNewProblem/renderProblem), 재도전=현 문제 초기화.
-- 번들 60개 출처: d180cf/problems(조치훈 사활사전 등) 위치를 가져와 **로컬 KataGo로 정답 검증**(정답이 최선수와 1.5집 이내인 것만 채택) 후 난이도 3등분해 생성. ETL: scratchpad/build_tsumego.ps1(일회성).
+- 번들 75개 출처(2026-08-03 교체): **101books.github.io**(공개 고전 사활, 퍼블릭 도메인) SGF. 책=난이도 매핑 — 쉬움=현현기경(2단)/보통=하시모토 명작·마에다(단급)/어려움=발양론(7단), 각 25개. 전부 19×19 코너·변 실전형(구 9×9 소반 잡기 대비 대폭 상향). 다운로드 시 루트노드에 `PL[색]`·`C[프롬프트]` 주입(파서가 SZ 없으면 19, PL 없으면 첫 수 색). 책 정해=메인라인 신뢰라 KataGo 검증 생략. ETL: 일회성 bash(git tree/contents API로 목록→shuf→raw 다운로드→prefix 저장).
 
 ## 데이터 흐름 (단일 기보 분석)
 ```

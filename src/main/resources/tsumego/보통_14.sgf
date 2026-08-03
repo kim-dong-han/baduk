@@ -1,5 +1,4 @@
-(;GM[1]FF[4]SZ[9]PL[W]
-AB[ea][eb][ec][fc][ic][ed][ee][ef][ff][gf][hf][if]
-AW[fa][ha][ia][fb][gc][fd][fe][he][ie]
-C[백 차례 — 돌을 살리세요]
-;W[gb];B[gd];W[ge];B[hd];W[hc];B[id];W[ib])
+(;PL[B]C[흑 차례 — 사활의 급소를 찾으세요]
+AB[dp][do][dn][en][ep][fp][gp][fo][dr][dq]
+AW[cr][cq][co][cn][cm][dm][em][fm][fn][go][ho][hp][hq][hs][eq][er]
+;B[cp];W[bp];B[fs];W[ds];B[es];W[fr];B[cs];W[gr];B[bq];W[br];B[ar];W[aq];B[bs];W[as])
