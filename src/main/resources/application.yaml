@@ -3,6 +3,10 @@ spring:
     name: baduk-analyzer
   thymeleaf:
     cache: false
+  # 구글 OAuth 키 파일(프로젝트 루트 google-oauth.properties). 없으면 무시(데모 로그인).
+  # google-oauth.properties.example 를 복사해 GOOGLE_CLIENT_ID/SECRET 채우고 재시작하면 실연동.
+  config:
+    import: "optional:file:./google-oauth.properties"
 
 server:
   port: 8083

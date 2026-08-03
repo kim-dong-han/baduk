@@ -46,3 +46,6 @@ pro_1_test.sgf
 ### Local tool config ###
 .claude/
 baduk/
+
+### 구글 OAuth 실키 (커밋 금지) ###
+google-oauth.properties
