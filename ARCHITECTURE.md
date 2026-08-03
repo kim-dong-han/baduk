@@ -51,6 +51,7 @@ dto/          MoveDetail(bestPv 포함), SingleGameResult, AnalysisResponse, Upl
 - 난이도 판정(TsumegoSgfParser.detectDifficulty): 파일명 접두사(쉬움_/보통_/어려움_ 또는 easy/normal/hard) → SGF `DIFF[]` → 정해 수순 길이(≥8 어려움/≥4 보통/그외 쉬움).
 - **보드 크기 지원**: SGF `SZ[]`를 읽어 5~19로반 처리(좌표·region·화점 모두 크기 기준). 번들 문제는 5~11로 코너/소반 사활.
 - 좌표는 전부 GTP. 정답 미추출 문제는 로드 시 건너뜀.
+- **UI(타이젬 스타일, waiting.html)**: 패널 헤더(사활+✕ tsumeClose)·서브헤더(오늘의 사활 (n/N)+?도움말, 우측 흑/백차례 dot)·난이도 pill. 나무 프레임 보드, 정해 수순 돌 위 번호(moveNums). 정답 시 "정답입니다!" 축하 오버레이(🐼+확인)→확인 시 완료 도장(.dimmed+ts-done-stamp)·재도전 pulse. 정답 보기(tsumeReveal)도 완료 상태. 이전/다음 문제는 history[] 스택 탐색(fetchNewProblem/renderProblem), 재도전=현 문제 초기화.
 - 번들 60개 출처: d180cf/problems(조치훈 사활사전 등) 위치를 가져와 **로컬 KataGo로 정답 검증**(정답이 최선수와 1.5집 이내인 것만 채택) 후 난이도 3등분해 생성. ETL: scratchpad/build_tsumego.ps1(일회성).
 
 ## 데이터 흐름 (단일 기보 분석)
