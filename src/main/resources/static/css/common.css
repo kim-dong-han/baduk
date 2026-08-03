@@ -52,13 +52,41 @@ body {
 }
 .topnav-links a:hover { background: #f0f2f5; color: #333; }
 .topnav-links a.active { color: #4a90d9; background: #eaf4fd; }
-.logout-form { margin-left: auto; }
-.logout-btn {
-    background: none; border: 1px solid #e0e3e8; color: #888;
-    font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 8px;
-    cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+/* ── 상단 사용자 메뉴 (아바타 + 이름 + 드롭다운) ── */
+.user-menu { margin-left: auto; position: relative; }
+.user-menu > summary {
+    list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 10px 4px 5px; border-radius: 99px; border: 1px solid #e6e8eb; background: #fff;
+    transition: background .15s, box-shadow .15s, border-color .15s; user-select: none;
 }
-.logout-btn:hover { background: #fbeaea; color: #c0392b; border-color: #f0c9c4; }
+.user-menu > summary::-webkit-details-marker { display: none; }
+.user-menu > summary::marker { content: ""; }
+.user-menu > summary:hover { background: #f6f8fa; box-shadow: 0 1px 5px rgba(0,0,0,0.07); border-color: #dde1e6; }
+.user-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; display: block; }
+.user-avatar-initial {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #4a90d9, #357abd); color: #fff; font-size: 13px; font-weight: 700;
+}
+.user-name { font-size: 13px; font-weight: 600; color: #333; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-caret { font-size: 9px; color: #aab2bd; transition: transform .18s; margin-left: 1px; }
+.user-menu[open] > summary .user-caret { transform: rotate(180deg); }
+.user-dropdown {
+    position: absolute; right: 0; top: calc(100% + 9px); width: 232px; background: #fff;
+    border: 1px solid #eceef0; border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.13); padding: 7px; z-index: 300; animation: umFade .16s ease;
+}
+@keyframes umFade { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+.user-dropdown-head { display: flex; align-items: center; gap: 10px; padding: 10px 11px 12px; border-bottom: 1px solid #f0f2f5; margin-bottom: 6px; }
+.user-dropdown-head .user-avatar { width: 38px; height: 38px; font-size: 16px; }
+.user-dropdown-id { min-width: 0; }
+.user-dropdown-name { font-size: 14px; font-weight: 700; color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-dropdown-email { font-size: 12px; color: #9aa2ac; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-logout {
+    width: 100%; text-align: left; background: none; border: none; padding: 10px 12px; border-radius: 9px;
+    font-size: 13px; font-weight: 600; color: #c0392b; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    transition: background .13s;
+}
+.user-logout:hover { background: #fbeaea; }
 
 /* ── 페이지 컨테이너 (가운데 정렬로 좌우 여백 균형) ── */
 .page {

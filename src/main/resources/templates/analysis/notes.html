@@ -53,9 +53,27 @@
                 <a href="/play">AI 대국</a>
                 <a href="/about">소개</a>
             </div>
-            <form class="logout-form" th:action="@{/logout}" method="post">
-                <button class="logout-btn" type="submit">로그아웃</button>
-            </form>
+            <details class="user-menu">
+                <summary>
+                    <img th:if="${currentUserPicture}" class="user-avatar" th:src="${currentUserPicture}" alt="" referrerpolicy="no-referrer">
+                    <span th:unless="${currentUserPicture}" class="user-avatar user-avatar-initial" th:text="${currentUserInitial}">U</span>
+                    <span class="user-name" th:text="${currentUserName}">사용자</span>
+                    <span class="user-caret">▼</span>
+                </summary>
+                <div class="user-dropdown">
+                    <div class="user-dropdown-head">
+                        <img th:if="${currentUserPicture}" class="user-avatar" th:src="${currentUserPicture}" alt="" referrerpolicy="no-referrer">
+                        <span th:unless="${currentUserPicture}" class="user-avatar user-avatar-initial" th:text="${currentUserInitial}">U</span>
+                        <div class="user-dropdown-id">
+                            <div class="user-dropdown-name" th:text="${currentUserName}">사용자</div>
+                            <div class="user-dropdown-email" th:if="${currentUserEmail}" th:text="${currentUserEmail}"></div>
+                        </div>
+                    </div>
+                    <form th:action="@{/logout}" method="post">
+                        <button type="submit" class="user-logout">🚪 로그아웃</button>
+                    </form>
+                </div>
+            </details>
         </div>
     </nav>
 

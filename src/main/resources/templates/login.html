@@ -6,7 +6,7 @@
     <title>로그인 · 바둑 분석</title>
     <link rel="stylesheet" href="/css/common.css">
     <style>
-        body { background: #f0f2f5; }
+        body { background: radial-gradient(1200px 600px at 15% -10%, #eaf3fc 0%, transparent 55%), radial-gradient(1000px 700px at 110% 110%, #eef4ec 0%, transparent 50%), #f4f6f8; }
         .login-wrap {
             min-height: 100vh;
             display: flex; align-items: center; justify-content: center;
@@ -35,8 +35,9 @@
         }
         /* ── 오른쪽 로그인 카드 ── */
         .login-card {
-            background: #fff; border-radius: 16px; padding: 36px 32px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+            background: #fff; border-radius: 22px; padding: 38px 34px;
+            box-shadow: 0 20px 50px -12px rgba(30,50,80,0.22), 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid rgba(255,255,255,0.7);
         }
         .login-card .brand { font-size: 20px; font-weight: 800; color: #333; margin-bottom: 22px; letter-spacing: -0.5px; }
         .field {
@@ -44,13 +45,15 @@
             padding: 13px 15px; font-size: 14px; margin-bottom: 11px; background: #fafbfc;
             transition: border-color .15s, background .15s;
         }
-        .field:focus { outline: none; border-color: #4a90d9; background: #fff; }
+        .field:focus { outline: none; border-color: #4a90d9; background: #fff; box-shadow: 0 0 0 3px rgba(74,144,217,0.15); }
         .login-btn {
-            width: 100%; border: none; border-radius: 9px; cursor: pointer;
-            background: #4a90d9; color: #fff; font-size: 15px; font-weight: 700;
-            padding: 13px 0; margin-top: 4px; transition: background .15s;
+            width: 100%; border: none; border-radius: 11px; cursor: pointer;
+            background: linear-gradient(135deg, #5a9be0, #357abd); color: #fff; font-size: 15px; font-weight: 700;
+            padding: 14px 0; margin-top: 6px; transition: filter .15s, transform .05s, box-shadow .15s;
+            box-shadow: 0 8px 18px -6px rgba(53,122,189,0.55);
         }
-        .login-btn:hover { background: #357abd; }
+        .login-btn:hover { filter: brightness(1.05); box-shadow: 0 10px 22px -6px rgba(53,122,189,0.6); }
+        .login-btn:active { transform: translateY(1px); }
         .sublinks { display: flex; justify-content: center; gap: 14px; margin: 16px 0 6px; }
         .sublinks a { font-size: 12px; color: #aab2bd; text-decoration: none; }
         .sublinks a:hover { color: #666; }

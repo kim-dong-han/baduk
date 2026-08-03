@@ -74,7 +74,7 @@ waiting.html 3초 폴링 GET /game/status/{jobId} → 완료 시 /game/result/{i
 - `config/SecurityConfig`: 미인증 → `/login` 리다이렉트(LoginUrlAuthenticationEntryPoint). formLogin·CSRF 끔(로컬 단일 사용자 + 기존 fetch/폼 POST가 토큰 없음). 로그아웃 POST `/logout` → `/login?logout`.
 - **구글 OAuth2**: 키를 env `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` 또는 프로젝트 루트 `google-oauth.properties`(gitignore, application.yaml `spring.config.import: optional:file:./google-oauth.properties`)로 주입. 둘 다 있으면 `oauth2Login` 활성(CommonOAuth2Provider.GOOGLE, 리다이렉트 URI `/login/oauth2/code/google`, 승인 리디렉션 URI로 구글 콘솔 등록 필요). 없으면 구글 버튼도 데모. 템플릿 `google-oauth.properties.example`에 발급 순서. 검증: 더미키로 `/oauth2/authorization/google` → 302 accounts.google.com 확인(실키는 사용자 발급).
 - **데모 로그인**: `controller/AuthController` `POST /demo-login`(username 또는 provider) → UsernamePasswordAuthenticationToken 세션 주입 → `/`. login.html의 아이디 입력·소셜 버튼(구글 제외/키 없을 때 포함) 전부 이 경로.
-- 화면: `templates/login.html`(히어로+카드, 소셜 5종). 각 페이지 topnav 우측에 로그아웃 폼(.logout-btn).
+- 화면: `templates/login.html`(히어로+카드, 소셜 5종, 그라데이션 배경/버튼). 각 페이지 topnav 우측에 **사용자 메뉴**(`<details class="user-menu">` 무JS 드롭다운: 아바타+이름+캐럿 → 이름·이메일·로그아웃). 모델 주입: `controller/GlobalUserAdvice`(@ControllerAdvice) `currentUserName/Email/Picture/Initial` — OAuth2User는 name/email/picture 속성, 데모는 표시명. 구글 로그인 시 아바타=구글 프로필 사진, 이메일 표기.
 - Boot 4/Security 7 패키지: PathRequest=`boot.security.autoconfigure.web.servlet`, CommonOAuth2Provider=`security.config.oauth2.client`.
 
 ## "DB" 구조 (파일 기반)
