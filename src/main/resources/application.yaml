@@ -24,3 +24,11 @@ katago:
 
 tygem:
   gibo-dir: C:/Program Files (x86)/타이젬바둑 2.0/Gibo
+
+# 구글 OAuth2 로그인. 환경변수 GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET 를 넣으면
+# 구글 버튼이 실제 로그인으로 동작한다(둘 다 비어 있으면 데모 로그인으로 표시).
+# 구글 클라우드 콘솔에서 승인 리디렉션 URI: http://localhost:8083/login/oauth2/code/google
+google:
+  oauth:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}

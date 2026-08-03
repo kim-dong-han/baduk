@@ -69,7 +69,12 @@ waiting.html 3초 폴링 GET /game/status/{jobId} → 완료 시 /game/result/{i
 - 등급: 최선<0.5 / 좋음<1.5 / 보통<3 / 실수<5 / 악수≥5 (집수 손실 기준)
 
 ## 인증 방식
-- 없음 (로컬 단일 사용자 데스크톱 앱). 인증 도입 시 이 절을 갱신.
+- Spring Security 로그인 게이트. **모든 페이지 인증 필요**, `/login`·정적 리소스만 공개.
+- `config/SecurityConfig`: 미인증 → `/login` 리다이렉트(LoginUrlAuthenticationEntryPoint). formLogin·CSRF 끔(로컬 단일 사용자 + 기존 fetch/폼 POST가 토큰 없음). 로그아웃 POST `/logout` → `/login?logout`.
+- **구글 OAuth2**: env `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` 둘 다 있으면 `oauth2Login` 활성(CommonOAuth2Provider.GOOGLE, 리다이렉트 URI `/login/oauth2/code/google`). 없으면 구글 버튼도 데모.
+- **데모 로그인**: `controller/AuthController` `POST /demo-login`(username 또는 provider) → UsernamePasswordAuthenticationToken 세션 주입 → `/`. login.html의 아이디 입력·소셜 버튼(구글 제외/키 없을 때 포함) 전부 이 경로.
+- 화면: `templates/login.html`(히어로+카드, 소셜 5종). 각 페이지 topnav 우측에 로그아웃 폼(.logout-btn).
+- Boot 4/Security 7 패키지: PathRequest=`boot.security.autoconfigure.web.servlet`, CommonOAuth2Provider=`security.config.oauth2.client`.
 
 ## "DB" 구조 (파일 기반)
 | 데이터 | 위치 | 형식 |

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>로그인 · 바둑 분석</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        body { background: #f0f2f5; }
+        .login-wrap {
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 40px 20px;
+        }
+        .login-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 64px;
+            align-items: center;
+            max-width: 940px; width: 100%;
+        }
+        /* ── 왼쪽 히어로 ── */
+        .hero { text-align: center; }
+        .hero .board-mark {
+            font-size: 92px; line-height: 1; margin-bottom: 18px;
+            filter: drop-shadow(0 6px 14px rgba(0,0,0,0.15));
+        }
+        .hero h1 { font-size: 30px; font-weight: 800; letter-spacing: -1px; margin: 0 0 10px; color: #2c3e50; }
+        .hero p { font-size: 15px; color: #7f8c9a; margin: 0; line-height: 1.6; }
+        .hero .tagpill {
+            display: inline-block; margin-top: 20px;
+            background: linear-gradient(135deg,#4a90d9,#357abd); color: #fff;
+            font-size: 13px; font-weight: 700; padding: 8px 18px; border-radius: 99px;
+            box-shadow: 0 6px 16px rgba(74,144,217,0.35);
+        }
+        /* ── 오른쪽 로그인 카드 ── */
+        .login-card {
+            background: #fff; border-radius: 16px; padding: 36px 32px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+        }
+        .login-card .brand { font-size: 20px; font-weight: 800; color: #333; margin-bottom: 22px; letter-spacing: -0.5px; }
+        .field {
+            width: 100%; border: 1px solid #dde1e6; border-radius: 9px;
+            padding: 13px 15px; font-size: 14px; margin-bottom: 11px; background: #fafbfc;
+            transition: border-color .15s, background .15s;
+        }
+        .field:focus { outline: none; border-color: #4a90d9; background: #fff; }
+        .login-btn {
+            width: 100%; border: none; border-radius: 9px; cursor: pointer;
+            background: #4a90d9; color: #fff; font-size: 15px; font-weight: 700;
+            padding: 13px 0; margin-top: 4px; transition: background .15s;
+        }
+        .login-btn:hover { background: #357abd; }
+        .sublinks { display: flex; justify-content: center; gap: 14px; margin: 16px 0 6px; }
+        .sublinks a { font-size: 12px; color: #aab2bd; text-decoration: none; }
+        .sublinks a:hover { color: #666; }
+        .divider { display: flex; align-items: center; gap: 12px; margin: 18px 0 16px; color: #bbb; font-size: 12px; }
+        .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #eee; }
+        /* ── 소셜 버튼 ── */
+        .socials { display: flex; justify-content: center; gap: 12px; }
+        .social {
+            width: 46px; height: 46px; border-radius: 12px; border: 1px solid #eaeced;
+            background: #fff; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 20px; font-weight: 800; padding: 0;
+            transition: transform .12s, box-shadow .12s;
+        }
+        .social:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+        .social.google { color: #4285F4; }
+        .social.naver  { background: #03C75A; color: #fff; border-color: #03C75A; }
+        .social.apple  { background: #000; color: #fff; border-color: #000; }
+        .social.payco  { background: #FF1E27; color: #fff; border-color: #FF1E27; }
+        .social.facebook { background: #1877F2; color: #fff; border-color: #1877F2; }
+        .social-form { display: inline; }
+        .demo-note { text-align: center; font-size: 11px; color: #c3c9d0; margin-top: 16px; line-height: 1.5; }
+        @media (max-width: 760px) {
+            .login-grid { grid-template-columns: 1fr; gap: 34px; max-width: 380px; }
+            .hero .board-mark { font-size: 68px; }
+            .hero h1 { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+<div class="login-wrap">
+    <div class="login-grid">
+        <!-- 히어로 -->
+        <div class="hero">
+            <div class="board-mark">⚫⚪</div>
+            <h1>바둑 복기 분석</h1>
+            <p>KataGo AI로 내 기보를 한 수씩 복기하고<br>구간별 실력을 진단하세요.</p>
+            <div class="tagpill">🎯 실수·악수 정밀 재분석</div>
+        </div>
+
+        <!-- 로그인 카드 -->
+        <div class="login-card">
+            <div class="brand">⚫ 바둑 분석 로그인</div>
+
+            <form th:action="@{/demo-login}" method="post">
+                <input class="field" type="text" name="username" placeholder="아이디" autocomplete="username">
+                <input class="field" type="password" name="password" placeholder="비밀번호" autocomplete="current-password">
+                <button class="login-btn" type="submit">로그인</button>
+            </form>
+
+            <div class="sublinks">
+                <a href="#">아이디 찾기</a>
+                <a href="#">비밀번호 찾기</a>
+                <a href="#">회원가입</a>
+            </div>
+
+            <div class="divider">또는</div>
+
+            <div class="socials">
+                <!-- 구글: 키가 있으면 실제 OAuth, 없으면 데모 -->
+                <a th:if="${googleEnabled}" class="social google" href="/oauth2/authorization/google" title="구글로 로그인">G</a>
+                <form th:unless="${googleEnabled}" class="social-form" th:action="@{/demo-login}" method="post">
+                    <input type="hidden" name="provider" value="구글">
+                    <button class="social google" type="submit" title="구글 데모 로그인">G</button>
+                </form>
+
+                <form class="social-form" th:action="@{/demo-login}" method="post">
+                    <input type="hidden" name="provider" value="네이버">
+                    <button class="social naver" type="submit" title="네이버 데모 로그인">N</button>
+                </form>
+                <form class="social-form" th:action="@{/demo-login}" method="post">
+                    <input type="hidden" name="provider" value="애플">
+                    <button class="social apple" type="submit" title="애플 데모 로그인"></button>
+                </form>
+                <form class="social-form" th:action="@{/demo-login}" method="post">
+                    <input type="hidden" name="provider" value="페이코">
+                    <button class="social payco" type="submit" title="페이코 데모 로그인">P</button>
+                </form>
+                <form class="social-form" th:action="@{/demo-login}" method="post">
+                    <input type="hidden" name="provider" value="페이스북">
+                    <button class="social facebook" type="submit" title="페이스북 데모 로그인">f</button>
+                </form>
+            </div>
+
+            <p class="demo-note">
+                <span th:if="${googleEnabled}">구글은 실제 로그인, 그 외 버튼과 아이디 입력은 데모 로그인입니다.</span>
+                <span th:unless="${googleEnabled}">데모 로그인 — 아이디·소셜 버튼 모두 체험용 계정으로 입장합니다.<br>구글 실연동은 GOOGLE_CLIENT_ID/SECRET 설정 시 활성화됩니다.</span>
+            </p>
+        </div>
+    </div>
+</div>
+</body>
+</html>

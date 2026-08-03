@@ -52,6 +52,13 @@ body {
 }
 .topnav-links a:hover { background: #f0f2f5; color: #333; }
 .topnav-links a.active { color: #4a90d9; background: #eaf4fd; }
+.logout-form { margin-left: auto; }
+.logout-btn {
+    background: none; border: 1px solid #e0e3e8; color: #888;
+    font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 8px;
+    cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+}
+.logout-btn:hover { background: #fbeaea; color: #c0392b; border-color: #f0c9c4; }
 
 /* ── 페이지 컨테이너 (가운데 정렬로 좌우 여백 균형) ── */
 .page {
