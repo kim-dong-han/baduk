@@ -63,6 +63,48 @@ public class SingleGameService {
         }
     }
 
+    /** 저장된 모든 기보를 순차 재분석하는 일괄 작업의 진행 상태(단일 인스턴스). */
+    public static class BulkStatus {
+        public volatile boolean running;
+        public volatile int total;
+        public volatile int done;
+        public volatile String current;   // 지금 분석 중인 파일명
+        public volatile String message;   // 완료/오류 요약
+    }
+    private final BulkStatus bulk = new BulkStatus();
+    public BulkStatus getBulkStatus() { return bulk; }
+
+    /**
+     * 저장된 기보(일반+프로) 전체를 현재 visits 설정으로 하나씩 재분석.
+     * 재분석 결과 JSON은 새로 저장되고 dedupeLatestByFile 로 최신본이 대표가 됨(구 결과는 숨겨짐).
+     * 한 파일 실패해도 다음으로 계속 진행. TRT 가속 후 현실화된 유지보수 작업(구 등급 갱신 등).
+     */
+    @Async
+    public void startBulkReanalyze() {
+        if (bulk.running) return;                        // 중복 실행 방지
+        List<String> files = new ArrayList<>();
+        files.addAll(listGameFiles());
+        files.addAll(listProGameFiles());
+        bulk.running = true; bulk.total = files.size(); bulk.done = 0; bulk.current = null; bulk.message = null;
+        int ok = 0, fail = 0;
+        long s = System.currentTimeMillis();
+        System.out.println("[BulkReanalyze] 시작: " + files.size() + "개 기보, visits=" + kataGoService.getAnalysisVisits());
+        try {
+            for (String f : files) {
+                bulk.current = f;
+                try { analyze(f, null); ok++; }
+                catch (Exception e) { fail++; System.err.println("[BulkReanalyze] 실패: " + f + " → " + e.getMessage()); }
+                bulk.done++;
+            }
+            long sec = (System.currentTimeMillis() - s) / 1000;
+            bulk.message = "완료: 성공 " + ok + "개" + (fail > 0 ? " · 실패 " + fail + "개" : "") + " · " + sec + "초";
+            System.out.println("[BulkReanalyze] " + bulk.message);
+        } finally {
+            bulk.current = null;
+            bulk.running = false;
+        }
+    }
+
     public SingleGameResult analyze(String fileName) throws Exception {
         return analyze(fileName, null);
     }

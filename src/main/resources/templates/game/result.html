@@ -8,8 +8,9 @@
     <script src="/js/chart.min.js"></script>
     <style>
         .header { margin-bottom: 20px; }
-        .header h1 { font-size: 22px; margin: 0 0 6px; }
-        .header-meta { font-size: 13px; color: #999; display: flex; gap: 16px; }
+        .header h1 { font-size: 22px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+        .header-sub { font-size: 15px; font-weight: 700; color: #4a5a6a; margin: 0 0 8px; }
+        .header-meta { font-size: 13px; color: #999; display: flex; gap: 16px; flex-wrap: wrap; }
 
         /* ── 리뷰 그리드 레이아웃 ──
            구간카드(전체폭) / 바둑판 | 핵심실수+AI통계 */
@@ -50,7 +51,7 @@
         }
 
         /* ── 공통 카드 ── */
-        .card-box { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card-box { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(30,50,80,0.06); border: 1px solid #edf0f3; }
 
         /* ── 구간 카드 (3열 그리드, 좁으면 자동 줄바꿈) ── */
         .phase-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -77,6 +78,28 @@
         /* ── 섹션 공통 ── */
         .section-title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
         .section-desc  { font-size: 12px; color: #999; margin: 0 0 14px; }
+
+        /* ── ② 한 줄 총평 배너 ── */
+        .game-summary { background: linear-gradient(135deg,#2c3e50,#34495e); color:#ecf0f1; border-radius:14px; padding:16px 22px; margin-bottom:16px; box-shadow:0 3px 12px rgba(0,0,0,0.15); }
+        .gs-head { font-size:12px; font-weight:700; color:#a3c9e8; margin-bottom:7px; letter-spacing:0.3px; }
+        .gs-body { font-size:14.5px; line-height:1.7; }
+        .gs-body b { color:#ffd23f; }
+        .gs-body .gs-turn { color:#7fd1ff; cursor:pointer; text-decoration:underline dotted; font-weight:700; }
+
+        /* ── ① 승부 흐름 그래프 ── */
+        .flow-card { background:#fff; border-radius:12px; padding:16px 18px 12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:16px; }
+        .flow-legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:#888; margin-top:6px; }
+        .flow-legend span { display:inline-flex; align-items:center; gap:5px; }
+        .flow-dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+        #flowCanvas { width:100%; display:block; cursor:pointer; }
+
+        /* ── ③ 잘 둔 수(호수) ── */
+        .good-moves { display:flex; flex-direction:column; gap:8px; }
+        .gm-item { display:flex; align-items:center; gap:12px; background:#f4faf6; border:1px solid #d7efe0; border-radius:10px; padding:10px 12px; cursor:pointer; transition:background .12s; }
+        .gm-item:hover { background:#e8f7ee; }
+        .gm-turn { font-weight:800; color:#1e8449; font-size:15px; min-width:48px; }
+        .gm-meta { flex:1; font-size:13px; color:#555; }
+        .gm-gain { font-weight:700; color:#27ae60; font-size:13px; white-space:nowrap; }
 
         /* ── AI 착수 통계 (흑·백 일치율) ── */
         .ai-matchrate { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
@@ -218,13 +241,15 @@
 
 <nav class="topnav">
     <div class="topnav-inner">
-        <a class="brand" href="/analysis/batch">⚫ 바둑 분석</a>
+        <a class="brand" href="/">⚫ 바둑 분석</a>
         <div class="topnav-links">
+            <a href="/">홈</a>
             <a href="/analysis/batch">실력 리포트</a>
             <a href="/notes">오답노트</a>
             <a href="/gallery">갤러리</a>
             <a href="/game" class="active">기보 복기</a>
             <a href="/play">AI 대국</a>
+            <a href="/study">분석판</a>
             <a href="/about">소개</a>
         </div>
         <details class="user-menu">
@@ -253,7 +278,13 @@
 
 <div class="page">
 <div class="header">
-    <h1>복기 분석 결과</h1>
+    <h1>📊 실력 리포트</h1>
+    <div class="header-sub"
+         th:if="${(result.blackPlayer != null and !result.blackPlayer.isEmpty()) or (result.whitePlayer != null and !result.whitePlayer.isEmpty())}">
+        <span th:text="${result.blackPlayer != null and !result.blackPlayer.isEmpty() ? result.blackPlayer : '흑'}">흑</span>
+        <span style="color:#aab2bd;font-weight:600;"> vs </span>
+        <span th:text="${result.whitePlayer != null and !result.whitePlayer.isEmpty() ? result.whitePlayer : '백'}">백</span>
+    </div>
     <div class="header-meta">
         <span>📄 <span th:text="${result.fileName}"></span></span>
         <span>🕐 <span th:text="${result.analyzedAt != null ? result.analyzedAt.substring(0,10) : ''}"></span></span>
@@ -266,7 +297,26 @@
     </div>
 </div>
 
+<!-- ② 한 줄 총평 -->
+<div id="gameSummary" class="game-summary" style="display:none;">
+    <div class="gs-head">📋 한 줄 총평</div>
+    <div class="gs-body" id="gameSummaryBody"></div>
+</div>
+
 <div id="rankEstimate" class="rank-estimate" style="display:none;"></div>
+
+<!-- ① 승부 흐름 그래프 -->
+<div class="flow-card">
+    <p class="section-title">📈 승부 흐름 <span style="font-size:12px;color:#999;font-weight:400;">— 흑 승률 추이 · 그래프를 클릭하면 그 수로 이동</span></p>
+    <canvas id="flowCanvas"></canvas>
+    <div class="flow-legend">
+        <span><span class="flow-dot" style="background:#2c3e50;"></span>흑 우세(위)/백 우세(아래)</span>
+        <span><span class="flow-dot" style="background:#e67e22;"></span>실수</span>
+        <span><span class="flow-dot" style="background:#c0392b;"></span>악수</span>
+        <span><span class="flow-dot" style="background:#f1c40f;"></span>패착</span>
+        <span><span class="flow-dot" style="background:#3498db;"></span>현재 수</span>
+    </div>
+</div>
 
 <div class="review-grid">
 
@@ -462,6 +512,13 @@
 
 </div>
 
+<!-- ③ 이 판의 호수 -->
+<div class="card-box" id="goodMovesCard" style="margin-top:16px;display:none;">
+    <p class="section-title">✨ 이 판의 호수 <span style="font-size:12px;color:#999;font-weight:400;">AI 평가가 좋아진 수</span></p>
+    <p class="section-desc">클릭하면 바둑판에서 위치를 확인할 수 있어요.</p>
+    <div class="good-moves" id="goodMovesList"></div>
+</div>
+
 <script th:inline="javascript">
 const moves = /*[[${result.moves}]]*/ [];
 </script>
@@ -516,6 +573,10 @@ let hoveredCandIdx = -1;   // 현재 hover 중인 후보 인덱스
 let tryMode = false;       // 놓아보기 모드 여부
 let tryStones = [];        // 놓아보기로 놓은 돌 [{x,y,color}] (놓은 순서)
 let tryBaseIdx = -1;       // 놓아보기 시작 시의 기준 수번
+let tryRecos = [];         // 놓아보기 AI 추천수 마커 [{gx,gy,rank,cand}] (cand.winrate=흑 기준)
+let tryRecoSide = 'B';     // 추천수를 계산한 '둘 차례' 색 (drawCandidateHeat 관점용)
+let tryAnalyzeToken = 0;   // 오래된 분석 응답 무시용(최신 요청만 반영)
+let tryPrevBest = null;    // 직전 국면의 '둘 차례' 최선 승률% — 방금 둔 수 평가 기준
 
 /* ── 바둑판 상수 ── */
 const CELL = 30;
@@ -525,8 +586,11 @@ const BOARD_PX = PAD * 2 + CELL * 18;
 const canvas = document.getElementById('boardCanvas');
 canvas.width  = BOARD_PX;
 canvas.height = BOARD_PX;
-canvas.style.width  = BOARD_PX + 'px';
-canvas.style.height = BOARD_PX + 'px';
+// 반응형 표시 크기: 가로는 컨테이너에 맞춰 줄어들되 원본 해상도(BOARD_PX)를 넘겨 확대하지 않고,
+// 세로는 항상 auto — height 를 px 로 고정하면 좁은 화면에서 가로만 줄어 판이 세로로 늘어나고
+// 클릭 좌표가 격자와 어긋난다(착수 위치 밀림).
+canvas.style.maxWidth = BOARD_PX + 'px';
+canvas.style.height   = 'auto';
 
 /* ── GTP → 격자 좌표 (0-indexed) ── */
 function gtpToGrid(gtp) {
@@ -617,6 +681,11 @@ function drawCandidateMarker(ctx, gx, gy, rank) {
     ctx.fillText(String(rank), cx, cy);
 }
 
+/* 승률 표시 클램프: 완승·완패여도 100%/0% 대신 최대 99.9%·최소 0.1% 로 표기(요청).
+   확률은 이론상 100%가 되지 않으므로 표시 숫자만 제한 — 바 길이/색상 계산엔 영향 거의 없음. */
+function wrPct1(frac) { return Math.min(99.9, Math.max(0.1, frac * 100)); }          // 소수1자리용 숫자(%)
+function wrPctI(frac) { return Math.min(99,   Math.max(1,   Math.round(frac * 100))); } // 정수용(%)
+
 /* ── 추천수 승률 색 히트맵 마커 (초록=좋음/빨강=나쁨, 둘 차례 기준) ── */
 function winColorHsl(p) {           // p = 0..1 (둘 쪽 승률)
     const hue = Math.max(0, Math.min(120, p * 120));   // 0=빨강 → 120=초록
@@ -633,9 +702,24 @@ function drawCandidateHeat(ctx, gx, gy, cand, playerColor) {
     ctx.globalAlpha = 1;
     ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = '#fff';
-    ctx.font = `bold ${Math.round(CELL * 0.26)}px sans-serif`;
+    // 소수점 첫째자리까지 표시 → 승률이 비슷해도 값으로 순위 구분 가능(별도 순위 표시 불필요)
+    ctx.font = `bold ${Math.round(CELL * 0.27)}px sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(Math.round(p * 100) + '%', cx, cy);
+    ctx.fillText(wrPct1(p).toFixed(1) + '%', cx, cy);
+    ctx.restore();
+}
+
+/* 방금 둔 수가 AI 추천수에 포함됐으면 그 돌 안에 '금색' 승률%(둔 쪽 관점)로 표시.
+   빨간 착수 표시 대신 이 금색%가 '내가 둔 수(=추천수였음)'를 구분. 어떤 돌 색 위에서도 읽히게 어두운 외곽선. */
+function drawPlayedWinrate(ctx, gx, gy, color, wr) {
+    const cx = px(gx), cy = py(gy);
+    ctx.save();
+    ctx.font = `bold ${Math.round(CELL * 0.27)}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const txt = wrPct1(wr).toFixed(1) + '%';
+    ctx.lineWidth = 3; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,0.9)'; ctx.strokeText(txt, cx, cy);
+    ctx.fillStyle = '#ffd23f'; ctx.fillText(txt, cx, cy);
     ctx.restore();
 }
 
@@ -786,9 +870,16 @@ function showMove(idx) {
         // AI 집 예측 히트맵 (돌보다 먼저 → 돌이 위를 덮음)
         if (showOwnership && cur.ownership && cur.ownership.length === 361) drawOwnership(ctx, cur.ownership);
         const lastG = gtpToGrid(cur.move);
+        // 방금 둔 수가 추천수였는지 판정 → 그렇다면 빨간 착수 표시 대신 돌 안 색 승률%로 구분(겹침 방지)
+        let playedMatchWr = null;
+        if (!showSequence && lastG && board[lastG.x][lastG.y] === cur.color && cur.candidates && cur.candidates.length) {
+            const match = cur.candidates.find(c => c.move === cur.move && typeof c.winrate === 'number');
+            if (match) playedMatchWr = cur.color === 'B' ? match.winrate : 1 - match.winrate;
+        }
         for (let x = 0; x < 19; x++)
             for (let y = 0; y < 19; y++)
-                if (board[x][y]) drawStone(ctx, x, y, board[x][y], lastG && x === lastG.x && y === lastG.y);
+                if (board[x][y]) drawStone(ctx, x, y, board[x][y],
+                    lastG && x === lastG.x && y === lastG.y && playedMatchWr === null);
 
         // AI 추천수 상위 3개 표시. 상세(candidates)가 있으면 hover 대상으로 기록,
         // 없으면 좌표만(topMoves) / 최후 bestMove
@@ -806,6 +897,9 @@ function showMove(idx) {
                 if (typeof c.winrate === 'number') candMarkers.push({ gx: g.x, gy: g.y, rank: i + 1, cand: c });
             }
         });
+
+        // 방금 둔 수가 추천수였으면 그 돌 안에 금색 승률%로 표시(= 착수 표시 겸용, 수순번호 중엔 생략)
+        if (playedMatchWr !== null) drawPlayedWinrate(ctx, lastG.x, lastG.y, cur.color, playedMatchWr);
 
         // 수순번호 표시
         if (showSequence) {
@@ -835,10 +929,29 @@ function showMove(idx) {
     const lossColor = cur.scoreLoss >= 5 ? '#e74c3c' : cur.scoreLoss >= 3 ? '#e67e22' : cur.scoreLoss <= 0 ? '#2ecc71' : '#555';
     const lossText  = cur.scoreLoss > 0 ? `-${cur.scoreLoss}집` : cur.scoreLoss < 0 ? `+${Math.abs(cur.scoreLoss)}집 (득점)` : '0집';
 
+    // 내가 둔 수의 승률(둔 쪽 관점) + 추천수 대비 위치 표시
+    const moverFrac = f => (cur.color === 'B' ? f : 1 - f);       // 흑기준 승률 → 둔 쪽 기준
+    const hasWrAfter  = typeof cur.winrateAfter  === 'number';
+    const hasWrBefore = typeof cur.winrateBefore === 'number';
+    const myPct   = hasWrAfter  ? wrPct1(moverFrac(cur.winrateAfter))  : null;  // 내가 둔 수 승률
+    const bestPct = hasWrBefore ? wrPct1(moverFrac(cur.winrateBefore)) : null;  // 최선 플레이 기대 승률
+    let rankTag = null, tagColor = '#888';
+    if (cur.bestMove && cur.move === cur.bestMove) { rankTag = '✅ 최선수'; tagColor = '#27ae60'; }
+    else if (cur.candidates && cur.candidates.length) {
+        const ci = cur.candidates.findIndex(c => c.move === cur.move);   // 추천 후보 안에 들었나
+        rankTag  = ci >= 0 ? `추천 ${ci + 1}순위` : '추천 밖';
+        tagColor = ci >= 0 ? '#2980b9' : '#e67e22';
+    }
+    const rankBadge = rankTag
+        ? ` <span style="font-size:11px;font-weight:700;color:${tagColor};background:${tagColor}1a;padding:2px 7px;border-radius:99px;">${rankTag}</span>`
+        : ` <span style="font-size:11px;color:#aaa;">후보 비교 없음</span>`;
+    const myMoveHtml = `<div class="info-row"><span class="info-label">내가 둔 수</span>`
+        + `<span>${cur.move ? cur.move : '패스'}${myPct !== null ? ` · <b style="color:${lossColor};">${myPct.toFixed(1)}%</b>` : ''}${rankBadge}</span></div>`;
+
     // 최선수 + 변화도 정보 (실제 착점이 최선수와 다를 때만)
     let bestHtml = '';
     if (cur.bestMove && cur.move !== cur.bestMove) {
-        bestHtml += `<div class="info-row"><span class="info-label">최선수</span><span style="color:#3498db;font-weight:700;">${cur.bestMove}</span></div>`;
+        bestHtml += `<div class="info-row"><span class="info-label">최선수</span><span style="color:#3498db;font-weight:700;">${cur.bestMove}${bestPct !== null ? ` · ${bestPct.toFixed(1)}%` : ''}</span></div>`;
         if (cur.bestPv && cur.bestPv.length > 1) {
             const pvText = cur.bestPv.slice(0, 6).join(' → ');
             bestHtml += `<div class="info-row" style="${variationActive ? '' : 'opacity:0.6;'}"><span class="info-label">예상 진행</span><span style="font-size:12px;color:#666;">${pvText}</span></div>`;
@@ -847,6 +960,7 @@ function showMove(idx) {
 
     document.getElementById('moveInfo').innerHTML = `
         <div class="info-row"><span class="info-label">수번</span><span><b>${cur.turnNumber}수</b> (${cur.color === 'B' ? '흑' : '백'})</span></div>
+        ${myMoveHtml}
         <div class="info-row"><span class="info-label">집 손해</span><span style="color:${lossColor};font-weight:700;">${lossText}</span></div>
         <div class="info-row"><span class="info-label">등급</span><span class="grade-badge g-${cur.grade}">${cur.grade}</span>${cur.deepAnalyzed ? ' <span class="deep-badge" title="실수·악수 국면이라 고visits로 정밀 재분석한 수예요">🎯 정밀재분석</span>' : ''}</span></div>
         ${bestHtml}
@@ -858,7 +972,7 @@ function showMove(idx) {
     `;
 
     // 실시간 승률 바 + 현재 집 차이 (winrateAfter·scoreLeadAfter = 흑 기준)
-    const blackWr = Math.max(0, Math.min(1, cur.winrateAfter)) * 100;
+    const blackWr = wrPct1(cur.winrateAfter);
     document.getElementById('wbBlack').style.width   = blackWr.toFixed(1) + '%';
     document.getElementById('wbBlackPct').textContent = '흑 ' + blackWr.toFixed(1) + '%';
     document.getElementById('wbWhitePct').textContent = (100 - blackWr).toFixed(1) + '% 백';
@@ -868,7 +982,7 @@ function showMove(idx) {
     else           sd.innerHTML = `현재 형세: <span class="lead-w">백 ${Math.abs(lead).toFixed(1)}집 유리</span>`;
 
     // 실시간 AI 승률 바
-    const wrPct = cur.winrateAfter * 100;
+    const wrPct = wrPct1(cur.winrateAfter);
     const sl = cur.scoreLeadAfter;
     const scoreText = Math.abs(sl) < 0.1 ? '균형'
                     : sl > 0 ? `흑 +${sl.toFixed(1)}집 유리`
@@ -878,6 +992,8 @@ function showMove(idx) {
     document.getElementById('wrBlackVal').textContent = `흑 ${wrPct.toFixed(1)}%`;
     document.getElementById('wrWhiteVal').textContent = `백 ${(100 - wrPct).toFixed(1)}%`;
     document.getElementById('wrScoreText').textContent = scoreText;
+
+    if (typeof drawFlowChart === 'function') drawFlowChart();   // 흐름 그래프 커서 동기화
 }
 
 function prevMove() {
@@ -890,6 +1006,18 @@ function prevMove() {
 }
 function nextMove() { showMove(currentIdx + 1); }
 function skipMove(delta) { showMove(Math.max(0, Math.min(moves.length - 1, currentIdx + delta))); }
+
+/* 판 위에서 마우스 휠로 수 이동 (Lizzie 식: 위로=이전 수, 아래로=다음 수).
+   판 위에서만 가로채고 페이지 스크롤은 막는다. 트랙패드처럼 이벤트가 촘촘히 오는 경우
+   한 번에 수십 수가 넘어가지 않도록 최소 간격을 둔다. */
+let wheelLock = 0;
+canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const now = performance.now();
+    if (now - wheelLock < 60) return;
+    wheelLock = now;
+    if (e.deltaY < 0) prevMove(); else nextMove();
+}, { passive: false });
 
 function jumpToInput() {
     const val = parseInt(document.getElementById('moveInput').value);
@@ -928,7 +1056,7 @@ function drawCompareBoard(canvasEl, pv) {
     drawPvSequence(ctx, base, moves[currentIdx].color, pv);
 }
 function cmpStat(wr, score) {
-    const w = (Math.max(0, Math.min(1, wr)) * 100).toFixed(1);
+    const w = wrPct1(wr).toFixed(1);
     const s = score >= 0 ? `흑 +${score.toFixed(1)}집` : `백 +${Math.abs(score).toFixed(1)}집`;
     return `흑 승률 <b>${w}%</b> · 예상 형세 <b>${s}</b>`;
 }
@@ -1002,8 +1130,76 @@ function renderTry() {
     for (let x = 0; x < 19; x++)
         for (let y = 0; y < 19; y++)
             if (board[x][y]) drawStone(ctx, x, y, board[x][y], last && x === last.x && y === last.y);
+    // AI 추천수 마커(승률 색 원반) — 빈 자리에만
+    for (const m of tryRecos)
+        if (!board[m.gx][m.gy]) drawCandidateHeat(ctx, m.gx, m.gy, m.cand, tryRecoSide);
     const nextKr = tryNextColor() === 'B' ? '흑' : '백';
     document.getElementById('moveCounter').textContent = `놓아보기 · ${tryStones.length}수 (다음: ${nextKr})`;
+}
+
+/* ── 놓아보기 AI 추천수: 현재 시험 국면을 분석해 추천수·승률 표시 ── */
+const TRY_COLS = 'ABCDEFGHJKLMNOPQRST';
+function gridToGtp(x, y) { return TRY_COLS[x] + (y + 1); }
+function tryMovesList() {
+    const list = [];
+    for (let i = 0; i <= tryBaseIdx; i++)
+        if (moves[i] && moves[i].move && moves[i].move.toLowerCase() !== 'pass')
+            list.push([moves[i].color, moves[i].move]);
+    for (const s of tryStones) list.push([s.color, gridToGtp(s.x, s.y)]);
+    return list;
+}
+function setTryStatus(html) {
+    const el = document.getElementById('moveInfo');
+    if (el) el.innerHTML = `<div style="padding:4px 2px;">${html}</div>`;
+}
+function analyzeTryPosition() {
+    const token = ++tryAnalyzeToken;
+    const posMoves = tryMovesList();
+    setTryStatus('<span style="color:#888;">AI 분석 중… <b>추천수</b>를 계산합니다</span>');
+    fetch('/api/analyze/top', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ moves: posMoves }) })
+    .then(r => r.json())
+    .then(data => {
+        if (token !== tryAnalyzeToken || !tryMode) return;   // 최신 요청만 반영
+        if (!data.ok) { setTryStatus('<span style="color:#c0392b;">분석 실패</span>'); return; }
+        const side = data.sideToMove;                        // 지금 둘 차례
+        tryRecoSide = side;
+        tryRecos = (data.candidates || []).map((c, i) => {
+            const g = gtpToGrid(c.move);
+            if (!g) return null;
+            const sideWr  = c.winrate / 100;                 // 둘 차례 관점 0..1
+            const blackWr = side === 'B' ? sideWr : 1 - sideWr;
+            return { gx: g.x, gy: g.y, rank: i + 1, cand: { move: c.move, winrate: blackWr, scoreLead: c.scoreLead } };
+        }).filter(Boolean);
+        updateTryStatus(data);
+        renderTry();
+    })
+    .catch(() => { if (token === tryAnalyzeToken) setTryStatus('<span style="color:#c0392b;">분석 오류</span>'); });
+}
+function updateTryStatus(data) {
+    const side = data.sideToMove;
+    const sideKr = side === 'B' ? '흑' : '백';
+    let html = '';
+    if (tryStones.length) {
+        const last = tryStones[tryStones.length - 1];
+        const playerKr = last.color === 'B' ? '흑' : '백';
+        const playedWr = Math.min(99.9, Math.max(0.1, 100 - data.rootWinrate));  // 방금 둔 쪽 승률
+        let cmp = '';
+        if (tryPrevBest != null) {
+            const diff = tryPrevBest - playedWr;
+            if (diff <= 2)      cmp = ` <span style="color:#1e8449;font-weight:700;">· 최선급 👍</span>`;
+            else if (diff < 8)  cmp = ` <span style="color:#b7950b;font-weight:700;">· 최선보다 ${diff.toFixed(0)}%p 낮음</span>`;
+            else                cmp = ` <span style="color:#c0392b;font-weight:700;">· 최선보다 ${diff.toFixed(0)}%p 낮음 ⚠</span>`;
+        }
+        html += `<div style="font-size:14px;font-weight:800;margin-bottom:6px;">방금 둔 수 <b>${gridToGtp(last.x, last.y)}</b> (${playerKr}) → 승률 <b>${playedWr.toFixed(0)}%</b>${cmp}</div>`;
+    }
+    const best = (data.candidates && data.candidates.length)
+        ? Math.min(99.9, Math.max(0.1, data.candidates[0].winrate)) : null;
+    if (best != null)
+        html += `<div style="font-size:13px;color:#555;">다음 <b>${sideKr}</b> 차례 · 추천수 최선 승률 <b>${best.toFixed(0)}%</b></div>`;
+    html += `<div style="margin-top:8px;font-size:11px;color:#999;">판 위 색 원 = AI 추천수 (초록=좋음/빨강=나쁨), 숫자 = 그 자리에 두면 그 쪽 승률(%)</div>`;
+    setTryStatus(html);
+    tryPrevBest = best;   // 다음에 이 차례가 둘 수를 평가할 기준
 }
 function toggleTryMode() {
     if (tryMode) { exitTryMode(); return; }
@@ -1011,30 +1207,36 @@ function toggleTryMode() {
     tryMode = true;
     tryBaseIdx = currentIdx;
     tryStones = [];
+    tryRecos = [];
+    tryPrevBest = null;
     const btn = document.getElementById('btnTry');
     btn.classList.add('active');
     btn.textContent = '놓아보기 종료';    // 같은 버튼으로 종료
     canvas.style.cursor = 'pointer';
     renderTry();
+    analyzeTryPosition();               // 시작 국면 추천수 표시
 }
 function exitTryMode() {
     tryMode = false;
     tryStones = [];
+    tryRecos = [];
+    tryPrevBest = null;
+    tryAnalyzeToken++;                  // 진행 중 분석 응답 무시
     const btn = document.getElementById('btnTry');
     btn.classList.remove('active');
     btn.textContent = '놓아보기';
     canvas.style.cursor = '';
     showMove(tryBaseIdx >= 0 ? tryBaseIdx : 0);
 }
-function tryUndo()  { if (tryStones.length) { tryStones.pop(); renderTry(); } }
+function tryUndo()  { if (tryStones.length) { tryStones.pop(); renderTry(); analyzeTryPosition(); } }
 
 /* ── 후보수(①②③) hover 상세 ──
    마커에 올리면 그 수의 예상 진행을 유령돌로 그리고, 승률·형세를 툴팁으로 표시 */
 function mouseToGrid(e) {
     const rect = canvas.getBoundingClientRect();
-    const scale = BOARD_PX / rect.width;      // 반응형 축소 대비
-    const mx = (e.clientX - rect.left) * scale;
-    const my = (e.clientY - rect.top)  * scale;
+    // 반응형 축소 대비 — 가로·세로 배율을 따로 계산(비율이 어긋나도 착수점이 밀리지 않게)
+    const mx = (e.clientX - rect.left) * (BOARD_PX / rect.width);
+    const my = (e.clientY - rect.top)  * (BOARD_PX / rect.height);
     const gx = Math.round((mx - PAD) / CELL);
     const gy = 18 - Math.round((my - PAD) / CELL);
     return { gx, gy };
@@ -1054,7 +1256,7 @@ function renderCandidateHover(marker) {
 function showCandTooltip(marker, e) {
     const c = marker.cand;
     const tip = document.getElementById('candTooltip');
-    const wr = (typeof c.winrate === 'number') ? (c.winrate * 100).toFixed(1) + '%' : '-';
+    const wr = (typeof c.winrate === 'number') ? wrPct1(c.winrate).toFixed(1) + '%' : '-';
     let score = '-';
     if (typeof c.scoreLead === 'number')
         score = c.scoreLead >= 0 ? `흑 +${c.scoreLead.toFixed(1)}집` : `백 +${Math.abs(c.scoreLead).toFixed(1)}집`;
@@ -1063,11 +1265,19 @@ function showCandTooltip(marker, e) {
     positionCandTooltip(e);
 }
 function positionCandTooltip(e) {
+    // 커서를 따라가면 바둑판 위 수순을 가리므로, 판 바깥(오른쪽·공간 없으면 아래)에 고정 배치
     const tip = document.getElementById('candTooltip');
-    let x = e.clientX + 14, y = e.clientY + 14;
-    const w = tip.offsetWidth || 150, h = tip.offsetHeight || 60;
-    if (x + w > window.innerWidth)  x = e.clientX - w - 14;
-    if (y + h > window.innerHeight) y = e.clientY - h - 14;
+    const rect = canvas.getBoundingClientRect();
+    const w = tip.offsetWidth || 160, h = tip.offsetHeight || 60;
+    let x = rect.right + 12;   // 판 오른쪽 바깥
+    let y = rect.top;
+    if (x + w > window.innerWidth - 4) {   // 오른쪽 공간 부족 → 판 아래로
+        x = rect.left;
+        y = rect.bottom + 10;
+    }
+    if (x < 4) x = 4;
+    if (y + h > window.innerHeight - 4) y = window.innerHeight - h - 4;
+    if (y < 4) y = 4;
     tip.style.left = x + 'px';
     tip.style.top  = y + 'px';
 }
@@ -1085,7 +1295,9 @@ canvas.addEventListener('click', function(e) {
     const color = tryNextColor();
     tryStones.push({ x: gx, y: gy, color });
     if (buildTryBoard()[gx][gy] !== color) { tryStones.pop(); return; }   // 자살수 금지
+    tryRecos = [];              // 새 국면 분석 전까지 이전 추천수 숨김
     renderTry();
+    analyzeTryPosition();       // 방금 둔 수 평가 + 다음 추천수
 });
 canvas.addEventListener('mousemove', function(e) {
     if (tryMode) return;
@@ -1153,8 +1365,8 @@ function renderLosingCard() {
         return;
     }
     const side = losingMove.color === 'B' ? '흑' : '백';
-    const pre  = Math.round(moverWr(losingMove, true)  * 100);
-    const post = Math.round(moverWr(losingMove, false) * 100);
+    const pre  = wrPctI(moverWr(losingMove, true));
+    const post = wrPctI(moverWr(losingMove, false));
     const bestTxt = (losingMove.bestMove && losingMove.bestMove !== losingMove.move)
         ? ` 최선수는 <b style="color:#3498db;">${losingMove.bestMove}</b>였어요.` : '';
     el.innerHTML =
@@ -1269,6 +1481,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     : (keyMistakes.length > 0 ? keyMistakes[0].turnNumber - 1 : 0);
         showMove(initIdx >= 0 ? initIdx : 0);
         renderRankEstimate();
+        buildGameSummary();   // ② 한 줄 총평
+        buildGoodMoves();     // ③ 이 판의 호수
+        drawFlowChart();      // ① 승부 흐름 그래프
     }
     syncSideHeight();
 });
@@ -1294,6 +1509,151 @@ document.addEventListener('keydown', e => {
 document.getElementById('compareModal').addEventListener('click', e => {
     if (e.target.id === 'compareModal') closeCompare();  // 배경 클릭 시 닫기
 });
+
+/* ══════════════════════════════════════════════════════════════
+   실력 리포트 확장: ① 승부 흐름 그래프 · ② 한 줄 총평 · ③ 호수
+   모두 기존 moves 배열만으로 렌더 (엔진 재분석 없음)
+   ══════════════════════════════════════════════════════════════ */
+
+/* 호수 = AI 평가상 2집 이상 이득을 만든 수(집손해 ≤ -2), 이득 큰 순 3개 */
+const goodMoves = moves
+    .filter(m => typeof m.scoreLoss === 'number' && m.scoreLoss <= -2.0)
+    .sort((a, b) => a.scoreLoss - b.scoreLoss)
+    .slice(0, 3);
+
+/* ── ② 한 줄 총평 ── */
+function buildGameSummary() {
+    const el = document.getElementById('gameSummaryBody');
+    if (!el || !moves.length) return;
+    const jump = t => `<span class="gs-turn" onclick="showMove(${t - 1})">${t}수</span>`;
+
+    let last = null;
+    for (let i = moves.length - 1; i >= 0; i--)
+        if (typeof moves[i].scoreLeadAfter === 'number') { last = moves[i]; break; }
+
+    const worst = keyMistakes.length ? keyMistakes[0] : null;   // 최대 집손해 실수
+    const best  = goodMoves.length ? goodMoves[0] : null;
+    const parts = [];
+
+    if (last) {
+        const lead = last.scoreLeadAfter;
+        parts.push(Math.abs(lead) < 0.5
+            ? `막판까지 <b>반집에 가까운 접전</b>이었습니다.`
+            : `최종 형세는 <b>${lead > 0 ? '흑' : '백'} +${Math.abs(lead).toFixed(1)}집</b> 우세로 기울었습니다.`);
+    }
+    if (losingMove) {
+        const s = losingMove.color === 'B' ? '흑' : '백';
+        parts.push(`승부의 분기점은 ${jump(losingMove.turnNumber)} — 이 ${s}의 실착에서 균형이 무너졌습니다.`);
+    } else if (worst) {
+        const s = worst.color === 'B' ? '흑' : '백';
+        parts.push(`가장 큰 실수는 ${jump(worst.turnNumber)}(${s}, <b>-${worst.scoreLoss.toFixed(1)}집</b>)였습니다.`);
+    }
+    if (best) {
+        const s = best.color === 'B' ? '흑' : '백';
+        parts.push(`반면 ${jump(best.turnNumber)}(${s})은 <b>+${Math.abs(best.scoreLoss).toFixed(1)}집</b>을 만든 이 판의 호수였습니다.`);
+    }
+    if (!parts.length) return;
+    el.innerHTML = parts.join(' ');
+    document.getElementById('gameSummary').style.display = '';
+}
+
+/* ── ③ 이 판의 호수 ── */
+function buildGoodMoves() {
+    const card = document.getElementById('goodMovesCard');
+    const list = document.getElementById('goodMovesList');
+    if (!card || !list || !goodMoves.length) return;
+    list.innerHTML = goodMoves.map(m => {
+        const s = m.color === 'B' ? '⚫ 흑' : '⚪ 백';
+        return `<div class="gm-item" onclick="showMove(${m.turnNumber - 1})">
+            <span class="gm-turn">${m.turnNumber}수</span>
+            <span class="gm-meta">${s} · ${m.move || '패스'}${m.phase ? ' · ' + m.phase : ''}</span>
+            <span class="gm-gain">+${Math.abs(m.scoreLoss).toFixed(1)}집 이득</span>
+        </div>`;
+    }).join('');
+    card.style.display = '';
+}
+
+/* ── ① 승부 흐름 그래프 ── */
+const flowCanvas = document.getElementById('flowCanvas');
+const FLOW_H = 150;
+let flowGeom = null;
+const flowX = i  => flowGeom.x0 + (flowGeom.n <= 1 ? 0 : (flowGeom.x1 - flowGeom.x0) * i / (flowGeom.n - 1));
+const flowY = wr => flowGeom.y1 - (flowGeom.y1 - flowGeom.y0) * Math.min(1, Math.max(0, wr));
+const moveWr = m => typeof m.winrateAfter === 'number' ? m.winrateAfter
+                  : (typeof m.winrateBefore === 'number' ? m.winrateBefore : 0.5);
+
+function drawFlowChart() {
+    if (!flowCanvas || !moves.length) return;
+    const cssW = flowCanvas.clientWidth || 600, dpr = window.devicePixelRatio || 1;
+    flowCanvas.width = cssW * dpr; flowCanvas.height = FLOW_H * dpr;
+    flowCanvas.style.height = FLOW_H + 'px';
+    const ctx = flowCanvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, FLOW_H);
+
+    const padL = 40, padR = 12, padT = 10, padB = 18;
+    flowGeom = { x0: padL, x1: cssW - padR, y0: padT, y1: FLOW_H - padB, n: moves.length };
+    const midY = flowY(0.5);
+
+    // 배경: 위=흑 우세, 아래=백 우세
+    ctx.fillStyle = '#eef1f4'; ctx.fillRect(padL, padT, flowGeom.x1 - padL, midY - padT);
+    ctx.fillStyle = '#faf7f2'; ctx.fillRect(padL, midY, flowGeom.x1 - padL, flowGeom.y1 - midY);
+    // 50% 점선
+    ctx.strokeStyle = '#c8ccd2'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(padL, midY); ctx.lineTo(flowGeom.x1, midY); ctx.stroke(); ctx.setLineDash([]);
+    // y축 라벨
+    ctx.fillStyle = '#999'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText('흑 100%', padL - 5, flowY(1));
+    ctx.fillText('50%', padL - 5, midY);
+    ctx.fillText('백 100%', padL - 5, flowY(0));
+
+    // 면적(라인~50%선)
+    ctx.beginPath();
+    moves.forEach((m, i) => { const x = flowX(i), y = flowY(moveWr(m)); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    ctx.lineTo(flowX(moves.length - 1), midY); ctx.lineTo(flowX(0), midY); ctx.closePath();
+    ctx.fillStyle = 'rgba(44,62,80,0.12)'; ctx.fill();
+    // 승률 라인
+    ctx.beginPath();
+    moves.forEach((m, i) => { const x = flowX(i), y = flowY(moveWr(m)); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 1.8; ctx.stroke();
+
+    // 실수·악수 마커
+    for (const m of keyMistakes) {
+        const i = m.turnNumber - 1; if (i < 0 || i >= moves.length) continue;
+        const x = flowX(i), y = flowY(moveWr(moves[i])), big = m.scoreLoss >= 5;
+        ctx.beginPath(); ctx.arc(x, y, big ? 4 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = big ? '#c0392b' : '#e67e22'; ctx.fill();
+    }
+    // 패착 마커
+    if (losingMoveIdx >= 0 && losingMoveIdx < moves.length) {
+        const x = flowX(losingMoveIdx), y = flowY(moveWr(moves[losingMoveIdx]));
+        ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#f1c40f'; ctx.strokeStyle = '#b7950b'; ctx.lineWidth = 1.5; ctx.fill(); ctx.stroke();
+    }
+    // 현재 수 커서
+    if (currentIdx >= 0 && currentIdx < moves.length) {
+        const x = flowX(currentIdx);
+        ctx.strokeStyle = '#3498db'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, flowGeom.y1); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, flowY(moveWr(moves[currentIdx])), 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#3498db'; ctx.fill();
+    }
+    // x축 라벨
+    ctx.fillStyle = '#aaa'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText('1수', flowX(0), flowGeom.y1 + 3);
+    ctx.fillText(moves.length + '수', flowX(moves.length - 1), flowGeom.y1 + 3);
+}
+
+if (flowCanvas) {
+    flowCanvas.addEventListener('click', e => {
+        if (!flowGeom) return;
+        const rect = flowCanvas.getBoundingClientRect();
+        const frac = (e.clientX - rect.left - flowGeom.x0) / (flowGeom.x1 - flowGeom.x0);
+        showMove(Math.min(moves.length - 1, Math.max(0, Math.round(frac * (moves.length - 1)))));
+    });
+    let flowResizeT;
+    window.addEventListener('resize', () => { clearTimeout(flowResizeT); flowResizeT = setTimeout(drawFlowChart, 150); });
+}
 </script>
 </div>
 </body>

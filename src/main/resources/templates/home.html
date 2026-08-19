@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>바둑 분석 · 홈</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        body { background: #f1f4f8; }
+        .home { max-width: 1280px; margin: 0 auto; padding: 22px 20px 48px; }
+
+        /* ── 히어로 배너 ── */
+        .hero-banner {
+            position: relative; overflow: hidden;
+            background: linear-gradient(120deg, #2f6db3 0%, #4a90d9 52%, #5aa0e6 100%);
+            border-radius: 18px; padding: 34px 36px; color: #fff;
+            box-shadow: 0 14px 34px -14px rgba(47,109,179,0.55);
+            display: flex; align-items: center; justify-content: space-between; gap: 24px;
+        }
+        .hero-banner::after {
+            content: "⚫⚪"; position: absolute; right: 26px; bottom: -18px;
+            font-size: 120px; opacity: 0.14; line-height: 1; letter-spacing: -14px;
+        }
+        .hero-text { position: relative; z-index: 1; }
+        .hero-hi { font-size: 14px; font-weight: 600; opacity: 0.9; margin-bottom: 8px; }
+        .hero-hi b { font-weight: 800; }
+        .hero-title { font-size: 27px; font-weight: 800; letter-spacing: -1px; margin: 0 0 10px; }
+        .hero-sub { font-size: 14px; opacity: 0.92; line-height: 1.6; margin: 0; }
+        .hero-cta {
+            position: relative; z-index: 1; flex-shrink: 0;
+            display: inline-flex; align-items: center; gap: 8px;
+            background: #fff; color: #2f6db3; font-weight: 800; font-size: 15px;
+            padding: 14px 24px; border-radius: 12px; text-decoration: none;
+            box-shadow: 0 8px 18px -8px rgba(0,0,0,0.35); transition: transform .1s, box-shadow .15s;
+        }
+        .hero-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -8px rgba(0,0,0,0.4); }
+
+        /* ── 섹션 제목 ── */
+        .sec-title { font-size: 16px; font-weight: 800; color: #2c3e50; margin: 30px 2px 14px; display: flex; align-items: center; gap: 7px; }
+        .sec-title .more { margin-left: auto; font-size: 12px; font-weight: 600; color: #98a2ad; text-decoration: none; }
+        .sec-title .more:hover { color: #4a90d9; }
+
+        /* ── 기능 타일 그리드 (가로형 컴팩트 카드 6종) ── */
+        .tile-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+        .tile {
+            display: flex; align-items: center; gap: 12px; text-decoration: none;
+            background: #fff; border: 1px solid #e9ecef; border-radius: 15px; padding: 15px 15px;
+            transition: transform .12s, box-shadow .15s, border-color .15s;
+        }
+        .tile:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -14px rgba(30,50,80,0.28); border-color: #cfe0f2; }
+        .tile-ico {
+            width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            font-size: 22px; color: #fff; flex-shrink: 0;
+        }
+        .tile-body { min-width: 0; }
+        .tile-name { font-size: 14px; font-weight: 800; color: #2c3e50; margin-bottom: 2px; white-space: nowrap; }
+        .tile-desc { font-size: 11.5px; color: #8a94a0; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ico-report  { background: #7c5cff; }
+        .ico-replay  { background: #3b82f6; }
+        .ico-notes   { background: #f5822b; }
+        .ico-play    { background: #12b5cb; }
+        .ico-study   { background: #8b5cf6; }
+        .ico-gallery { background: #f5b820; }
+
+        /* ── 최근 분석 결과 ── */
+        .recent-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .recent-card {
+            display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid #e9ecef;
+            border-radius: 13px; padding: 15px 18px; text-decoration: none; transition: box-shadow .15s, border-color .15s;
+        }
+        .recent-card:hover { box-shadow: 0 8px 20px -12px rgba(30,50,80,0.25); border-color: #cfe0f2; }
+        .recent-badge {
+            width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0;
+            background: linear-gradient(135deg,#4a90d9,#357abd); color: #fff;
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
+        }
+        .recent-main { min-width: 0; flex: 1; }
+        .recent-name { font-size: 14px; font-weight: 700; color: #2c3e50; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .recent-meta { font-size: 12px; color: #9aa2ac; margin-top: 3px; }
+        .recent-go { font-size: 13px; color: #c3c9d0; }
+        .recent-empty {
+            background: #fff; border: 1px dashed #d7dde3; border-radius: 13px;
+            padding: 26px; text-align: center; color: #98a2ad; font-size: 14px; grid-column: 1 / -1;
+        }
+        .recent-empty a { color: #4a90d9; font-weight: 700; text-decoration: none; }
+
+        @media (max-width: 1200px) { .tile-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 820px) {
+            .hero-banner { flex-direction: column; align-items: flex-start; padding: 26px 24px; }
+            .tile-grid { grid-template-columns: repeat(2, 1fr); }
+            .recent-list { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .tile-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<nav class="topnav">
+    <div class="topnav-inner">
+        <a class="brand" href="/">⚫ 바둑 분석</a>
+        <div class="topnav-links">
+            <a href="/" class="active">홈</a>
+            <a href="/analysis/batch">실력 리포트</a>
+            <a href="/notes">오답노트</a>
+            <a href="/gallery">갤러리</a>
+            <a href="/game">기보 복기</a>
+            <a href="/play">AI 대국</a>
+            <a href="/study">분석판</a>
+            <a href="/about">소개</a>
+        </div>
+        <details class="user-menu">
+            <summary>
+                <img th:if="${currentUserPicture}" class="user-avatar" th:src="${currentUserPicture}" alt="" referrerpolicy="no-referrer">
+                <span th:unless="${currentUserPicture}" class="user-avatar user-avatar-initial" th:text="${currentUserInitial}">U</span>
+                <span class="user-name" th:text="${currentUserName}">사용자</span>
+                <span class="user-caret">▼</span>
+            </summary>
+            <div class="user-dropdown">
+                <div class="user-dropdown-head">
+                    <img th:if="${currentUserPicture}" class="user-avatar" th:src="${currentUserPicture}" alt="" referrerpolicy="no-referrer">
+                    <span th:unless="${currentUserPicture}" class="user-avatar user-avatar-initial" th:text="${currentUserInitial}">U</span>
+                    <div class="user-dropdown-id">
+                        <div class="user-dropdown-name" th:text="${currentUserName}">사용자</div>
+                        <div class="user-dropdown-email" th:if="${currentUserEmail}" th:text="${currentUserEmail}"></div>
+                    </div>
+                </div>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="user-logout">🚪 로그아웃</button>
+                </form>
+            </div>
+        </details>
+    </div>
+</nav>
+
+<div class="home">
+    <!-- 히어로 배너 -->
+    <div class="hero-banner">
+        <div class="hero-text">
+            <div class="hero-hi"><b th:text="${currentUserName}">사용자</b>님, 오늘도 좋은 수 읽기! 👋</div>
+            <h1 class="hero-title">AI와 함께 더 강해지세요</h1>
+            <p class="hero-sub">내 기보를 한 수씩 복기하고, 구간별 실력과 반복되는 약점을 진단하세요.</p>
+        </div>
+        <a class="hero-cta" href="/game">▶ 기보 복기 시작</a>
+    </div>
+
+    <!-- 기능 바로가기 -->
+    <div class="sec-title">🧭 바로가기</div>
+    <div class="tile-grid">
+        <a class="tile" href="/analysis/batch">
+            <div class="tile-ico ico-report">📊</div>
+            <div class="tile-body">
+                <div class="tile-name">실력 리포트</div>
+                <div class="tile-desc">AI 분석 리포트 보기</div>
+            </div>
+        </a>
+        <a class="tile" href="/game">
+            <div class="tile-ico ico-replay">📖</div>
+            <div class="tile-body">
+                <div class="tile-name">기보 복기</div>
+                <div class="tile-desc">저장된 기보 관리</div>
+            </div>
+        </a>
+        <a class="tile" href="/notes">
+            <div class="tile-ico ico-notes">📝</div>
+            <div class="tile-body">
+                <div class="tile-name">오답노트</div>
+                <div class="tile-desc">실수 패턴 분석</div>
+            </div>
+        </a>
+        <a class="tile" href="/play">
+            <div class="tile-ico ico-play">🤖</div>
+            <div class="tile-body">
+                <div class="tile-name">AI 대국</div>
+                <div class="tile-desc">KataGo와 대국하기</div>
+            </div>
+        </a>
+        <a class="tile" href="/study">
+            <div class="tile-ico ico-study">🔬</div>
+            <div class="tile-body">
+                <div class="tile-name">실시간 분석판</div>
+                <div class="tile-desc">연구하고 분석하기</div>
+            </div>
+        </a>
+        <a class="tile" href="/gallery">
+            <div class="tile-ico ico-gallery">🖼</div>
+            <div class="tile-body">
+                <div class="tile-name">갤러리</div>
+                <div class="tile-desc">분석 기보 모아보기</div>
+            </div>
+        </a>
+    </div>
+
+    <!-- 최근 분석 결과 -->
+    <div class="sec-title">🕒 최근 분석 결과 <a class="more" href="/game">더보기 ›</a></div>
+    <div class="recent-list">
+        <div th:if="${#lists.isEmpty(recent)}" class="recent-empty">
+            아직 분석한 기보가 없습니다. <a href="/game">기보 복기</a>에서 첫 분석을 시작해 보세요.
+        </div>
+        <a th:each="r : ${recent}" class="recent-card" th:href="@{'/game/result/' + ${r.id}}">
+            <div class="recent-badge">♟</div>
+            <div class="recent-main">
+                <div class="recent-name" th:text="${r.fileName}">기보 파일</div>
+                <div class="recent-meta">
+                    <span th:if="${r.blackPlayer != null and r.whitePlayer != null}"
+                          th:text="${r.blackPlayer} + ' vs ' + ${r.whitePlayer} + ' · '"></span>
+                    <span th:text="${r.totalMoves} + '수'"></span>
+                    <span th:if="${r.analyzedAt != null}" th:text="' · ' + ${r.analyzedAt.substring(0,10)}"></span>
+                </div>
+            </div>
+            <div class="recent-go">›</div>
+        </a>
+    </div>
+</div>
+</body>
+</html>

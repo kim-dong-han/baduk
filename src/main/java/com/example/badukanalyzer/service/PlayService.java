@@ -124,6 +124,17 @@ public class PlayService {
         return kataGoService.getBestMove(new ArrayList<>(history));
     }
 
+    /** 상위 n개 추천수. winrate/scoreLead 는 KataGo 원시 **흑 기준** — 내 관점 변환은 컨트롤러(PlayController)에서 처리. */
+    public synchronized List<KataGoService.Candidate> getHints(int n) throws Exception {
+        if (gameOver) return List.of();
+        return kataGoService.getTopMoves(new ArrayList<>(history), n);
+    }
+
+    /** 무상태 임의 국면 분석(놓아보기용). 내부 대국 상태와 무관하게 전달만 한다. */
+    public KataGoService.TopResult analyzeTop(List<Move> position, int n) throws Exception {
+        return kataGoService.analyzeTop(position, n);
+    }
+
     // 차례 = 마지막 착수의 반대 색 (빈 판이면 흑).
     // 파리티(짝=흑) 대신 실제 마지막 색 기준 → 백선착·접바둑·복기 이어두기 국면에서도 정확.
     private String currentColor() {

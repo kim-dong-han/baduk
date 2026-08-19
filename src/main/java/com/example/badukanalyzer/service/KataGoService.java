@@ -71,6 +71,10 @@ public class KataGoService {
         System.out.println("KataGo 하이브리드 분석 시작 (" + allGames.size() + "개 기보)");
         ProcessBuilder pb = new ProcessBuilder(kataGoPath, "analysis", "-model", modelPath, "-config", configPath);
         pb.redirectErrorStream(true);
+        // 작업디렉터리=엔진 exe 폴더 → 백엔드 DLL(TensorRT/CUDA: nvinfer·cudnn·cublas)과
+        // TRT 타이밍 캐시(KataGoData/trtcache)를 찾게 함. (OpenCL 빌드에도 무해)
+        java.io.File exeDir = new java.io.File(kataGoPath).getParentFile();
+        if (exeDir != null) pb.directory(exeDir);
         Process process = pb.start();
 
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
@@ -214,6 +218,10 @@ public class KataGoService {
                                            boolean includeOwnership, IntConsumer progressCallback) throws IOException {
         ProcessBuilder pb = new ProcessBuilder(kataGoPath, "analysis", "-model", modelPath, "-config", configPath);
         pb.redirectErrorStream(true);
+        // 작업디렉터리=엔진 exe 폴더 → 백엔드 DLL(TensorRT/CUDA: nvinfer·cudnn·cublas)과
+        // TRT 타이밍 캐시(KataGoData/trtcache)를 찾게 함. (OpenCL 빌드에도 무해)
+        java.io.File exeDir = new java.io.File(kataGoPath).getParentFile();
+        if (exeDir != null) pb.directory(exeDir);
         Process process = pb.start();
 
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
@@ -282,6 +290,10 @@ public class KataGoService {
         if (playProcess != null && playProcess.isAlive()) return;
         ProcessBuilder pb = new ProcessBuilder(kataGoPath, "analysis", "-model", modelPath, "-config", configPath);
         pb.redirectErrorStream(true);
+        // 작업디렉터리=엔진 exe 폴더 → 백엔드 DLL(TensorRT/CUDA: nvinfer·cudnn·cublas)과
+        // TRT 타이밍 캐시(KataGoData/trtcache)를 찾게 함. (OpenCL 빌드에도 무해)
+        java.io.File exeDir = new java.io.File(kataGoPath).getParentFile();
+        if (exeDir != null) pb.directory(exeDir);
         playProcess = pb.start();
         playWriter  = new BufferedWriter(new OutputStreamWriter(playProcess.getOutputStream(), StandardCharsets.UTF_8));
         playReader  = new BufferedReader(new InputStreamReader(playProcess.getInputStream(),   StandardCharsets.UTF_8));
@@ -306,7 +318,7 @@ public class KataGoService {
         }
 
         String queryId = "play_" + System.currentTimeMillis();
-        ObjectNode query = buildQuery(queryId, movesArray, List.of(moves.size()), 100);
+        ObjectNode query = buildQuery(queryId, movesArray, List.of(moves.size()), 500);
         playWriter.write(query.toString());
         playWriter.newLine();
         playWriter.flush();
@@ -332,6 +344,133 @@ public class KataGoService {
             } catch (Exception ignored) {}
         }
         return new MoveEval("pass", 0);
+    }
+
+    /** 추천 후보수 1개. winrate·scoreLead 는 KataGo 원시값 = **흑 기준**(실측 확인: 백 차례·흑 완승도 winrate=1.0).
+     *  둘 쪽/내 관점이 필요하면 호출부에서 색에 따라 (백이면 1-winrate, -scoreLead) 변환할 것.
+     *  pv = 이 수 이후 예상 진행(참고도) GTP 수순, pv.get(0)=이 수 자신, 이후 상대·나 교대(최대 10수). */
+    public record Candidate(String move, double winrate, double scoreLead, int visits, java.util.List<String> pv) {}
+
+    /**
+     * 현재 국면의 상위 topN 추천수(둘 차례 관점 승률 포함). getBestMoveEval 과 동일한 단일 쿼리라
+     * 후보를 1개 읽든 5개 읽든 분석 시간은 같다(느려지는 건 visits, 후보 개수가 아님).
+     */
+    public synchronized List<Candidate> getTopMoves(List<Move> moves, int topN) throws IOException {
+        ensurePlayProcess();
+
+        ArrayNode movesArray = objectMapper.createArrayNode();
+        for (Move move : moves) {
+            ArrayNode entry = movesArray.addArray();
+            entry.add(move.getColor());
+            entry.add(CoordinateConverter.toGtpCoord(move));
+        }
+
+        String queryId = "playtop_" + System.currentTimeMillis();
+        ObjectNode query = buildQuery(queryId, movesArray, List.of(moves.size()), 500);
+        playWriter.write(query.toString());
+        playWriter.newLine();
+        playWriter.flush();
+
+        long deadline = System.currentTimeMillis() + 10_000;
+        String line;
+        while (System.currentTimeMillis() < deadline) {
+            if (!playReader.ready()) {
+                try { Thread.sleep(20); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+                continue;
+            }
+            line = playReader.readLine();
+            if (line == null) break;
+            try {
+                JsonNode node = objectMapper.readTree(line);
+                if (queryId.equals(node.path("id").asText())) {
+                    JsonNode mi = node.path("moveInfos");
+                    List<JsonNode> list = new ArrayList<>();
+                    if (mi.isArray()) mi.forEach(list::add);
+                    list.sort(Comparator.comparingInt(a -> a.path("order").asInt(Integer.MAX_VALUE)));
+                    List<Candidate> out = new ArrayList<>();
+                    for (JsonNode c : list) {
+                        if (out.size() >= topN) break;
+                        List<String> pv = new ArrayList<>();
+                        JsonNode pvNode = c.path("pv");
+                        if (pvNode.isArray()) for (JsonNode p : pvNode) { pv.add(p.asText()); if (pv.size() >= 10) break; }
+                        out.add(new Candidate(
+                            c.path("move").asText("pass"),
+                            c.path("winrate").asDouble(0.5),
+                            c.path("scoreLead").asDouble(0),
+                            c.path("visits").asInt(0),
+                            pv));
+                    }
+                    return out;
+                }
+            } catch (Exception ignored) {}
+        }
+        return List.of();
+    }
+
+    /** 임의 국면 분석 결과: 루트 승률·집차 + 상위 후보수 + 집(영역) 예측 361칸(흑 기준 +흑/−백).
+     *  winrate/scoreLead 모두 KataGo 원시 **흑 기준**(변환은 호출부). */
+    public record TopResult(double rootWinrate, double rootScoreLead, List<Candidate> candidates, java.util.List<Double> ownership) {}
+
+    /**
+     * 임의 국면(moves 끝이 방금 둔 수)의 '둘 차례' 관점 승률·집차와 상위 topN 추천수를 함께 반환.
+     * getTopMoves 와 동일한 단일 500-visits 쿼리 — 후보를 몇 개 읽든 시간은 같다. 놓아보기(결과화면)용.
+     */
+    public synchronized TopResult analyzeTop(List<Move> moves, int topN) throws IOException {
+        ensurePlayProcess();
+
+        ArrayNode movesArray = objectMapper.createArrayNode();
+        for (Move move : moves) {
+            ArrayNode entry = movesArray.addArray();
+            entry.add(move.getColor());
+            entry.add(CoordinateConverter.toGtpCoord(move));
+        }
+
+        String queryId = "trytop_" + System.currentTimeMillis();
+        ObjectNode query = buildQuery(queryId, movesArray, List.of(moves.size()), 500, true);  // 집(영역) 예측 포함
+        playWriter.write(query.toString());
+        playWriter.newLine();
+        playWriter.flush();
+
+        long deadline = System.currentTimeMillis() + 10_000;
+        String line;
+        while (System.currentTimeMillis() < deadline) {
+            if (!playReader.ready()) {
+                try { Thread.sleep(20); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+                continue;
+            }
+            line = playReader.readLine();
+            if (line == null) break;
+            try {
+                JsonNode node = objectMapper.readTree(line);
+                if (queryId.equals(node.path("id").asText())) {
+                    JsonNode root = node.path("rootInfo");
+                    double rootWr    = root.path("winrate").asDouble(0.5);
+                    double rootScore = root.path("scoreLead").asDouble(0);
+                    JsonNode mi = node.path("moveInfos");
+                    List<JsonNode> list = new ArrayList<>();
+                    if (mi.isArray()) mi.forEach(list::add);
+                    list.sort(Comparator.comparingInt(a -> a.path("order").asInt(Integer.MAX_VALUE)));
+                    List<Candidate> out = new ArrayList<>();
+                    for (JsonNode c : list) {
+                        if (out.size() >= topN) break;
+                        List<String> pv = new ArrayList<>();
+                        JsonNode pvNode = c.path("pv");
+                        if (pvNode.isArray()) for (JsonNode p : pvNode) { pv.add(p.asText()); if (pv.size() >= 10) break; }
+                        out.add(new Candidate(
+                            c.path("move").asText("pass"),
+                            c.path("winrate").asDouble(0.5),
+                            c.path("scoreLead").asDouble(0),
+                            c.path("visits").asInt(0),
+                            pv));
+                    }
+                    List<Double> own = new ArrayList<>();
+                    JsonNode ownNode = node.path("ownership");
+                    if (ownNode.isArray()) for (JsonNode v : ownNode) own.add(v.asDouble());
+                    return new TopResult(rootWr, rootScore, out, own);
+                }
+            } catch (Exception ignored) {}
+        }
+        return new TopResult(0.5, 0, List.of(), List.of());
     }
 
     /** 형세 판단/계가용: 현재 국면의 흑 기준 집차(scoreLead)·흑 승률·집 영역(ownership 361칸). */

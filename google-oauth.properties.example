@@ -21,3 +21,19 @@
 
 GOOGLE_CLIENT_ID=여기에-클라이언트-ID-붙여넣기.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=여기에-클라이언트-보안비밀-붙여넣기
+
+# ─────────────────────────────────────────────────────────────
+#  네이버 OAuth 실연동 키 (선택 — 넣으면 네이버 버튼도 실제 로그인)
+#
+#  ── 키 발급 방법 (네이버 개발자센터, 본인 계정) ──
+#   1. https://developers.naver.com/apps/#/register  접속 → 로그인
+#   2. "애플리케이션 등록" → 애플리케이션 이름 입력
+#   3. 사용 API: "네이버 로그인" 선택 → 제공 정보: 이름·이메일·프로필사진 체크
+#   4. 서비스 환경: "PC 웹" 추가 →
+#         서비스 URL:  http://localhost:8083
+#         Callback URL(정확히):  http://localhost:8083/login/oauth2/code/naver
+#   5. 등록 완료 → 발급된 Client ID / Client Secret 을 아래에 입력 → 서버 재시작
+# ─────────────────────────────────────────────────────────────
+
+NAVER_CLIENT_ID=여기에-네이버-Client-ID-붙여넣기
+NAVER_CLIENT_SECRET=여기에-네이버-Client-Secret-붙여넣기

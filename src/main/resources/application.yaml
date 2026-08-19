@@ -3,16 +3,32 @@ spring:
     name: baduk-analyzer
   thymeleaf:
     cache: false
-  # 구글 OAuth 키 파일(프로젝트 루트 google-oauth.properties). 없으면 무시(데모 로그인).
-  # google-oauth.properties.example 를 복사해 GOOGLE_CLIENT_ID/SECRET 채우고 재시작하면 실연동.
+  # 구글·네이버 OAuth 키 파일(프로젝트 루트 google-oauth.properties). 없으면 무시(데모 로그인).
+  # google-oauth.properties.example 를 복사해 GOOGLE_/NAVER_ CLIENT_ID/SECRET 채우고 재시작하면 실연동.
   config:
     import: "optional:file:./google-oauth.properties"
 
 server:
   port: 8083
+  servlet:
+    session:
+      timeout: 7d          # 세션 유휴 만료 7일(짧은 만료로 인한 로그아웃 방지). 재시작·브라우저 종료는 remember-me 쿠키(14일)가 커버.
+
+# 로컬 회원 계정 저장 파일(JSON). 회원가입 계정을 여기에 영속(비번은 BCrypt 해시).
+# 저장소 밖(C:/KataGo)에 둬 git 에 올라가지 않음. 파일 없으면 첫 가입 시 생성.
+app:
+  users-file: C:/KataGo/users.json
+  # 소셜 로그인(구글·네이버) 버튼 노출 스위치. 도메인 미확정 → 지금은 false(아이디 로그인만).
+  # 랜덤 터널에선 구글 OAuth 리디렉션이 등록 주소와 안 맞아 "액세스 차단"됨.
+  # 고정 도메인 + 구글/네이버 콘솔에 리디렉션 등록 끝나면 true 로 바꾸고 재시작.
+  social-login-enabled: false
 
 katago:
-  path: C:/KataGo/katago-v1.16.5-opencl-windows-x64/katago.exe
+  # 엔진 = TensorRT(GPU) 빌드로 교체(기존 OpenCL 대비 대폭 빠름). RTX 4060에서 확인.
+  # 모델·config 는 기존 그대로(b28) → 방금 구운 TRT 타이밍 캐시(KataGoData/trtcache) 재사용, 결과 동일·속도만 향상.
+  # exe 폴더의 DLL(nvinfer/cudnn/cublas)·캐시를 찾도록 KataGoService 가 작업디렉터리를 exe 폴더로 설정함.
+  # (OpenCL 로 되돌리려면 아래 path 를 C:/KataGo/katago-v1.16.5-opencl-windows-x64/katago.exe 로)
+  path: C:/baduk_ai/lizzie/katago_trt.exe
   model: C:/KataGo/models/kata1-b28c512nbt-s13255194368-d5935380940.bin.gz
   config: C:/KataGo/katago-v1.16.5-opencl-windows-x64/analysis_example.cfg
   record-dir: C:/KataGo/Baduk_Records
@@ -21,7 +37,8 @@ katago:
   batch-analysis-enabled: false
   # 단일 기보 분석의 수당 탐색량. 낮으면 빠르지만 전투 국면 형세가 부정확
   # (200=빠름·기본, 1000=양호, 5000=방송 수준 정확하나 매우 느림). 변경 후 서버 재시작 필요.
-  analysis-visits: 200
+  # TRT(GPU)로 교체 후 1000v도 배치 전수분석이 수십 초 수준 → 정확도 위해 1000 채택.
+  analysis-visits: 1000
   # 2차 정밀 분석 탐색량. 1차(analysis-visits)에서 실수·악수(집손해≥3)로 잡힌 국면만
   # 이 값으로 재분석 → 저visits 오판 교정. deep-visits ≤ analysis-visits면 2차 생략.
   deep-visits: 1500
@@ -36,3 +53,11 @@ google:
   oauth:
     client-id: ${GOOGLE_CLIENT_ID:}
     client-secret: ${GOOGLE_CLIENT_SECRET:}
+
+# 네이버 OAuth2 로그인. 환경변수 NAVER_CLIENT_ID/NAVER_CLIENT_SECRET(또는 google-oauth.properties)
+# 를 넣으면 네이버 버튼이 실제 로그인으로 동작한다(둘 다 비어 있으면 데모 로그인).
+# 네이버 개발자센터(developers.naver.com) Callback URL: http://localhost:8083/login/oauth2/code/naver
+naver:
+  oauth:
+    client-id: ${NAVER_CLIENT_ID:}
+    client-secret: ${NAVER_CLIENT_SECRET:}

@@ -26,6 +26,12 @@ public class PlayController {
         return "game/play";
     }
 
+    /** 실시간 분석판: AI 대국 없이 직접 흑·백을 놓으며 추천수·승률을 실시간 확인(빈 판 시작). */
+    @GetMapping("/study")
+    public String studyPage() {
+        return "game/study";
+    }
+
     @PostMapping("/api/play/new")
     @ResponseBody
     public Map<String, Object> newGame(@RequestBody Map<String, String> body) {
@@ -115,8 +121,62 @@ public class PlayController {
     public Map<String, Object> hint() {
         Map<String, Object> result = new HashMap<>();
         try {
+            List<com.example.badukanalyzer.service.KataGoService.Candidate> hints = playService.getHints(5);
+            // KataGo winrate/scoreLead 는 '흑 기준'(실측 확인). 힌트는 내 차례에 요청되므로 내 색 관점으로 변환.
+            boolean userBlack = "B".equals(playService.getUserColor());
+            List<Map<String, Object>> list = hints.stream().map(c -> {
+                double wr   = userBlack ? c.winrate()   : 1 - c.winrate();      // 내 관점 승률(0~1)
+                double lead = userBlack ? c.scoreLead() : -c.scoreLead();       // 내 관점 집차
+                Map<String, Object> m = new HashMap<>();
+                m.put("move", c.move());
+                m.put("winrate", Math.round(wr * 1000) / 10.0);   // 내 관점 승률 %(소수1자리)
+                m.put("scoreLead", Math.round(lead * 10) / 10.0); // 내 관점 예상 집차
+                return m;
+            }).collect(Collectors.toList());
             result.put("ok", true);
-            result.put("hint", playService.getHint());   // 최선수 GTP (null=종료)
+            result.put("hints", list);                                    // 상위 5개(순위=배열 순서)
+            result.put("hint", hints.isEmpty() ? null : hints.get(0).move()); // 하위호환(최선수 1개)
+        } catch (Exception e) {
+            result.put("ok", false);
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
+    /** 놓아보기(결과화면)용 무상태 분석. body:{moves:[[color,gtp],...]} → 둘 차례 관점 승률·상위 후보수. */
+    @PostMapping("/api/analyze/top")
+    @ResponseBody
+    public Map<String, Object> analyzeTop(@RequestBody Map<String, Object> body) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            Object rawMoves = body.getOrDefault("moves", List.of());
+            List<Move> position = new ArrayList<>();
+            for (Object o : (List<?>) rawMoves) {
+                List<?> pair = (List<?>) o;
+                position.add(CoordinateConverter.fromGtp(String.valueOf(pair.get(0)), String.valueOf(pair.get(1))));
+            }
+            String sideToMove = position.isEmpty() ? "B"
+                : ("B".equals(position.get(position.size() - 1).getColor()) ? "W" : "B");
+            // KataGo winrate/scoreLead 는 '흑 기준'(실측 확인) → 둘 차례(둘 쪽) 관점으로 변환해 내보낸다.
+            boolean sideBlack = "B".equals(sideToMove);
+            var top = playService.analyzeTop(position, 5);
+            List<Map<String, Object>> cands = top.candidates().stream().map(c -> {
+                double wr   = sideBlack ? c.winrate()   : 1 - c.winrate();      // 둘 차례 관점 승률(0~1)
+                double lead = sideBlack ? c.scoreLead() : -c.scoreLead();
+                Map<String, Object> m = new HashMap<>();
+                m.put("move", c.move());
+                m.put("winrate", Math.round(wr * 1000) / 10.0);      // 둘 차례 관점 승률 %(소수1자리)
+                m.put("scoreLead", Math.round(lead * 10) / 10.0);
+                m.put("pv", c.pv());                                  // 이 수 이후 예상 진행(참고도) GTP 수순
+                return m;
+            }).collect(Collectors.toList());
+            double rootWr = sideBlack ? top.rootWinrate() : 1 - top.rootWinrate();
+            result.put("ok", true);
+            result.put("sideToMove", sideToMove);
+            result.put("rootWinrate", Math.round(rootWr * 1000) / 10.0);  // 둘 차례 관점 승률 %
+            result.put("rootScoreLead", Math.round(top.rootScoreLead() * 10) / 10.0);  // 흑 기준 예상 집차(+흑/−백)
+            result.put("candidates", cands);
+            result.put("ownership", top.ownership());                     // 집(영역) 예측 361칸(흑 기준 +흑/−백)
         } catch (Exception e) {
             result.put("ok", false);
             result.put("error", e.getMessage());

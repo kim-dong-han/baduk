@@ -6,64 +6,66 @@
     <title>소개 · 바둑 분석</title>
     <link rel="stylesheet" href="/css/common.css">
     <style>
-        .hero { background: linear-gradient(135deg, #1a1a2e, #2b2b52); color: #fff; border-radius: 16px; padding: 34px 30px; margin-bottom: 26px; }
-        .hero h1 { font-size: 26px; margin: 0 0 8px; color: #fff; }
-        .hero p  { font-size: 14px; color: #c7c9e0; margin: 0 0 16px; line-height: 1.6; max-width: 720px; }
+        .hero { background: linear-gradient(135deg, var(--sidebar-1), var(--primary-dark)); color: #fff; border-radius: var(--radius-lg); padding: 34px 30px; margin-bottom: 26px; }
+        .hero h1 { font-size: 27px; margin: 0 0 8px; color: #fff; }
+        .hero p  { font-size: 14px; color: #cdd2ea; margin: 0 0 16px; line-height: 1.6; max-width: 720px; }
         .badges { display: flex; flex-wrap: wrap; gap: 7px; }
-        .badge-tech { font-size: 12px; background: rgba(255,255,255,0.12); color: #eef; border-radius: 99px; padding: 4px 11px; font-weight: 600; }
+        .badge-tech { font-size: 12px; background: rgba(255,255,255,0.13); color: #eef; border-radius: 99px; padding: 4px 11px; font-weight: 600; }
 
-        .section-h { font-size: 18px; font-weight: 800; margin: 30px 0 14px; color: #2b2b52; }
+        .section-h { font-size: 18px; font-weight: 800; margin: 30px 0 14px; color: var(--text-primary); }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-        .fcard { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 4px solid #4a90d9; }
+        .fcard { background: var(--surface); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); border: 1px solid var(--border); border-top: 4px solid var(--primary); }
         .fcard .ico { font-size: 22px; margin-bottom: 8px; }
         .fcard h3 { font-size: 15px; margin: 0 0 6px; }
-        .fcard p  { font-size: 13px; color: #666; margin: 0 0 10px; line-height: 1.55; }
-        .fcard a  { font-size: 13px; color: #4a90d9; text-decoration: none; font-weight: 600; }
+        .fcard p  { font-size: 13px; color: var(--text-secondary); margin: 0 0 10px; line-height: 1.55; }
+        .fcard a  { font-size: 13px; color: var(--primary); text-decoration: none; font-weight: 700; }
         .fcard a:hover { text-decoration: underline; }
 
         /* 아키텍처 다이어그램 */
-        .arch { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow-x: auto; }
+        .arch { background: var(--surface); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); border: 1px solid var(--border); overflow-x: auto; }
         .arch-flow { display: flex; align-items: center; gap: 10px; min-width: 640px; }
-        .node { background: #f4f6fb; border: 1px solid #e2e7f0; border-radius: 10px; padding: 12px 14px; text-align: center; flex-shrink: 0; }
-        .node .t { font-size: 13px; font-weight: 700; color: #2b2b52; }
-        .node .s { font-size: 11px; color: #999; margin-top: 3px; }
-        .node.engine { background: #1a1a2e; border-color: #1a1a2e; }
+        .node { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; text-align: center; flex-shrink: 0; }
+        .node .t { font-size: 13px; font-weight: 700; color: var(--primary-dark); }
+        .node .s { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+        .node.engine { background: var(--sidebar-1); border-color: var(--sidebar-1); }
         .node.engine .t { color: #fff; }
         .node.engine .s { color: #9aa0c8; }
-        .node.store { background: #eef7ef; border-color: #cfe8d2; }
-        .arrow { color: #b8c0d0; font-size: 20px; flex-shrink: 0; }
-        .arch-note { font-size: 12px; color: #999; margin-top: 14px; }
+        .node.store { background: var(--success-bg); border-color: #cfe8d2; }
+        .arrow { color: var(--border-strong); font-size: 20px; flex-shrink: 0; }
+        .arch-note { font-size: 12px; color: var(--text-muted); margin-top: 14px; }
 
         /* 기술 스택 표 */
-        .stack { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
+        .stack { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }
         .stack table { border-collapse: collapse; width: 100%; }
-        .stack td { padding: 11px 16px; border-bottom: 1px solid #f2f2f2; font-size: 13px; }
+        .stack td { padding: 11px 16px; border-bottom: 1px solid var(--surface-2); font-size: 13px; }
         .stack tr:last-child td { border-bottom: none; }
-        .stack td:first-child { color: #888; width: 130px; font-weight: 600; }
-        .stack td:last-child { color: #333; }
+        .stack td:first-child { color: var(--text-muted); width: 130px; font-weight: 600; }
+        .stack td:last-child { color: var(--text-primary); }
 
         /* 엔지니어링 하이라이트 */
-        .hl { background: #fff; border-radius: 12px; padding: 8px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .hl-item { padding: 15px 0; border-bottom: 1px solid #f2f2f2; }
+        .hl { background: var(--surface); border-radius: var(--radius); padding: 8px 22px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .hl-item { padding: 15px 0; border-bottom: 1px solid var(--surface-2); }
         .hl-item:last-child { border-bottom: none; }
-        .hl-item h4 { font-size: 14px; margin: 0 0 5px; color: #2b2b52; }
-        .hl-item p  { font-size: 13px; color: #666; margin: 0; line-height: 1.6; }
-        .hl-item code { background: #f0f2f5; border-radius: 4px; padding: 1px 6px; font-size: 12px; color: #c0392b; }
+        .hl-item h4 { font-size: 14px; margin: 0 0 5px; color: var(--primary-dark); }
+        .hl-item p  { font-size: 13px; color: var(--text-secondary); margin: 0; line-height: 1.6; }
+        .hl-item code { background: var(--primary-light); border-radius: 4px; padding: 1px 6px; font-size: 12px; color: var(--primary-dark); }
 
-        .note-box { background: #fff8ec; border: 1px solid #fbe4bd; border-radius: 12px; padding: 18px 22px; font-size: 13px; color: #7a5a1e; line-height: 1.7; }
+        .note-box { background: var(--warning-bg); border: 1px solid #fbe4bd; border-radius: var(--radius); padding: 18px 22px; font-size: 13px; color: #7a5a1e; line-height: 1.7; }
         .note-box b { color: #8a5a0a; }
     </style>
 </head>
 <body>
     <nav class="topnav">
         <div class="topnav-inner">
-            <a class="brand" href="/analysis/batch">⚫ 바둑 분석</a>
+            <a class="brand" href="/">⚫ 바둑 분석</a>
             <div class="topnav-links">
+                <a href="/">홈</a>
                 <a href="/analysis/batch">실력 리포트</a>
                 <a href="/notes">오답노트</a>
                 <a href="/gallery">갤러리</a>
                 <a href="/game">기보 복기</a>
                 <a href="/play">AI 대국</a>
+            <a href="/study">분석판</a>
                 <a href="/about" class="active">소개</a>
             </div>
             <details class="user-menu">

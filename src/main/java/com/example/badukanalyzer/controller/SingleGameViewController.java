@@ -8,6 +8,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -70,6 +71,26 @@ public class SingleGameViewController {
                 .map(j -> Map.<String, Object>of("fileName", j.fileName, "progress", j.progress))
                 .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(list);
+    }
+
+    /** 저장된 모든 기보를 현재 visits 설정으로 일괄 재분석 시작(백그라운드). 이미 실행 중이면 무시. */
+    @PostMapping("/reanalyze-all")
+    public String reanalyzeAll() {
+        singleGameService.startBulkReanalyze();
+        return "redirect:/game?bulk=1";
+    }
+
+    @GetMapping("/reanalyze-all/status")
+    @ResponseBody
+    public Map<String, Object> bulkStatus() {
+        SingleGameService.BulkStatus b = singleGameService.getBulkStatus();
+        Map<String, Object> m = new HashMap<>();
+        m.put("running", b.running);
+        m.put("total", b.total);
+        m.put("done", b.done);
+        m.put("current", b.current);
+        m.put("message", b.message);
+        return m;
     }
 
     @GetMapping("/result/{id}")

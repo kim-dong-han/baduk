@@ -7,50 +7,53 @@
     <link rel="stylesheet" href="/css/common.css">
     <style>
         .notes-head { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; margin-bottom:16px; }
-        .notes-stat { font-size:13px; color:#666; }
-        .notes-stat b { color:#333; }
+        .notes-stat { font-size:13px; color:var(--text-secondary); }
+        .notes-stat b { color:var(--text-primary); }
         .note-filters { display:flex; gap:8px; }
-        .nf-btn { border:1px solid #ddd; background:#fff; color:#666; font-size:13px; padding:6px 14px; border-radius:20px; cursor:pointer; }
-        .nf-btn.active { background:#4a90d9; color:#fff; border-color:#4a90d9; }
+        .nf-btn { border:1px solid var(--border-strong); background:var(--surface); color:var(--text-secondary); font-size:13px; padding:6px 14px; border-radius:var(--radius-pill); cursor:pointer; font-weight:600; transition:all .14s; }
+        .nf-btn:hover { background:var(--surface-2); }
+        .nf-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
 
         .note-grid { display:flex; flex-direction:column; gap:10px; }
-        .note-card { background:#fff; border-radius:12px; padding:14px 18px; box-shadow:0 2px 8px rgba(0,0,0,0.07); display:flex; align-items:center; gap:16px; border-left:5px solid #e67e22; }
-        .note-card.g-악수 { border-left-color:#e74c3c; }
+        .note-card { background:var(--surface); border-radius:var(--radius); padding:14px 18px; box-shadow:var(--shadow); border:1px solid var(--border); display:flex; align-items:center; gap:16px; border-left:5px solid var(--warning); }
+        .note-card.g-악수 { border-left-color:var(--danger); }
         .note-loss { text-align:center; min-width:70px; }
-        .note-loss-num { font-size:22px; font-weight:800; color:#e74c3c; line-height:1; }
-        .note-loss-lbl { font-size:11px; color:#999; margin-top:3px; }
+        .note-loss-num { font-size:24px; font-weight:800; color:var(--danger); line-height:1; }
+        .note-loss-lbl { font-size:11px; color:var(--text-muted); margin-top:3px; }
         .note-body { flex:1; min-width:0; }
         .note-line1 { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
-        .note-badge { font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
-        .note-badge.실수 { background:#fde3cf; color:#d35400; }
-        .note-badge.악수 { background:#fadbd8; color:#c0392b; }
-        .note-move { font-size:15px; font-weight:700; color:#333; }
-        .note-move .arrow { color:#aaa; font-weight:400; margin:0 4px; }
-        .note-move .best { color:#3498db; }
-        .note-phase { font-size:11px; color:#888; background:#f2f4f7; padding:2px 8px; border-radius:6px; }
+        .note-badge { font-size:11px; font-weight:700; padding:3px 9px; border-radius:var(--radius-pill); }
+        .note-badge.실수 { background:var(--warning-bg); color:#b5770a; }
+        .note-badge.악수 { background:var(--danger-bg); color:#c62828; }
+        .note-move { font-size:15px; font-weight:700; color:var(--text-primary); }
+        .note-move .arrow { color:var(--text-muted); font-weight:400; margin:0 4px; }
+        .note-move .best { color:var(--primary-blue); }
+        .note-phase { font-size:11px; color:var(--text-secondary); background:var(--surface-2); padding:2px 8px; border-radius:var(--radius-pill); }
         .note-stone { display:inline-block; width:12px; height:12px; border-radius:50%; vertical-align:middle; }
         .note-stone.B { background:#222; }
         .note-stone.W { background:#fff; border:1px solid #bbb; }
-        .note-game { font-size:12px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .note-game { font-size:12px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .note-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; }
-        .note-bookmark { font-size:20px; cursor:pointer; color:#ddd; user-select:none; background:none; border:none; padding:2px; line-height:1; }
+        .note-bookmark { font-size:20px; cursor:pointer; color:#d6dce3; user-select:none; background:none; border:none; padding:2px; line-height:1; }
         .note-bookmark.on { color:#f1c40f; }
-        .note-open { font-size:13px; color:#fff; background:#2ecc71; padding:7px 12px; border-radius:8px; text-decoration:none; white-space:nowrap; }
-        .note-open:hover { background:#27ae60; }
-        .empty { color:#aaa; text-align:center; padding:50px; background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
+        .note-open { font-size:13px; font-weight:700; color:#fff; background:linear-gradient(135deg,var(--primary),var(--primary-blue)); padding:8px 13px; border-radius:var(--radius-sm); text-decoration:none; white-space:nowrap; box-shadow:0 6px 14px -8px rgba(79,70,229,0.6); }
+        .note-open:hover { filter:brightness(1.05); }
+        .empty { color:var(--text-muted); text-align:center; padding:50px; background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); border:1px solid var(--border); }
         @media (max-width:640px){ .note-card{ flex-wrap:wrap; } .note-actions{ width:100%; justify-content:flex-end; } }
     </style>
 </head>
 <body>
     <nav class="topnav">
         <div class="topnav-inner">
-            <a class="brand" href="/analysis/batch">⚫ 바둑 분석</a>
+            <a class="brand" href="/">⚫ 바둑 분석</a>
             <div class="topnav-links">
+                <a href="/">홈</a>
                 <a href="/analysis/batch">실력 리포트</a>
                 <a href="/notes" class="active">오답노트</a>
                 <a href="/gallery">갤러리</a>
                 <a href="/game">기보 복기</a>
                 <a href="/play">AI 대국</a>
+            <a href="/study">분석판</a>
                 <a href="/about">소개</a>
             </div>
             <details class="user-menu">
