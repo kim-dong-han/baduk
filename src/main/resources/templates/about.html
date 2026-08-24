@@ -55,44 +55,10 @@
     </style>
 </head>
 <body>
-    <nav class="topnav">
-        <div class="topnav-inner">
-            <a class="brand" href="/">⚫ 바둑 분석</a>
-            <div class="topnav-links">
-                <a href="/">홈</a>
-                <a href="/analysis/batch">실력 리포트</a>
-                <a href="/notes">오답노트</a>
-                <a href="/gallery">갤러리</a>
-                <a href="/game">기보 복기</a>
-                <a href="/play">AI 대국</a>
-            <a href="/study">분석판</a>
-                <a href="/about" class="active">소개</a>
-            </div>
-            <details class="user-menu">
-                <summary>
-                    <img th:if="${currentUserPicture}" class="user-avatar" th:src="${currentUserPicture}" alt="" referrerpolicy="no-referrer">
-                    <span th:unless="${currentUserPicture}" class="user-avatar user-avatar-initial" th:text="${currentUserInitial}">U</span>
-                    <span class="user-name" th:text="${currentUserName}">사용자</span>
-                    <span class="user-caret">▼</span>
-                </summary>
-                <div class="user-dropdown">
-                    <div class="user-dropdown-head">
-                        <img th:if="${currentUserPicture}" class="user-avatar" th:src="${currentUserPicture}" alt="" referrerpolicy="no-referrer">
-                        <span th:unless="${currentUserPicture}" class="user-avatar user-avatar-initial" th:text="${currentUserInitial}">U</span>
-                        <div class="user-dropdown-id">
-                            <div class="user-dropdown-name" th:text="${currentUserName}">사용자</div>
-                            <div class="user-dropdown-email" th:if="${currentUserEmail}" th:text="${currentUserEmail}"></div>
-                        </div>
-                    </div>
-                    <form th:action="@{/logout}" method="post">
-                        <button type="submit" class="user-logout">🚪 로그아웃</button>
-                    </form>
-                </div>
-            </details>
-        </div>
-    </nav>
-
-    <div class="page narrow">
+    <aside th:replace="~{fragments/shell :: side('about')}"></aside>
+    <main class="main">
+        <header th:replace="~{fragments/shell :: topbar}"></header>
+<div class="page narrow">
 
         <div class="hero">
             <h1>바둑 기보 AI 분석기</h1>
@@ -206,5 +172,6 @@
         </p>
 
     </div>
+    </main>
 </body>
 </html>

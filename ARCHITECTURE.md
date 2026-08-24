@@ -48,7 +48,22 @@ dto/          MoveDetail(bestPv 포함), SingleGameResult, AnalysisResponse, Upl
 - **실시간 분석판(study.html)**: `/study`. AI 대국(play) 없이 빈 판에서 흑·백 직접 착수 → 매 수 `/api/analyze/top`으로 추천수 승률(둘 차례 관점) 실시간 표시. 무르기·패스·전체지우기. 백엔드 신규 없음(analyze/top 재사용). 판/따냄/마커 로직은 result.html 놓아보기와 동형. 레이아웃은 CSS Grid: ≥1151px `[판 | 우측패널 300px]`, ≤1150px `[요약줄 / 판 / 버튼]`(우측패널을 `display:contents`로 해체, **행은 전부 auto + `.play-layout{flex:none}`** — flex:1 로 두면 행이 눌려 판 위아래가 잘림). `computeLayout()`이 CELL·BOARD_PX를 매 렌더 재계산: 넓을 땐 board-area 가로·세로 중 작은 쪽, 쌓인 배치에선 가로 폭 기준+`innerHeight*0.74` 상한(행 높이로 재면 행=auto 라 순환). 최소 280·최대 1000px. nav 는 `topnav rail`(아이콘 62px, 호버 시 234px 펼침). **추천수 목록 카드는 제거** — 추천수는 판 위 색 원으로만 읽고, 원에 **호버하면 그 수의 PV(참고도)** 가 번호로 뜬다(`hoverPv`). 상태 문구는 판 아래 `#engineState`(`.board-hint`) 한 줄. **마우스 휠**: 위=무르기·아래=다시두기(`undone` 스택, 새 착수 시 초기화).
 - **메인 허브(home.html)**: 로그인 후 `/` 진입 화면. 히어로 배너(사용자 인사+기보복기 CTA)+기능 타일 6종(실력리포트/기보복기/오답노트/갤러리/AI대국/소개)+최근 분석 4건 카드(`/game/result/{id}` 링크). 한게임 바둑 메인 포털 스타일. topnav 브랜드 로고=`/`(홈), 모든 페이지 topnav 첫 링크에 "홈" 추가.
 - **로그인 유지(remember-me)**: 로컬 회원 로그인 시 14일(일반 웹사이트 표준) 서명 쿠키 발급(TokenBasedRememberMeServices, SHA256, 무상태). 서버 재시작·브라우저 종료 후에도 쿠키로 자동 재인증(AppUserDetailsService가 아이디로 계정 재로드, UserPrincipal=UserDetails 래퍼). 세션은 인메모리라 재시작 시 소멸하지만 쿠키가 커버. 구글·네이버 OAuth 로그인은 이 경로와 무관(세션 기반).
-공통 CSS: `resources/static/css/common.css` — **다크 좌측 사이드바 셸**. 마크업은 여전히 각 템플릿의 `nav.topnav`(중복, 프래그먼트 없음)이지만 CSS만으로 세로 사이드바로 전환: `position:fixed` 234px 다크 레일, 링크 아이콘=href 기반 `::before`(예 `a[href="/game"]::before`), 사용자 카드=사이드바 하단(dropdown 위로 열림). 본문 밀기=`body:has(nav.topnav){padding-left:234px}`(로그인/회원가입/대기 화면은 topnav 없어 제외). ≤900px에선 상단 가로바로 복귀. **`nav.topnav.rail`**(아이콘 레일 모드, 현재 study.html만 사용): 62px로 접고 hover/focus-within 시 234px로 펼침, 본문 여백은 `--rail-w` 고정이라 펼쳐도 리플로우 없이 위에 겹침. 글자는 `font-size:0`으로 숨기고 `::before` 아이콘(고정 px)만 남기는 방식. play/study의 인라인 `body{padding:0}`는 `:has` 명시도가 이겨 사이드바와 안 겹침.
+공통 CSS: `resources/static/css/common.css` — **앱 셸 = [사이드바 232px | 본문] 2컬럼 그리드**.
+- 마크업은 `templates/fragments/shell.html` 하나만 쓴다(페이지별 `<nav>` 복사 폐지). 프래그먼트 3종:
+  `side(active)` / `side_rail(active)`(아이콘 62px, 호버 시 펼침 — study 전용) / `topbar`(본문 상단 60px).
+  각 페이지는 `<aside th:replace="~{fragments/shell :: side('키')}">` + `<main class="main">`(+`fill`=100vh, play·study) 구조.
+  active 키: home|game|play|study|notes|gallery|batch|about.
+- `body:has(> .side){display:grid; grid-template-columns:var(--sidebar-w) minmax(0,1fr)}`. `.side`는 `position:sticky; height:100vh`.
+- **`.page`는 중앙정렬 컨테이너가 아니다** — `max-width:none; margin:0; padding:16px 20px 24px; flex-column + gap:var(--gap)`.
+  (`.page.narrow`만 960px 중앙정렬 예외 — 로그인·회원가입·소개 같은 읽기 화면)
+- 재사용 컴포넌트/그리드(페이지별로 다시 만들지 말 것): `.panel / .panel-hd / .panel-bd / .box`,
+  `.g-2\/1`(266px+1fr) `.g-3` `.g-4` `.g-6` `.g-board`(342px+1fr).
+- 토큰 추가: `--gap:14px`, `--border-soft`, `--sidebar-text/dim/line/card`. `--border`=#e4e8f0, `--sidebar-w`=232px.
+- 반응형: ≤1280px 에서 `.g-6`→3열·`.g-4`→2열, ≤1080px 에서 사이드바가 상단 가로바로 눕고 모든 `.g-*`가 1열.
+
+홈(home.html)은 4행 대시보드: ①히어로 ②바로가기 6열 ③`[좌 266px 최근분석+진행중 | 우 실력 리포트(바둑판 342px + 총평/승부흐름/기력·구간3열)]` ④지표 4열(AI 착수 통계·패착·핵심 실수 TOP3·이 판의 호수).
+데이터는 컨트롤러 변경 없이 기존 `recent` 하나로 충당(`recent[0]`의 moves/top3Mistakes/top3GoodMoves/opening·middle·endgame). 데이터 없는 패널은 지우지 않고 "데이터 없음" 빈 상태로 렌더. 1440×900에서 4행이 스크롤 없이 보인다.
+**주의**: 일반 `<script>` 안의 중첩 배열 리터럴(`[[x,y]]` 형태)과 HTML 주석은 Thymeleaf 인라인 표현식으로 해석돼 응답이 잘린다 → `th:inline="none"` 필수.
 사활 문제: `resources/tsumego/*.sgf` (번들 75개=쉬움/보통/어려움 각 25. 파일 추가 시 자동 인식, 재시작 필요)
 
 ## 사활(Tsumego) 위젯 — 대기 중 학습

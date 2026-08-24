@@ -8,201 +8,243 @@
     <link rel="stylesheet" href="/css/common.css">
     <script src="/js/chart.min.js"></script>
     <style>
-        .page { max-width: 1440px; }
-        .dash-head { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; flex-wrap:wrap; margin-bottom:22px; }
+        /* ════════════════════════════════════════════════════════════
+           실력 리포트 전용 대시보드 스타일
+           common.css 토큰(indigo/navy/cool gray) 위에 이 페이지 클래스만 정의.
+           섹션을 세로로 쌓지 않고 관련 정보를 한 영역(grid)으로 묶는다.
+           ════════════════════════════════════════════════════════════ */
+        .page { max-width: 1420px; }
 
-        /* 데이터셋 토글 */
-        .ds-toggle { display:inline-flex; gap:4px; background:var(--surface-2); padding:4px; border-radius:12px; border:1px solid var(--border); }
-        .ds-tab { padding:9px 16px; border-radius:9px; font-size:13px; font-weight:700; color:var(--text-secondary); cursor:pointer; border:none; background:transparent; transition:all .14s; white-space:nowrap; }
-        .ds-tab:hover { color:var(--text-primary); }
-        .ds-tab.active { background:var(--surface); color:var(--primary); box-shadow:var(--shadow-sm); }
-        .ds-tab .cnt { font-size:11px; opacity:.7; margin-left:4px; }
+        /* 패널(.panel/.panel-hd/.panel-bd/.box)과 그리드(.g-3/.g-4)는 common.css 것을 그대로 쓴다.
+           여기에는 이 페이지에만 있는 요소(히어로·레이더·추이 캔버스·구간 카드)만 정의. */
+        #dash-root { display: contents; }   /* JS가 만든 영역이 .page 흐름에 그대로 참여 */
+        .eyebrow {
+            font-size: 11px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase;
+            color: var(--text-muted);
+        }
 
-        /* ── AI Summary Hero ── */
-        .hero-summary { background:linear-gradient(135deg,#1f2557 0%,var(--primary) 55%,var(--accent-purple) 100%); color:#fff; border-radius:var(--radius-lg); padding:26px 28px; margin-bottom:18px; box-shadow:var(--shadow-md); }
-        .hs-eyebrow { font-size:12px; font-weight:700; letter-spacing:.4px; color:#c9d0ff; margin-bottom:9px; display:flex; align-items:center; gap:7px; }
-        .hs-headline { font-size:24px; font-weight:800; letter-spacing:-0.5px; line-height:1.35; margin:0 0 4px; }
-        .hs-headline .accent { color:#ffd23f; }
-        .hs-subline { font-size:14px; color:#d7ddff; margin:0 0 20px; line-height:1.6; max-width:760px; }
-        .hs-insights { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-        .insight-card { background:rgba(255,255,255,0.10); border:1px solid rgba(255,255,255,0.16); border-radius:var(--radius); padding:14px 16px; backdrop-filter:blur(2px); }
-        .ins-top { font-size:12px; color:#d7ddff; font-weight:600; display:flex; align-items:center; gap:6px; margin-bottom:7px; }
-        .ins-value { font-size:19px; font-weight:800; line-height:1.25; }
-        .ins-detail { font-size:12px; color:#c9d0ff; margin-top:3px; line-height:1.45; }
+        /* ── report-header ── */
+        .report-header {
+            display: flex; align-items: flex-end; justify-content: space-between;
+            gap: 18px; flex-wrap: wrap;
+        }
+        .rh-title { font-size: 26px; font-weight: 800; letter-spacing: -0.6px; color: var(--text-primary); margin: 4px 0 5px; }
+        .rh-desc  { font-size: 13.5px; color: var(--text-secondary); margin: 0; }
+        .ds-toggle { display: inline-flex; gap: 3px; background: var(--surface-2); padding: 4px; border-radius: 11px; border: 1px solid var(--border); }
+        .ds-tab {
+            padding: 8px 15px; border-radius: 8px; font-size: 13px; font-weight: 700;
+            color: var(--text-secondary); cursor: pointer; border: none; background: transparent;
+            transition: background .14s, color .14s; white-space: nowrap;
+        }
+        .ds-tab:hover { color: var(--text-primary); }
+        .ds-tab.active { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); }
+        .ds-tab .cnt { font-size: 11px; opacity: .65; margin-left: 5px; }
 
-        /* ── KPI Row ── */
-        .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
-        .kpi { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow); position:relative; overflow:hidden; }
-        .kpi::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--primary); }
-        .kpi.k-good::before { background:var(--success); }
-        .kpi.k-weak::before { background:var(--danger); }
-        .kpi.k-info::before { background:var(--primary-blue); }
-        .kpi-label { font-size:12px; color:var(--text-muted); font-weight:600; margin-bottom:8px; }
-        .kpi-value { font-size:28px; font-weight:800; letter-spacing:-0.5px; color:var(--text-primary); line-height:1; }
-        .kpi-value .unit { font-size:15px; font-weight:700; color:var(--text-secondary); margin-left:2px; }
-        .kpi-note { font-size:12px; color:var(--text-secondary); margin-top:7px; }
+        /* ── 1행: 히어로 + 요약 지표 4칸을 한 행으로 ── */
+        .summary-row { display: grid; grid-template-columns: minmax(0, 1fr) 520px; gap: var(--gap); align-items: stretch; }
+        .hero-summary {
+            display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 26px; align-items: center;
+            background: linear-gradient(120deg, var(--sidebar-1) 0%, #23306b 52%, var(--primary) 100%);
+            color: #fff; border-radius: var(--radius-lg); padding: 24px 26px; box-shadow: var(--shadow-md);
+        }
+        .hero-summary .eyebrow { color: #a9b4e8; }
+        .hs-headline { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.4; margin: 9px 0 6px; }
+        .hs-headline .accent { color: #ffd23f; }
+        .hs-subline { font-size: 13.5px; color: #ccd3f5; margin: 0; line-height: 1.6; max-width: 720px; }
+        .hs-score { text-align: center; padding-left: 26px; border-left: 1px solid rgba(255,255,255,0.16); }
+        .hs-score-val { font-size: 42px; font-weight: 800; letter-spacing: -1.5px; line-height: 1; }
+        .hs-score-val .unit { font-size: 18px; font-weight: 700; margin-left: 1px; }
+        .hs-score-lbl { font-size: 11.5px; color: #a9b4e8; margin-top: 7px; font-weight: 600; }
 
-        /* ── 섹션 블록 ── */
-        .section-block { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px 24px; margin-bottom:22px; }
-        .sb-head { margin-bottom:18px; }
-        .sb-title { font-size:17px; font-weight:800; color:var(--text-primary); margin:0 0 3px; display:flex; align-items:center; gap:8px; }
-        .sb-desc { font-size:13px; color:var(--text-muted); margin:0; }
+        /* 요약 지표는 히어로 옆 2x2 (좁아지면 아래로 내려가 4열 → 2열) */
+        .overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
+        .stat-tile {
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 15px 17px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden;
+        }
+        .stat-tile::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary); }
+        .stat-tile.is-good::after { background: var(--success); }
+        .stat-tile.is-weak::after { background: var(--danger); }
+        .stat-tile.is-info::after { background: var(--primary-blue); }
+        .st-label { font-size: 11.5px; color: var(--text-muted); font-weight: 600; margin-bottom: 9px; }
+        .st-value { font-size: 26px; font-weight: 800; letter-spacing: -0.8px; color: var(--text-primary); line-height: 1; }
+        .st-value.sm { font-size: 19px; letter-spacing: -0.4px; }
+        .st-value .unit { font-size: 14px; font-weight: 700; color: var(--text-secondary); margin-left: 2px; }
+        .st-note { font-size: 11.5px; color: var(--text-secondary); margin-top: 8px; }
 
-        /* 구간별 실력: 레이더 + 인사이트 */
-        .seg-grid { display:grid; grid-template-columns:320px 1fr; gap:26px; align-items:center; }
-        .radar-wrap { max-width:320px; margin:0 auto; }
-        .seg-insights { display:flex; flex-direction:column; gap:10px; }
-        .seg-ins { display:flex; align-items:center; gap:14px; padding:12px 14px; border-radius:12px; background:var(--surface-2); border-left:4px solid var(--primary); }
-        .seg-ins.good { border-left-color:var(--success); }
-        .seg-ins.warn { border-left-color:var(--warning); }
-        .seg-ins.weak { border-left-color:var(--danger); }
-        .seg-ins-phase { font-size:14px; font-weight:800; color:var(--text-primary); width:44px; flex-shrink:0; }
-        .seg-ins-val { font-size:20px; font-weight:800; color:var(--text-primary); width:78px; flex-shrink:0; }
-        .seg-ins-note { font-size:13px; color:var(--text-secondary); }
+        /* ── main-analysis-grid: 레이더 55% / AI 인사이트 45% ── */
+        .main-analysis-grid { display: grid; grid-template-columns: 55fr 45fr; gap: 16px; align-items: stretch; }
+        .radar-analysis .panel-bd { display: flex; align-items: center; justify-content: center; }
+        .radar-wrap { width: 100%; max-width: 420px; }
 
-        /* ── 구간 카드 3열 ── */
-        .phase-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
-        .phase-card { background:var(--surface); border:1px solid var(--border); border-top:5px solid #ccc; border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; }
-        .phase-card.strong { border-top-color:var(--success); }
-        .phase-card.normal { border-top-color:var(--warning); }
-        .phase-card.weak   { border-top-color:var(--danger); }
-        .pc-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
-        .pc-phase { font-size:16px; font-weight:800; }
-        .pc-stars { font-size:15px; letter-spacing:1px; }
-        .pc-badge { font-size:11px; font-weight:700; padding:3px 9px; border-radius:var(--radius-pill); }
-        .pc-badge.strong { background:var(--success-bg); color:#1a8a45; }
-        .pc-badge.normal { background:var(--warning-bg); color:#b5770a; }
-        .pc-badge.weak   { background:var(--danger-bg); color:#c62828; }
-        .pc-main { display:flex; align-items:baseline; gap:8px; margin-bottom:10px; }
-        .pc-value { font-size:34px; font-weight:800; letter-spacing:-1px; line-height:1; }
-        .pc-value.strong { color:var(--success); } .pc-value.normal { color:var(--warning); } .pc-value.weak { color:var(--danger); }
-        .pc-value-lbl { font-size:12px; color:var(--text-muted); }
-        .pc-track { background:#e6eaef; border-radius:99px; height:9px; margin-bottom:14px; overflow:hidden; }
-        .pc-fill { height:100%; border-radius:99px; transition:width .8s ease; }
-        .pc-fill.strong { background:var(--success); } .pc-fill.normal { background:var(--warning); } .pc-fill.weak { background:var(--danger); }
-        .quality-bar { display:flex; height:10px; border-radius:99px; overflow:hidden; margin:0 0 8px; }
-        .q-excellent { background:var(--ai); } .q-good { background:var(--success); } .q-normal { background:var(--warning); } .q-bad { background:#e67e22; } .q-blunder { background:var(--danger); }
-        .quality-legend { display:flex; flex-wrap:wrap; gap:5px 10px; }
-        .ql-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text-secondary); }
-        .ql-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-        .pc-details { margin-top:14px; border-top:1px solid var(--surface-2); }
-        .pc-details summary { cursor:pointer; list-style:none; font-size:12px; font-weight:700; color:var(--primary); padding-top:12px; display:flex; align-items:center; gap:5px; }
-        .pc-details summary::-webkit-details-marker { display:none; }
-        .pc-details summary::after { content:"▾"; font-size:10px; transition:transform .18s; }
-        .pc-details[open] summary::after { transform:rotate(180deg); }
-        .pc-drow { display:flex; justify-content:space-between; font-size:12.5px; color:var(--text-secondary); margin-top:9px; }
-        .pc-drow b { font-weight:700; }
-        .pc-interpret { font-size:12px; color:var(--text-muted); font-style:italic; margin-top:10px; line-height:1.5; }
+        /* AI 인사이트: 구간 순위 + 코칭 코멘트 */
+        .insight-rank { display: flex; flex-direction: column; gap: 9px; }
+        .ir-row { display: grid; grid-template-columns: 46px 1fr 46px; gap: 11px; align-items: center; }
+        .ir-phase { font-size: 12.5px; font-weight: 700; color: var(--text-primary); }
+        .ir-track { display: block; background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; height: 8px; overflow: hidden; }
+        .ir-fill { display: block; height: 100%; border-radius: 99px; transition: width .7s ease; }
+        .ir-fill.strong { background: var(--success); }
+        .ir-fill.normal { background: var(--warning); }
+        .ir-fill.weak   { background: var(--danger); }
+        .ir-val { font-size: 12.5px; font-weight: 700; color: var(--text-secondary); text-align: right; }
+        .insight-sep { border: none; border-top: 1px solid var(--border); margin: 15px 0 13px; }
+        .insight-list { display: flex; flex-direction: column; gap: 8px; }
+        .insight-item {
+            display: flex; gap: 10px; align-items: flex-start;
+            padding: 11px 12px; border-radius: var(--radius-sm);
+            background: var(--surface-2); border-left: 3px solid var(--border-strong);
+        }
+        .insight-item.high { background: var(--danger-bg);  border-left-color: var(--danger); }
+        .insight-item.mid  { background: var(--warning-bg); border-left-color: var(--warning); }
+        .insight-item.good { background: var(--success-bg); border-left-color: var(--success); }
+        .ii-icon { font-size: 15px; line-height: 1.3; flex-shrink: 0; }
+        .ii-title { font-size: 12.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+        .ii-detail { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+        .insight-empty { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
 
-        /* ── 추이 차트 ── */
-        .trend-legend { display:flex; gap:16px; font-size:12px; color:var(--text-secondary); margin-top:10px; }
-        .trend-legend span { display:inline-flex; align-items:center; gap:6px; }
-        .trend-swatch { width:16px; height:3px; border-radius:2px; display:inline-block; }
-        #trendCanvas { width:100%; display:block; }
+        /* 구간 카드 3열은 common.css 의 .g-3 사용 */
+        .phase-card { border-top: 3px solid var(--border-strong); }
+        .phase-card.strong { border-top-color: var(--success); }
+        .phase-card.normal { border-top-color: var(--warning); }
+        .phase-card.weak   { border-top-color: var(--danger); }
+        .pc-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 17px 11px; }
+        .pc-phase { font-size: 14.5px; font-weight: 800; color: var(--text-primary); }
+        .pc-badge { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); }
+        .pc-badge.strong { background: var(--success-bg); color: #1a8a45; }
+        .pc-badge.normal { background: var(--warning-bg); color: #b5770a; }
+        .pc-badge.weak   { background: var(--danger-bg);  color: #c62828; }
+        .pc-bd { padding: 0 17px 15px; }
+        .pc-main { display: flex; align-items: baseline; gap: 7px; margin-bottom: 9px; }
+        .pc-value { font-size: 31px; font-weight: 800; letter-spacing: -1.2px; line-height: 1; }
+        .pc-value .pct { font-size: 16px; }
+        .pc-value.strong { color: var(--success); } .pc-value.normal { color: var(--warning); } .pc-value.weak { color: var(--danger); }
+        .pc-value-lbl { font-size: 11.5px; color: var(--text-muted); }
+        .pc-stars { font-size: 13px; letter-spacing: 1px; color: var(--warning); margin-left: auto; }
+        .pc-track { background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; height: 8px; margin-bottom: 14px; overflow: hidden; }
+        .pc-fill { height: 100%; border-radius: 99px; transition: width .8s ease; }
+        .pc-fill.strong { background: var(--success); } .pc-fill.normal { background: var(--warning); } .pc-fill.weak { background: var(--danger); }
+        .quality-bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; margin-bottom: 9px; background: var(--surface-2); }
+        .q-excellent { background: var(--ai); } .q-good { background: var(--success); } .q-normal { background: var(--warning); }
+        .q-bad { background: #e67e22; } .q-blunder { background: var(--danger); }
+        .quality-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+        .ql-item { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text-secondary); }
+        .ql-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .pc-details { margin-top: 13px; border-top: 1px solid var(--border); }
+        .pc-details summary { cursor: pointer; list-style: none; font-size: 11.5px; font-weight: 700; color: var(--primary); padding-top: 11px; display: flex; align-items: center; gap: 5px; }
+        .pc-details summary::-webkit-details-marker { display: none; }
+        .pc-details summary::after { content: "▾"; font-size: 9px; transition: transform .18s; }
+        .pc-details[open] summary::after { transform: rotate(180deg); }
+        .pc-drow { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--text-secondary); margin-top: 9px; }
+        .pc-interpret { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; line-height: 1.55; }
 
-        /* ── 상세 테이블 ── */
-        .detail-table { width:100%; border-collapse:collapse; }
-        .detail-table th { background:var(--surface-2); color:var(--text-secondary); font-size:13px; padding:11px 14px; border-bottom:2px solid var(--border); text-align:center; }
-        .detail-table td { padding:11px 14px; text-align:center; border-bottom:1px solid var(--surface-2); font-size:14px; }
-        .detail-table tbody tr { transition:background .12s; }
-        .detail-table tbody tr:hover { background:var(--primary-light); }
+        /* ── improvement-grid: 추이 65% / 학습 추천 35% ── */
+        .improvement-grid { display: grid; grid-template-columns: 65fr 35fr; gap: 16px; align-items: stretch; }
+        #trendCanvas { width: 100%; display: block; }
+        .trend-legend { display: flex; gap: 15px; font-size: 11.5px; color: var(--text-secondary); margin-top: 11px; }
+        .trend-legend span { display: inline-flex; align-items: center; gap: 6px; }
+        .trend-swatch { width: 15px; height: 3px; border-radius: 2px; display: inline-block; }
 
-        /* 코칭 코멘트 (하단 전체) */
-        .coach-list { display:flex; flex-direction:column; gap:10px; }
-        .coach-item { display:flex; gap:12px; align-items:flex-start; padding:13px 15px; border-radius:12px; background:var(--surface-2); }
-        .coach-item.high { background:var(--danger-bg); }
-        .coach-item.mid  { background:var(--warning-bg); }
-        .coach-item.good { background:var(--success-bg); }
-        .coach-icon { font-size:20px; line-height:1.2; flex-shrink:0; }
-        .coach-title { font-weight:700; font-size:14px; color:var(--text-primary); margin-bottom:2px; }
-        .coach-detail { font-size:13px; color:var(--text-secondary); line-height:1.5; }
+        .learn-list { display: flex; flex-direction: column; gap: 9px; }
+        .learn-item {
+            display: flex; gap: 11px; align-items: flex-start; text-decoration: none;
+            padding: 12px 13px; border-radius: var(--radius-sm);
+            background: var(--surface-2); border: 1px solid var(--border);
+            transition: border-color .14s, background .14s, transform .14s;
+        }
+        a.learn-item:hover { border-color: var(--primary); background: var(--primary-light); transform: translateX(2px); }
+        .li-step {
+            width: 21px; height: 21px; border-radius: 50%; flex-shrink: 0;
+            background: var(--primary); color: #fff; font-size: 11px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center; margin-top: 1px;
+        }
+        .li-title { font-size: 12.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+        .li-detail { font-size: 11.5px; color: var(--text-secondary); line-height: 1.5; }
 
-        .spinner { border:4px solid var(--primary-light); border-top:4px solid var(--primary); border-radius:50%; width:36px; height:36px; animation:spin 1s linear infinite; margin:0 auto 12px; }
-        .loading { text-align:center; padding:60px; }
-        .error-box { background:var(--danger-bg); border:1px solid #f3b6b6; color:#c0392b; padding:16px; border-radius:var(--radius-sm); margin-bottom:20px; }
-        .empty { color:var(--text-muted); text-align:center; padding:50px; background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); border:1px solid var(--border); }
-        .tygem-notice { background:var(--surface); border-radius:var(--radius-sm); padding:12px 18px; margin-bottom:18px; box-shadow:var(--shadow); border:1px solid var(--border); border-left:4px solid var(--primary); font-size:13px; color:var(--text-secondary); }
+        /* ── detail-analysis ── */
+        .detail-table { width: 100%; border-collapse: collapse; }
+        .detail-table th {
+            background: var(--surface-2); color: var(--text-secondary); font-size: 11.5px; font-weight: 700;
+            letter-spacing: 0.3px; padding: 10px 14px; border-bottom: 1px solid var(--border); text-align: center;
+        }
+        .detail-table td { padding: 11px 14px; text-align: center; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary); }
+        .detail-table tbody tr:last-child td { border-bottom: none; }
+        .detail-table tbody tr { transition: background .12s; }
+        .detail-table tbody tr:hover { background: var(--surface-2); }
+        .detail-table td.phase-cell { font-weight: 700; color: var(--text-primary); }
+        .table-scroll { overflow-x: auto; }
 
-        @media (max-width:1000px){ .seg-grid{ grid-template-columns:1fr; } .hs-insights{ grid-template-columns:1fr; } .kpi-row{ grid-template-columns:repeat(2,1fr); } .phase-grid{ grid-template-columns:1fr; } }
-        @media (max-width:560px){ .kpi-row{ grid-template-columns:1fr; } }
+        /* ── 상태 표시 ── */
+        .spinner { border: 3px solid var(--primary-light); border-top: 3px solid var(--primary); border-radius: 50%; width: 34px; height: 34px; animation: spin 1s linear infinite; margin: 0 auto 12px; }
+        .loading { text-align: center; padding: 56px; }
+        .error-box { background: var(--danger-bg); border: 1px solid #f3b6b6; color: #c0392b; padding: 15px; border-radius: var(--radius-sm); }
+        .empty { color: var(--text-muted); text-align: center; padding: 48px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
+        .tygem-notice {
+            background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--primary);
+            border-radius: var(--radius-sm); padding: 11px 16px; box-shadow: var(--shadow-sm);
+            font-size: 12.5px; color: var(--text-secondary);
+        }
+
+        /* ── 반응형: 모든 grid 를 1열로 ── */
+        @media (max-width: 1100px) {
+            .main-analysis-grid, .improvement-grid { grid-template-columns: minmax(0, 1fr); }
+            .summary-row { grid-template-columns: minmax(0, 1fr); }
+            .overview-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .hero-summary { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+            .hs-score { text-align: left; padding-left: 0; padding-top: 16px; border-left: none; border-top: 1px solid rgba(255,255,255,0.16); }
+        }
+        @media (max-width: 560px) {
+            .overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .rh-title { font-size: 22px; }
+        }
     </style>
 </head>
 <body>
-    <nav class="topnav">
-        <div class="topnav-inner">
-            <a class="brand" href="/">바둑 분석</a>
-            <div class="topnav-links">
-                <a href="/">홈</a>
-                <a href="/analysis/batch" class="active">실력 리포트</a>
-                <a href="/notes">오답노트</a>
-                <a href="/gallery">갤러리</a>
-                <a href="/game">기보 복기</a>
-                <a href="/play">AI 대국</a>
-                <a href="/study">분석판</a>
-                <a href="/about">소개</a>
-            </div>
-            <details class="user-menu">
-                <summary>
-                    <img th:if="${currentUserPicture}" class="user-avatar" th:src="${currentUserPicture}" alt="" referrerpolicy="no-referrer">
-                    <span th:unless="${currentUserPicture}" class="user-avatar user-avatar-initial" th:text="${currentUserInitial}">U</span>
-                    <span class="user-name" th:text="${currentUserName}">사용자</span>
-                    <span class="user-caret">▼</span>
-                </summary>
-                <div class="user-dropdown">
-                    <div class="user-dropdown-head">
-                        <img th:if="${currentUserPicture}" class="user-avatar" th:src="${currentUserPicture}" alt="" referrerpolicy="no-referrer">
-                        <span th:unless="${currentUserPicture}" class="user-avatar user-avatar-initial" th:text="${currentUserInitial}">U</span>
-                        <div class="user-dropdown-id">
-                            <div class="user-dropdown-name" th:text="${currentUserName}">사용자</div>
-                            <div class="user-dropdown-email" th:if="${currentUserEmail}" th:text="${currentUserEmail}"></div>
-                        </div>
-                    </div>
-                    <form th:action="@{/logout}" method="post">
-                        <button type="submit" class="user-logout">🚪 로그아웃</button>
-                    </form>
+    <aside th:replace="~{fragments/shell :: side('batch')}"></aside>
+    <main class="main">
+        <header th:replace="~{fragments/shell :: topbar}"></header>
+<div class="page">
+        <!-- 대시보드 셸: 헤더(정적) + JS가 채우는 영역(#dash-root)이 한 흐름 -->
+
+            <header class="report-header">
+                <div>
+                    <span class="eyebrow">Performance Report</span>
+                    <h1 class="rh-title">바둑 실력 리포트</h1>
+                    <p class="rh-desc">AI가 분석한 최근 기보를 바탕으로 강점과 약점을 한 화면에서 확인하세요.</p>
                 </div>
-            </details>
-        </div>
-    </nav>
+                <div class="ds-toggle" id="dsToggle"></div>
+            </header>
 
-    <div class="page">
-        <div class="dash-head">
-            <div>
-                <h1 class="page-title">📊 바둑 실력 리포트</h1>
-                <p class="page-desc">AI가 분석한 최근 기보를 바탕으로 나의 강점과 약점을 확인하세요.</p>
+            <div class="tygem-notice">타이젬 자동 연동 중 — 대국 종료 후 기보가 자동으로 분석됩니다.</div>
+
+            <div th:if="${running}" class="loading">
+                <div class="spinner"></div>
+                <p style="color:var(--text-muted);">KataGo 분석 중입니다. 잠시만 기다려주세요...</p>
             </div>
-            <div class="ds-toggle" id="dsToggle"></div>
-        </div>
 
-        <div class="tygem-notice">타이젬 자동 연동 중 — 대국 종료 후 기보가 자동으로 분석됩니다.</div>
+            <div th:if="${error}" class="error-box">
+                <strong>오류:</strong> <span th:text="${error}"></span>
+            </div>
 
-        <div th:if="${running}" class="loading">
-            <div class="spinner"></div>
-            <p style="color:var(--text-muted);">KataGo 분석 중입니다. 잠시만 기다려주세요...</p>
-        </div>
+            <script th:inline="javascript">
+                const userResultsData  = /*[[${userResults}]]*/ [];
+                const proResultsData   = /*[[${proResults}]]*/ [];
+                const userGameCount    = /*[[${userGameCount}]]*/ 0;
+                const proGameCount     = /*[[${proGameCount}]]*/ 0;
+                const userWeaknesses   = /*[[${userWeaknesses}]]*/ [];
+            </script>
 
-        <div th:if="${error}" class="error-box">
-            <strong>오류:</strong> <span th:text="${error}"></span>
-        </div>
+            <div id="dash-root"></div>
 
-        <script th:inline="javascript">
-            const userResultsData  = /*[[${userResults}]]*/ [];
-            const proResultsData   = /*[[${proResults}]]*/ [];
-            const userGameCount    = /*[[${userGameCount}]]*/ 0;
-            const proGameCount     = /*[[${proGameCount}]]*/ 0;
-            const userWeaknesses   = /*[[${userWeaknesses}]]*/ [];
-        </script>
-
-        <div id="dash-root"></div>
-
-        <p th:if="${(userResults == null or #lists.size(userResults) == 0) and (proResults == null or #lists.size(proResults) == 0) and not running}" class="empty">
-            분석 결과가 없습니다. 타이젬에서 대국 후 자동으로 업데이트됩니다.
-        </p>
+            <p th:if="${(userResults == null or #lists.size(userResults) == 0) and (proResults == null or #lists.size(proResults) == 0) and not running}" class="empty">
+                분석 결과가 없습니다. 타이젬에서 대국 후 자동으로 업데이트됩니다.
+            </p>
     </div>
 
     <script>
     (function () {
-        /* ── 헬퍼(기존 로직 유지) ── */
+        /* ══════════════════════════════════════════════════════════
+           1) 분석 계산 · 데이터 구조 — 기존 그대로 유지
+           ══════════════════════════════════════════════════════════ */
         function stars(r){ if(r>=75)return'★★★★★';if(r>=60)return'★★★★☆';if(r>=45)return'★★★☆☆';if(r>=30)return'★★☆☆☆';return'★☆☆☆☆'; }
         function level(r){ return r>=60?'strong':r>=40?'normal':'weak'; }
         function levelLabel(r){ return r>=60?'좋아요':r>=40?'보통이에요':'연습이 필요해요'; }
@@ -210,6 +252,9 @@
         function scoreLabel(l){ if(l<2)return{text:'안정적',color:'#27ae60'};if(l<5)return{text:'조금 불안정',color:'#f39c12'};if(l<10)return{text:'기복 있음',color:'#e67e22'};return{text:'기복 심함',color:'#e74c3c'}; }
         function interpret(r){ const mh=r.matchRate>=60,ss=r.scoreLoss<5; if(mh&&ss)return'AI와 비슷하게 두면서 형세를 잘 유지했어요.'; if(mh&&!ss)return'AI와 비슷하게 뒀지만 가끔 큰 실수가 있었어요.'; if(!mh&&ss)return'AI와 다르게 뒀어도 형세는 잘 지켰어요.'; return'실수가 형세에 영향을 줬어요. 이 구간 복기를 추천해요.'; }
         function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+        /* 서버가 코칭 문구에 넣어 보내는 <b> 강조만 살리고 나머지 태그는 이스케이프한다.
+           (기존엔 전부 이스케이프돼 화면에 "<b>종반</b>" 이 글자 그대로 보였다) */
+        function richText(s){ return esc(s).replace(/&lt;(\/?)b&gt;/g, '<$1b>'); }
         function summarize(results){
             const avg = results.reduce((s,r)=>s+r.matchRate,0)/results.length;
             const sorted=[...results].sort((a,b)=>b.matchRate-a.matchRate);
@@ -225,6 +270,28 @@
         let radarInstance = null;
         let activeKey = DATASETS.length ? DATASETS[0].key : null;
 
+        /* ══════════════════════════════════════════════════════════
+           2) DOM 빌더 — 문자열을 이어 붙이는 대신 영역 단위 노드를 만든다
+           ══════════════════════════════════════════════════════════ */
+        /** 요소 하나 생성. cls=클래스, html=내부 마크업 */
+        function el(tag, cls, html){
+            const n = document.createElement(tag);
+            if (cls) n.className = cls;
+            if (html != null) n.innerHTML = html;
+            return n;
+        }
+        /** 패널(제목줄 + 본문) 껍데기. 본문 노드는 .panel-bd 로 반환받아 채운다 */
+        function panel(cls, title, note){
+            const p = el('section', 'panel' + (cls ? ' ' + cls : ''));
+            const hd = el('div', 'panel-hd');
+            hd.appendChild(el('h3', null, title));
+            if (note) hd.appendChild(el('span', 'hd-note', note));
+            const bd = el('div', 'panel-bd');
+            p.append(hd, bd);
+            p.body = bd;
+            return p;
+        }
+
         function renderToggle(){
             if (DATASETS.length <= 1) { toggle.style.display='none'; return; }
             toggle.innerHTML = DATASETS.map(d =>
@@ -233,145 +300,219 @@
             toggle.querySelectorAll('.ds-tab').forEach(b => b.addEventListener('click', () => { activeKey=b.dataset.k; renderToggle(); renderDataset(); }));
         }
 
-        /* ── AI Summary Hero ── */
-        function heroHtml(ds, sm){
+        /* ── hero-summary : 지금 가장 중요한 문제 한 가지 + 종합 점수 ── */
+        function createHeroSummary(ds, sm){
             const w = ds.weaknesses;
             let headline, subline;
             if (w.length) {
-                headline = `<span class="accent">${esc(w[0].title)}</span>`;
-                subline  = esc(w[0].detail);
+                headline = `<span class="accent">${richText(w[0].title)}</span>`;
+                subline  = richText(w[0].detail);
             } else {
                 headline = `가장 강한 구간은 <span class="accent">${esc(sm.best.phase)}</span>, 복기가 필요한 구간은 <span class="accent">${esc(sm.worst.phase)}</span>입니다.`;
-                subline  = `전체 AI 유사도 ${sm.avg}% · ${ds.count}판을 종합했어요.`;
+                subline  = `${ds.count}판을 종합한 결과입니다. 아래에서 구간별 세부 지표를 확인하세요.`;
             }
-            // 인사이트 카드 3개: 약점이 있으면 그것, 없으면 구간 요약으로 대체
-            let insights;
-            if (w.length) {
-                insights = w.slice(0,3).map(it =>
-                    `<div class="insight-card"><div class="ins-top">${it.icon||'•'} ${esc(it.title)}</div>`
-                    + `<div class="ins-detail">${esc(it.detail)}</div></div>`).join('');
+            const sec = el('section', 'hero-summary');
+            sec.appendChild(el('div', null,
+                `<span class="eyebrow">${w.length ? '지금 가장 중요한 문제' : 'AI 종합 진단'}</span>
+                 <h2 class="hs-headline">${headline}</h2>
+                 <p class="hs-subline">${subline}</p>`));
+            sec.appendChild(el('div', 'hs-score',
+                `<div class="hs-score-val">${sm.avg}<span class="unit">%</span></div>
+                 <div class="hs-score-lbl">전체 AI 유사도</div>`));
+            return sec;
+        }
+
+        /* ── overview-grid : 종합 점수 / 강한 구간 / 약한 구간 / 분석 기보 ── */
+        function createOverviewCards(ds, sm){
+            const grid = el('section', 'overview-grid');
+            const tiles = [
+                { cls:'',        label:'전체 AI 유사도', value:`${sm.avg}<span class="unit">%</span>`, note:'AI 최선수와 얼마나 비슷한지' },
+                { cls:'is-good', label:'가장 강한 구간', value:`${esc(sm.best.phase)} <span class="unit">${sm.best.matchRate}%</span>`, note:'이 구간을 가장 잘 뒀어요', sm:true },
+                { cls:'is-weak', label:'가장 약한 구간', value:`${esc(sm.worst.phase)} <span class="unit">${sm.worst.matchRate}%</span>`, note:'집중 복기를 추천해요', sm:true },
+                { cls:'is-info', label:'분석 기보 수',   value:`${ds.count}<span class="unit">판</span>`, note:'집계에 사용된 기보' }
+            ];
+            tiles.forEach(t => grid.appendChild(el('div', 'stat-tile ' + t.cls,
+                `<div class="st-label">${t.label}</div>
+                 <div class="st-value${t.sm ? ' sm' : ''}">${t.value}</div>
+                 <div class="st-note">${t.note}</div>`)));
+            return grid;
+        }
+
+        /* ── radar-analysis : Chart.js 레이더(계산·설정 그대로) ── */
+        function createRadarPanel(){
+            const p = panel('radar-analysis', '🎯 구간별 실력 분포', 'AI 유사도 %');
+            p.body.appendChild(el('div', 'radar-wrap', '<canvas id="radarChart"></canvas>'));
+            return p;
+        }
+
+        /* ── ai-insight-panel : 구간 순위 + 코칭 코멘트(hero 다음 항목부터) ── */
+        function createInsightPanel(ds){
+            const p = panel('ai-insight-panel', '🤖 AI 핵심 분석', '구간 순위 · 반복 패턴');
+            const sorted = [...ds.results].sort((a,b)=>b.matchRate-a.matchRate);
+
+            const rank = el('div', 'insight-rank');
+            sorted.forEach(r => rank.appendChild(el('div', 'ir-row',
+                `<span class="ir-phase">${esc(r.phase)}</span>
+                 <span class="ir-track"><span class="ir-fill ${level(r.matchRate)}" style="width:${Math.min(r.matchRate,100)}%"></span></span>
+                 <span class="ir-val">${r.matchRate}%</span>`)));
+            p.body.appendChild(rank);
+            p.body.appendChild(el('hr', 'insight-sep'));
+
+            // hero 가 첫 번째 약점을 이미 다뤘으므로 여기서는 그 다음 항목부터
+            const rest = (ds.weaknesses || []).slice(1);
+            if (rest.length) {
+                const list = el('div', 'insight-list');
+                rest.forEach(w => list.appendChild(el('div', 'insight-item ' + (w.severity || ''),
+                    `<span class="ii-icon">${w.icon || '•'}</span>
+                     <span><span class="ii-title">${richText(w.title)}</span><span class="ii-detail">${richText(w.detail)}</span></span>`)));
+                p.body.appendChild(list);
             } else {
-                insights = [
-                    {t:'🥇 가장 강한 구간', v:`${sm.best.phase} ${sm.best.matchRate}%`},
-                    {t:'📉 가장 약한 구간', v:`${sm.worst.phase} ${sm.worst.matchRate}%`},
-                    {t:'📊 전체 AI 유사도', v:`${sm.avg}%`}
-                ].map(i => `<div class="insight-card"><div class="ins-top">${i.t}</div><div class="ins-value">${i.v}</div></div>`).join('');
+                const worst = sorted[sorted.length-1];
+                p.body.appendChild(el('p', 'insight-empty',
+                    `반복되는 약점 패턴은 아직 잡히지 않았어요. 지금은 <b>${esc(worst.phase)}</b>(유사도 ${worst.matchRate}%)이 가장 낮으니 이 구간부터 복기해 보세요.`));
             }
-            return `<div class="hero-summary">
-                <div class="hs-eyebrow">🤖 AI가 분석한 당신의 바둑</div>
-                <h2 class="hs-headline">${headline}</h2>
-                <p class="hs-subline">${subline}</p>
-                <div class="hs-insights">${insights}</div>
-            </div>`;
+            return p;
         }
 
-        /* ── KPI Row ── */
-        function kpiHtml(ds, sm){
-            return `<div class="kpi-row">
-                <div class="kpi"><div class="kpi-label">전체 AI 유사도</div><div class="kpi-value">${sm.avg}<span class="unit">%</span></div><div class="kpi-note">AI 최선수와 얼마나 비슷한지</div></div>
-                <div class="kpi k-good"><div class="kpi-label">가장 강한 구간</div><div class="kpi-value" style="font-size:22px;">${esc(sm.best.phase)} <span class="unit">${sm.best.matchRate}%</span></div><div class="kpi-note">이 구간을 가장 잘 뒀어요</div></div>
-                <div class="kpi k-weak"><div class="kpi-label">가장 약한 구간</div><div class="kpi-value" style="font-size:22px;">${esc(sm.worst.phase)} <span class="unit">${sm.worst.matchRate}%</span></div><div class="kpi-note">집중 복기를 추천해요</div></div>
-                <div class="kpi k-info"><div class="kpi-label">분석 기보 수</div><div class="kpi-value">${ds.count}<span class="unit">판</span></div><div class="kpi-note">집계에 사용된 기보</div></div>
-            </div>`;
+        /* 1행: 히어로(가장 중요한 문제) + 요약 지표 4칸 — 요청서대로 한 행으로 합친다 */
+        function createSummaryRow(ds, sm){
+            const row = el('div', 'summary-row');
+            row.append(createHeroSummary(ds, sm), createOverviewCards(ds, sm));
+            return row;
         }
 
-        /* ── 구간별 실력: 레이더 + 인사이트 ── */
-        function segmentHtml(ds){
-            const sorted=[...ds.results].sort((a,b)=>b.matchRate-a.matchRate);
-            const note=(r,i)=> i===0?'가장 강한 구간이에요':(i===sorted.length-1?'집중적인 복기가 필요해요':'안정적인 편이에요');
-            const cls=(r)=> level(r.matchRate)==='strong'?'good':level(r.matchRate)==='normal'?'warn':'weak';
-            const rows=sorted.map((r,i)=>`<div class="seg-ins ${cls(r)}"><span class="seg-ins-phase">${esc(r.phase)}</span><span class="seg-ins-val">${r.matchRate}%</span><span class="seg-ins-note">${note(r,i)}</span></div>`).join('');
-            return `<div class="section-block">
-                <div class="sb-head"><h3 class="sb-title">🎯 구간별 실력 분석</h3><p class="sb-desc">초반부터 종반까지 AI와 얼마나 비슷하게 두었는지 확인하세요.</p></div>
-                <div class="seg-grid">
-                    <div class="radar-wrap"><canvas id="radarChart"></canvas></div>
-                    <div class="seg-insights">${rows}</div>
-                </div>
-            </div>`;
+        function createMainAnalysisGrid(ds){
+            const grid = el('div', 'main-analysis-grid');
+            grid.append(createRadarPanel(), createInsightPanel(ds));
+            return grid;
         }
 
-        /* ── 구간 카드 3열 ── */
-        function phaseCardsHtml(ds){
-            const cards=ds.results.map(r=>{
-                const lv=level(r.matchRate), fillW=Math.min(r.matchRate,100);
-                const ex=r.excellentRate||0,gd=r.goodRate||0,nm=r.normalRate||0,bd=r.badRate||0,bl=r.blunderRate||0;
-                return `<div class="phase-card ${lv}">
-                    <div class="pc-head"><div class="pc-phase">${esc(r.phase)}</div><div class="pc-stars">${stars(r.matchRate)}</div></div>
-                    <span class="pc-badge ${lv}">${levelLabel(r.matchRate)}</span>
-                    <div class="pc-main" style="margin-top:12px;"><span class="pc-value ${lv}">${r.matchRate}<span style="font-size:18px;">%</span></span><span class="pc-value-lbl">AI 유사도</span></div>
-                    <div class="pc-track"><div class="pc-fill ${lv}" style="width:${fillW}%"></div></div>
-                    <div class="quality-bar">
+        /* ── phase-performance : 구간 카드 3열 ── */
+        function createPhasePerformance(ds){
+            const grid = el('section', 'g-3');
+            ds.results.forEach(r => {
+                const lv = level(r.matchRate), fillW = Math.min(r.matchRate, 100);
+                const ex=r.excellentRate||0, gd=r.goodRate||0, nm=r.normalRate||0, bd=r.badRate||0, bl=r.blunderRate||0;
+                const card = el('section', 'panel phase-card ' + lv);
+                card.appendChild(el('div', 'pc-hd',
+                    `<span class="pc-phase">${esc(r.phase)}</span>
+                     <span class="pc-badge ${lv}">${levelLabel(r.matchRate)}</span>`));
+                card.appendChild(el('div', 'pc-bd',
+                    `<div class="pc-main">
+                        <span class="pc-value ${lv}">${r.matchRate}<span class="pct">%</span></span>
+                        <span class="pc-value-lbl">AI 유사도</span>
+                        <span class="pc-stars">${stars(r.matchRate)}</span>
+                     </div>
+                     <div class="pc-track"><div class="pc-fill ${lv}" style="width:${fillW}%"></div></div>
+                     <div class="quality-bar">
                         <div class="q-excellent" style="width:${ex}%"></div><div class="q-good" style="width:${gd}%"></div>
-                        <div class="q-normal" style="width:${nm}%"></div><div class="q-bad" style="width:${bd}%"></div><div class="q-blunder" style="width:${bl}%"></div>
-                    </div>
-                    <div class="quality-legend">
+                        <div class="q-normal" style="width:${nm}%"></div><div class="q-bad" style="width:${bd}%"></div>
+                        <div class="q-blunder" style="width:${bl}%"></div>
+                     </div>
+                     <div class="quality-legend">
                         <span class="ql-item"><span class="ql-dot" style="background:var(--ai)"></span>아주 좋은 수 ${ex}%</span>
                         <span class="ql-item"><span class="ql-dot" style="background:var(--success)"></span>좋은 수 ${gd}%</span>
                         <span class="ql-item"><span class="ql-dot" style="background:var(--warning)"></span>평범 ${nm}%</span>
                         <span class="ql-item"><span class="ql-dot" style="background:#e67e22"></span>나쁜 수 ${bd}%</span>
                         <span class="ql-item"><span class="ql-dot" style="background:var(--danger)"></span>큰 실수 ${bl}%</span>
-                    </div>
-                    <details class="pc-details">
+                     </div>
+                     <details class="pc-details">
                         <summary>상세 분석 보기</summary>
                         <div class="pc-drow"><span>실수로 인한 승률 변화</span><b style="color:${wrLabel(r.winRateLoss).color}">${wrLabel(r.winRateLoss).text} · ${(r.winRateLoss*100).toFixed(1)}%</b></div>
                         <div class="pc-drow"><span>실수로 잃은 집</span><b style="color:${scoreLabel(r.scoreLoss).color}">${scoreLabel(r.scoreLoss).text} · ${r.scoreLoss}집</b></div>
                         <div class="pc-interpret">${interpret(r)}</div>
-                    </details>
-                </div>`;
-            }).join('');
-            return `<div class="section-block">
-                <div class="sb-head"><h3 class="sb-title">📁 구간별 상세 카드</h3><p class="sb-desc">가장 중요한 지표를 먼저, 세부 데이터는 "상세 분석 보기"에서 확인하세요.</p></div>
-                <div class="phase-grid">${cards}</div>
-            </div>`;
+                     </details>`));
+                grid.appendChild(card);
+            });
+            return grid;
         }
 
-        /* ── 추이 차트: 구간별 유사도 (내 기보 vs 프로) ── */
-        function trendHtml(){
+        /* ── trend-panel : 자작 Canvas 추이(계산 그대로) ── */
+        function createTrendPanel(){
             const hasPro = proResultsData && proResultsData.length;
-            return `<div class="section-block">
-                <div class="sb-head"><h3 class="sb-title">📈 구간별 AI 유사도 흐름</h3><p class="sb-desc">초반→중반→종반으로 이어지는 유사도 변화${hasPro?' · 프로 기보와 비교':''}를 한눈에 보세요.</p></div>
-                <canvas id="trendCanvas"></canvas>
-                <div class="trend-legend">
-                    <span><span class="trend-swatch" style="background:#4f46e5"></span>내 기보</span>
-                    ${hasPro?'<span><span class="trend-swatch" style="background:#7c3aed"></span>프로 기보</span>':''}
-                </div>
-            </div>`;
+            const p = panel('trend-panel', '📈 구간별 유사도 흐름', hasPro ? '내 기보 vs 프로 기보' : '초반 → 종반');
+            p.body.appendChild(el('canvas'));
+            p.body.lastChild.id = 'trendCanvas';
+            p.body.appendChild(el('div', 'trend-legend',
+                `<span><span class="trend-swatch" style="background:#4f46e5"></span>내 기보</span>
+                 ${hasPro ? '<span><span class="trend-swatch" style="background:#7c3aed"></span>프로 기보</span>' : ''}`));
+            return p;
         }
 
-        /* ── 상세 테이블 ── */
-        function tableHtml(ds){
-            const rows=ds.results.map(r=>`<tr>
-                <td><strong>${esc(r.phase)}</strong></td>
+        /* ── learning-panel : 다음 학습 추천(약점·구간 데이터에서 유도) ── */
+        function createLearningPanel(ds, sm){
+            const p = panel('learning-panel', '🧭 다음 학습 추천', '이 순서로 해보세요');
+            const items = [];
+
+            items.push({ title:`${sm.worst.phase} 집중 복기`,
+                         detail:`유사도 ${sm.worst.matchRate}% 로 가장 낮은 구간이에요. 이 구간이 있는 기보부터 다시 보세요.`,
+                         href:'/gallery' });
+
+            // 큰 실수 비율이 가장 높은 구간 — 있을 때만
+            const blunder = [...ds.results].sort((a,b)=>(b.blunderRate||0)-(a.blunderRate||0))[0];
+            if (blunder && (blunder.blunderRate||0) > 0) {
+                items.push({ title:`${blunder.phase} 큰 실수 줄이기`,
+                             detail:`이 구간에서 큰 실수가 ${blunder.blunderRate}% 나왔어요. 오답노트에서 같은 자리를 다시 두어 보세요.`,
+                             href:'/notes' });
+            }
+            // 승률 손해가 가장 큰 구간 — 큰 실수 항목과 겹치지 않을 때만
+            const swing = [...ds.results].sort((a,b)=>(b.winRateLoss||0)-(a.winRateLoss||0))[0];
+            if (swing && !items.some(it => it.title.indexOf(swing.phase) === 0)) {
+                items.push({ title:`${swing.phase} 승률 흔들림 잡기`,
+                             detail:`이 구간에서 실수 한 번에 승률이 평균 ${(swing.winRateLoss*100).toFixed(1)}%p 움직여요. 형세가 급변한 수를 다시 보세요.`,
+                             href:'/gallery' });
+            }
+            // 마무리는 항상 강점 유지로 — 약점 목록(AI 핵심 분석)과 내용이 겹치지 않게 행동 항목만 둔다
+            items.push({ title:`${sm.best.phase} 감각 유지`,
+                         detail:`유사도 ${sm.best.matchRate}% 로 가장 좋은 구간이에요. 분석판에서 같은 형태를 반복해 보세요.`,
+                         href:'/study' });
+
+            const list = el('div', 'learn-list');
+            items.slice(0, 4).forEach((it, i) => {
+                const node = el(it.href ? 'a' : 'div', 'learn-item',
+                    `<span class="li-step">${i+1}</span>
+                     <span><span class="li-title">${richText(it.title)}</span><span class="li-detail">${richText(it.detail)}</span></span>`);
+                if (it.href) node.href = it.href;
+                list.appendChild(node);
+            });
+            p.body.appendChild(list);
+            return p;
+        }
+
+        function createImprovementGrid(ds, sm){
+            const grid = el('div', 'improvement-grid');
+            grid.append(createTrendPanel(), createLearningPanel(ds, sm));
+            return grid;
+        }
+
+        /* ── detail-analysis : 상세 수치 테이블 ── */
+        function createDetailSection(ds){
+            const p = panel('detail-analysis', '📋 상세 수치', '구간별 원본 지표');
+            const rows = ds.results.map(r => `<tr>
+                <td class="phase-cell">${esc(r.phase)}</td>
                 <td>${r.matchRate}%</td>
                 <td><span style="color:${wrLabel(r.winRateLoss).color}">${wrLabel(r.winRateLoss).text}</span> <span style="color:var(--text-muted);font-size:11px;">${(r.winRateLoss*100).toFixed(1)}%</span></td>
                 <td><span style="color:${scoreLabel(r.scoreLoss).color}">${scoreLabel(r.scoreLoss).text}</span> <span style="color:var(--text-muted);font-size:11px;">${r.scoreLoss}집</span></td>
                 <td>${stars(r.matchRate)}</td>
             </tr>`).join('');
-            return `<div class="section-block">
-                <div class="sb-head"><h3 class="sb-title">📋 상세 수치</h3></div>
-                <div style="overflow-x:auto;"><table class="detail-table">
+            p.body.style.padding = '0';
+            p.body.appendChild(el('div', 'table-scroll',
+                `<table class="detail-table">
                     <thead><tr><th>구간</th><th>AI 유사도</th><th>승률 변화</th><th>잃은 집</th><th>평가</th></tr></thead>
-                    <tbody>${rows}</tbody></table></div>
-            </div>`;
+                    <tbody>${rows}</tbody>
+                 </table>`));
+            return p;
         }
 
-        /* ── 코칭 코멘트(있을 때만) ── */
-        function coachHtml(ds){
-            if (!ds.weaknesses || !ds.weaknesses.length) return '';
-            const items=ds.weaknesses.map(w=>`<div class="coach-item ${w.severity||''}"><div class="coach-icon">${w.icon||'•'}</div><div><div class="coach-title">${esc(w.title)}</div><div class="coach-detail">${esc(w.detail)}</div></div></div>`).join('');
-            return `<div class="section-block">
-                <div class="sb-head"><h3 class="sb-title">💬 코칭 코멘트</h3><p class="sb-desc">여러 판을 모아 찾은 반복 패턴이에요. 자동 생성된 참고용 코멘트입니다.</p></div>
-                <div class="coach-list">${items}</div>
-            </div>`;
-        }
-
-        /* ── 레이더(Chart.js, 기존 유지) ── */
+        /* ══════════════════════════════════════════════════════════
+           3) 차트 — 계산·설정 기존 그대로
+           ══════════════════════════════════════════════════════════ */
         function drawRadar(ds){
             if (typeof Chart==='undefined') return;
-            const el=document.getElementById('radarChart'); if(!el) return;
+            const elc=document.getElementById('radarChart'); if(!elc) return;
             if (radarInstance) { radarInstance.destroy(); radarInstance=null; }
             try {
-                radarInstance = new Chart(el.getContext('2d'), {
+                radarInstance = new Chart(elc.getContext('2d'), {
                     type:'radar',
                     data:{ labels:ds.results.map(r=>r.phase), datasets:[{ label:'AI 유사도 (%)', data:ds.results.map(r=>r.matchRate), backgroundColor:ds.color+'33', borderColor:ds.color, borderWidth:2, pointBackgroundColor:ds.color }] },
                     options:{ responsive:true, maintainAspectRatio:true, scales:{ r:{ min:0, max:100, ticks:{ stepSize:25 } } }, plugins:{ legend:{ display:false } } }
@@ -379,7 +520,6 @@
             } catch(e){ console.warn('radar failed', e); }
         }
 
-        /* ── 추이 라인(Canvas 자작, 외부 라이브러리 없음) ── */
         function drawTrend(){
             const cv=document.getElementById('trendCanvas'); if(!cv) return;
             const cssW=cv.clientWidth||600, H=200, dpr=window.devicePixelRatio||1;
@@ -390,7 +530,6 @@
             const n=labels.length;
             const x=i=> padL + (n<=1?0:(cssW-padL-padR)*i/(n-1));
             const y=v=> (H-padB) - (H-padB-padT)*(Math.min(100,Math.max(0,v))/100);
-            // grid
             ctx.strokeStyle='#e6eaef'; ctx.fillStyle='#97a1ad'; ctx.font='10px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle'; ctx.lineWidth=1;
             [0,25,50,75,100].forEach(v=>{ const yy=y(v); ctx.beginPath(); ctx.moveTo(padL,yy); ctx.lineTo(cssW-padR,yy); ctx.stroke(); ctx.fillText(v+'%', padL-6, yy); });
             ctx.textAlign='center'; ctx.textBaseline='top';
@@ -406,13 +545,23 @@
             line(userResultsData, '#4f46e5', []);
         }
 
-        /* ── 메인 렌더 ── */
+        /* ══════════════════════════════════════════════════════════
+           4) 메인 렌더 — 섹션 나열이 아니라 대시보드 영역을 조립
+           ══════════════════════════════════════════════════════════ */
         function renderDataset(){
             const ds = DATASETS.find(d=>d.key===activeKey);
-            if (!ds) { root.innerHTML=''; return; }
+            root.textContent = '';
+            if (!ds) return;
             const sm = summarize(ds.results);
-            root.innerHTML =
-                heroHtml(ds, sm) + kpiHtml(ds, sm) + segmentHtml(ds) + phaseCardsHtml(ds) + trendHtml() + tableHtml(ds) + coachHtml(ds);
+
+            root.append(
+                createSummaryRow(ds, sm),         // 히어로(가장 중요한 문제) + 요약 지표 4칸 = 한 행
+                createMainAnalysisGrid(ds),       // 레이더 55% | AI 핵심 분석 45%
+                createPhasePerformance(ds),       // 구간 3열
+                createImprovementGrid(ds, sm),    // 추이 65% | 학습 추천 35%
+                createDetailSection(ds)           // 원본 수치
+            );
+
             drawRadar(ds);
             drawTrend();
         }
@@ -423,5 +572,6 @@
         renderDataset();
     })();
     </script>
+    </main>
 </body>
 </html>

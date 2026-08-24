@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  앱 셸 프래그먼트 — 모든 페이지가 th:replace 로 재사용한다.
+  페이지마다 <nav> 마크업을 복사하던 방식을 대체.
+    side(active)      좌측 고정 사이드바. active = home|batch|notes|gallery|game|play|study|about
+    side_rail(active) 같은 사이드바의 접힘(아이콘 레일) 변형 — 판을 넓게 써야 하는 화면용
+    topbar            본문 상단 60px 바(우측 사용자 칩)
+-->
+<body>
+
+<!-- ── 사이드바 ───────────────────────────────────────── -->
+<aside class="side" th:fragment="side(active)">
+    <div th:replace="~{fragments/shell :: side_inner(${active})}"></div>
+</aside>
+
+<!-- 접힘(레일) 변형: 폭 62px, 마우스를 올리면 펼쳐진다 -->
+<aside class="side rail" th:fragment="side_rail(active)">
+    <div th:replace="~{fragments/shell :: side_inner(${active})}"></div>
+</aside>
+
+<!-- 사이드바 내용(두 변형이 공유) -->
+<div class="side-inner" th:fragment="side_inner(active)">
+    <a class="side-brand" href="/">
+        <span class="brand-mark">碁</span>
+        <span class="brand-id">
+            <span class="brand-name">KataGo 분석</span>
+            <span class="brand-sub">바둑 AI 기보 분석</span>
+        </span>
+    </a>
+
+    <nav class="side-nav">
+        <a th:href="@{/}"               th:classappend="${active == 'home'}    ? ' active'">홈</a>
+        <a th:href="@{/game}"           th:classappend="${active == 'game'}    ? ' active'">기보 복기</a>
+        <a th:href="@{/play}"           th:classappend="${active == 'play'}    ? ' active'">AI 대국</a>
+        <a th:href="@{/study}"          th:classappend="${active == 'study'}   ? ' active'">실시간 분석판</a>
+        <a th:href="@{/notes}"          th:classappend="${active == 'notes'}   ? ' active'">오답노트</a>
+        <a th:href="@{/gallery}"        th:classappend="${active == 'gallery'} ? ' active'">갤러리</a>
+        <a th:href="@{/analysis/batch}" th:classappend="${active == 'batch'}   ? ' active'">실력 리포트</a>
+        <a th:href="@{/about}"          th:classappend="${active == 'about'}   ? ' active'">소개</a>
+    </nav>
+
+    <div class="side-spacer"></div>
+
+    <details class="user-menu">
+        <summary>
+            <img th:if="${currentUserPicture}" class="user-avatar" th:src="${currentUserPicture}" alt="" referrerpolicy="no-referrer">
+            <span th:unless="${currentUserPicture}" class="user-avatar user-avatar-initial" th:text="${currentUserInitial}">U</span>
+            <span class="user-name" th:text="${currentUserName}">사용자</span>
+            <span class="user-caret">▼</span>
+        </summary>
+        <div class="user-dropdown">
+            <div class="user-dropdown-head">
+                <img th:if="${currentUserPicture}" class="user-avatar" th:src="${currentUserPicture}" alt="" referrerpolicy="no-referrer">
+                <span th:unless="${currentUserPicture}" class="user-avatar user-avatar-initial" th:text="${currentUserInitial}">U</span>
+                <div class="user-dropdown-id">
+                    <div class="user-dropdown-name" th:text="${currentUserName}">사용자</div>
+                    <div class="user-dropdown-email" th:if="${currentUserEmail}" th:text="${currentUserEmail}"></div>
+                </div>
+            </div>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="user-logout">🚪 로그아웃</button>
+            </form>
+        </div>
+    </details>
+</div>
+
+<!-- ── 본문 상단 바 ───────────────────────────────────── -->
+<header class="topbar" th:fragment="topbar">
+    <span class="topbar-chip" aria-hidden="true">◍</span>
+    <span class="topbar-user">
+        <img th:if="${currentUserPicture}" class="user-avatar" th:src="${currentUserPicture}" alt="" referrerpolicy="no-referrer">
+        <span th:unless="${currentUserPicture}" class="user-avatar user-avatar-initial" th:text="${currentUserInitial}">U</span>
+        <span class="topbar-user-name" th:text="${currentUserName}">사용자</span>
+    </span>
+</header>
+
+</body>
+</html>
