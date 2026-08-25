@@ -1,0 +1,325 @@
+/* ════════════════════════════════════════════════════════════
+   AI 대국(/play) 전용 스타일 — 따뜻한 아이보리 + 세이지 그린
+   헤더는 app-header.css. JS 가 참조하는 클래스
+   (.board-area, .panel-sub, .info-card/.turn-card/.your-turn/.ai-turn/.game-over,
+    .panel-btn, .waiting …)는 이름을 바꾸지 않는다 — 스크립트 계약.
+   ════════════════════════════════════════════════════════════ */
+
+:root {
+    --pl-bg: #f4f1ea;
+    --pl-surface: #ffffff;
+    --pl-soft: #f8f7f3;
+    --pl-border: #e5e1d8;
+
+    --pl-text: #242321;
+    --pl-text-soft: #77736b;
+    --pl-muted: #a19d94;
+
+    --pl-accent: #4f674e;
+    --pl-accent-dark: #3c513b;
+    --pl-accent-soft: #e9efe7;
+
+    --pl-danger: #c85a45;
+    --pl-warning: #d59a35;
+    --pl-warning-soft: #fbf1dd;
+
+    --pl-shadow: 0 8px 30px rgba(55, 48, 37, 0.07);
+    --pl-radius-lg: 22px;
+    --pl-radius-md: 15px;
+}
+
+body { background: var(--pl-bg); color: var(--pl-text); }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+
+/* ── 페이지 ── */
+.play-page {
+    width: min(1500px, calc(100% - 64px));
+    margin: 0 auto;
+    padding: 30px 0 50px;
+}
+
+.page-heading {
+    margin-bottom: 24px;
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 20px;
+}
+.page-heading h1 { margin: 0; font-size: 30px; line-height: 1.15; letter-spacing: -0.05em; }
+.panel-sub { margin: 8px 0 0; color: var(--pl-text-soft); font-size: 13px; }
+
+.game-status {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 12px; border-radius: 999px;
+    background: var(--pl-accent-soft); color: var(--pl-accent);
+    font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pl-accent); }
+
+/* ── 2열 ── */
+.game-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 390px;
+    gap: 24px;
+    align-items: start;
+}
+
+/* ════════ 왼쪽: 바둑판 ════════ */
+.board-card {
+    background: var(--pl-surface);
+    border: 1px solid var(--pl-border);
+    border-radius: var(--pl-radius-lg);
+    padding: 24px;
+    box-shadow: var(--pl-shadow);
+    min-width: 0;
+}
+
+.players {
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center; gap: 18px;
+    margin-bottom: 20px;
+}
+.player { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.player.white { justify-content: flex-end; text-align: right; }
+
+.stone {
+    width: 38px; height: 38px; border-radius: 50%; flex: 0 0 auto;
+    box-shadow: 0 3px 8px rgba(0,0,0,.16), inset 0 1px 2px rgba(255,255,255,.2);
+}
+.stone.black { background: radial-gradient(circle at 35% 30%, #4c4c4c 0%, #171717 42%, #050505 100%); }
+.stone.white { background: radial-gradient(circle at 35% 30%, #fff 0%, #f3f3f3 58%, #d5d5d5 100%); border: 1px solid #d5d5d5; }
+
+.player-info { min-width: 0; }
+.player-info strong { display: block; font-size: 14px; }
+.player-info span { display: block; margin-top: 3px; color: var(--pl-muted); font-size: 11px; }
+.vs { color: var(--pl-muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+
+/* 판 — .board-area 이름은 computeLayout() 이 참조하므로 유지 */
+.board-area {
+    position: relative;
+    width: min(100%, 720px);
+    margin: 0 auto;
+    aspect-ratio: 1;
+    padding: 13px;
+    border-radius: 6px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, #e7c887 0%, #d8b36d 100%);
+    box-shadow: 0 15px 35px rgba(71,53,25,.14), inset 0 0 0 1px rgba(91,67,28,.12);
+}
+#boardCanvas { display: block; border-radius: 3px; cursor: pointer; }
+#boardCanvas.waiting { cursor: progress; opacity: .82; }
+
+/* 시작 전 색 선택 오버레이 */
+#setupSection {
+    position: absolute; inset: 0; z-index: 5;
+    display: grid; place-items: center;
+    border-radius: 6px;
+    background: rgba(38, 33, 24, .55);
+    backdrop-filter: blur(3px);
+}
+.setup-card {
+    width: min(320px, calc(100% - 40px));
+    padding: 24px 22px;
+    border-radius: var(--pl-radius-md);
+    background: var(--pl-surface);
+    box-shadow: 0 20px 50px rgba(0,0,0,.22);
+    text-align: center;
+}
+.setup-title { font-size: 15px; font-weight: 800; }
+.setup-desc { margin: 7px 0 18px; color: var(--pl-text-soft); font-size: 12px; line-height: 1.6; }
+.color-pick { display: flex; gap: 10px; }
+.color-pick .panel-btn { flex: 1; padding: 15px 8px; font-size: 15px; }
+
+/* 하단 컨트롤 */
+.board-footer {
+    margin-top: 20px;
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center; gap: 16px;
+}
+.turn-info { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.move-counter { text-align: center; color: var(--pl-muted); font-size: 12px; white-space: nowrap; }
+.board-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+
+/* 차례 카드(JS 가 className 을 통째로 바꾼다) */
+.info-card {
+    padding: 12px 14px;
+    border: 1px solid var(--pl-border);
+    border-radius: 12px;
+    background: var(--pl-soft);
+}
+.info-label { color: var(--pl-muted); font-size: 10px; }
+.info-value { margin-top: 3px; font-size: 13px; font-weight: 700; }
+
+.turn-card { display: flex; align-items: center; gap: 9px; padding: 9px 13px; }
+.turn-card .info-label { display: none; }
+.turn-card .info-value { margin: 0; font-size: 12.5px; }
+.turn-card.your-turn { border-color: #cfdccd; background: var(--pl-accent-soft); }
+.turn-card.your-turn .info-value { color: var(--pl-accent-dark); }
+.turn-card.ai-turn { border-color: #e6ddc8; background: var(--pl-warning-soft); }
+.turn-card.ai-turn .info-value { color: #8a6614; }
+.turn-card.game-over { border-color: #e2ddd4; background: #efece5; }
+.turn-card.game-over .info-value { color: var(--pl-text-soft); }
+
+/* 버튼 */
+.panel-btn {
+    border: 1px solid var(--pl-border);
+    background: var(--pl-surface);
+    padding: 9px 14px;
+    border-radius: 10px;
+    color: var(--pl-text);
+    font-size: 12px; font-weight: 700;
+    transition: background .14s ease, transform .12s ease;
+}
+.panel-btn:hover:not(:disabled) { background: var(--pl-soft); transform: translateY(-1px); }
+.panel-btn:disabled { opacity: .45; cursor: default; }
+
+.btn-primary { border-color: var(--pl-accent); background: var(--pl-accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--pl-accent-dark); }
+.btn-secondary { background: var(--pl-surface); }
+.btn-danger { color: var(--pl-danger); border-color: #edd0ca; background: #fff; }
+.btn-danger:hover:not(:disabled) { background: #fdf3f1; }
+.btn-hint { border-color: #e6ddc8; background: var(--pl-warning-soft); color: #8a6614; }
+.btn-hint:hover:not(:disabled) { background: #f8e9cd; }
+.btn-black { background: #1c1c1a; color: #fff; border-color: #1c1c1a; }
+.btn-black:hover:not(:disabled) { background: #000; }
+.btn-white { background: #fff; color: var(--pl-text); }
+
+/* ════════ 오른쪽 패널 ════════ */
+.sidebar { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+.panel {
+    background: var(--pl-surface);
+    border: 1px solid var(--pl-border);
+    border-radius: var(--pl-radius-lg);
+    padding: 20px;
+    box-shadow: var(--pl-shadow);
+}
+.panel-header {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    margin-bottom: 15px;
+}
+.panel-header h2 { margin: 0; font-size: 14px; letter-spacing: -0.03em; }
+.panel-header > span { color: var(--pl-muted); font-size: 10px; }
+.panel-title { margin: 0; font-size: 14px; font-weight: 800; }
+
+/* 현재 형세 */
+.winrate-main { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 14px; }
+#wrBarBlackLbl { font-size: 30px; font-weight: 800; letter-spacing: -0.05em; line-height: 1.05; }
+.winrate-label { margin-top: 4px; color: var(--pl-text-soft); font-size: 11px; }
+.score-info { text-align: right; }
+#wrBarScore { font-size: 14px; font-weight: 800; }
+.score-info span { display: block; margin-top: 3px; color: var(--pl-muted); font-size: 10px; }
+
+.winrate-track {
+    position: relative; height: 12px;
+    border-radius: 999px; background: #e4e4e4; overflow: hidden;
+}
+#wrBarBlack { height: 100%; background: #20201e; transition: width .4s ease; }
+.winrate-labels {
+    display: flex; justify-content: space-between; margin-top: 8px;
+    color: var(--pl-muted); font-size: 10px;
+}
+.wr-empty { color: var(--pl-muted); font-size: 11px; line-height: 1.6; }
+
+/* AI 추천수 TOP 5 (renderHintCard 가 .recommendation 을 생성) */
+#hintVerdict { margin-bottom: 10px; font-size: 13px; font-weight: 800; }
+.recommendations, #hintList { display: flex; flex-direction: column; gap: 8px; }
+.recommendation {
+    display: grid; grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: center; gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--pl-border);
+    border-radius: 11px;
+    background: var(--pl-soft);
+}
+.recommendation:first-child { border-color: #d8e2d5; background: var(--pl-accent-soft); }
+.rank {
+    width: 26px; height: 26px; border-radius: 8px;
+    display: grid; place-items: center;
+    background: #ece9e1; color: var(--pl-text-soft);
+    font-size: 11px; font-weight: 800;
+}
+.recommendation:first-child .rank { background: var(--pl-accent); color: #fff; }
+.move-name { font-size: 12px; font-weight: 800; }
+.move-detail { display: block; margin-top: 2px; color: var(--pl-muted); font-size: 10px; }
+.move-score { text-align: right; }
+.move-score strong { display: block; font-size: 12px; }
+.move-score span { display: block; margin-top: 2px; color: var(--pl-muted); font-size: 9px; }
+
+/* AI 코멘트 계열 카드 */
+.ai-comment {
+    padding: 14px;
+    border-radius: 13px;
+    background: var(--pl-soft);
+    border: 1px solid var(--pl-border);
+    font-size: 12px; line-height: 1.7; color: var(--pl-text-soft);
+}
+.ai-comment strong { color: var(--pl-text); }
+#moveEvalCard, #estimateCard, #aiLastCard, #thinkingCard, #hintCard, #wrBar { min-width: 0; }
+#moveEvalText, #estimateText { font-size: 12.5px; line-height: 1.65; }
+
+.ai-move-badge {
+    display: inline-block;
+    padding: 4px 11px; border-radius: 20px;
+    background: var(--pl-accent); color: #fff;
+    font-size: 13px; font-weight: 700;
+}
+
+/* 생각 중 */
+.thinking-row { display: flex; align-items: center; gap: 10px; }
+.spinner {
+    width: 18px; height: 18px; flex-shrink: 0;
+    border: 2px solid var(--pl-accent-soft);
+    border-top-color: var(--pl-accent);
+    border-radius: 50%;
+    animation: pl-spin .9s linear infinite;
+}
+@keyframes pl-spin { to { transform: rotate(360deg); } }
+
+/* 대국 정보 */
+.game-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.info-item { padding: 11px 12px; border-radius: 11px; background: var(--pl-soft); }
+.info-item > span { display: block; color: var(--pl-muted); font-size: 10px; }
+.info-item strong span { display: inline; color: inherit; font-size: inherit; }
+.info-item strong { display: block; margin-top: 4px; font-size: 12px; }
+.stone-cap { font-size: 12px; font-weight: 800; }
+
+/* ════════ 대국 종료 모달 ════════ */
+/* JS 가 style.display 로 토글하므로 기본값은 flex, 초기 inline none */
+#gameOverSection {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    background: rgba(25, 24, 22, .48);
+    backdrop-filter: blur(4px);
+}
+.modal {
+    width: min(500px, 100%);
+    padding: 24px;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 30px 80px rgba(0,0,0,.18);
+}
+.gameover-title { margin: 0; font-size: 18px; font-weight: 800; }
+.gameover-sub { margin: 8px 0 20px; color: var(--pl-text-soft); font-size: 13px; line-height: 1.6; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ════════ 반응형 ════════ */
+@media (max-width: 1100px) {
+    .play-page { width: calc(100% - 40px); }
+    .game-layout { grid-template-columns: 1fr; }
+    .sidebar { display: grid; grid-template-columns: repeat(2, 1fr); align-items: start; }
+}
+
+@media (max-width: 720px) {
+    .play-page { width: calc(100% - 28px); padding: 20px 0 35px; }
+    .page-heading { flex-direction: column; align-items: flex-start; }
+    .page-heading h1 { font-size: 25px; }
+    .board-card { padding: 13px; border-radius: 16px; }
+    .players { gap: 8px; }
+    .player-info span { display: none; }
+    .stone { width: 31px; height: 31px; }
+    .sidebar { display: flex; }
+    .board-footer { grid-template-columns: 1fr; }
+    .board-actions { justify-content: stretch; }
+    .board-actions .panel-btn { flex: 1; }
+    .game-info { grid-template-columns: 1fr; }
+}

@@ -1,233 +1,383 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>분석 중...</title>
-    <link rel="stylesheet" href="/css/common.css">
-    <style>
-        * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; margin: 0; padding: 24px 0; background: var(--background); color: var(--text-primary); display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-
-        .card { background: var(--surface); border-radius: var(--radius-lg); padding: 36px 40px; text-align: center; box-shadow: var(--shadow-lg); border: 1px solid var(--border); max-width: 500px; width: 92%; }
-
-        .spinner { border: 5px solid var(--primary-light); border-top: 5px solid var(--primary); border-radius: 50%; width: 48px; height: 48px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        h2 { font-size: 20px; margin: 0 0 8px; color: var(--text-primary); }
-        .filename { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; word-break: break-all; }
-
-        .progress-bar-wrap { background: #e6eaef; border-radius: 99px; height: 12px; margin-bottom: 12px; overflow: hidden; }
-        .progress-bar { height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-blue)); border-radius: 99px; width: 0%; transition: width 0.5s ease; }
-        .status-msg { font-size: 15px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
-        .status-msg #progressPct { color: var(--primary); font-size: 18px; }
-
-        /* 분석 완료 버튼 (DONE 시 표시) */
-        .done-box { display: none; margin: 14px 0 2px; }
-        .done-btn { display: inline-block; background: #2ecc71; color: #fff; font-size: 15px; font-weight: 700; padding: 11px 22px; border: none; border-radius: 10px; cursor: pointer; text-decoration: none; box-shadow: 0 2px 8px rgba(46,204,113,0.4); }
-        .done-btn:hover { background: #27ae60; }
-
-        .divider { border: none; border-top: 1px solid #eee; margin: 22px 0 18px; }
-
-        /* ════════ 사활 위젯 (타이젬 스타일) ════════ */
-        .tsume { display: none; }
-        .ts-panel { border: 1px solid #e3e7ec; border-radius: 14px; overflow: hidden; box-shadow: 0 3px 14px rgba(0,0,0,0.08); text-align: left; }
-
-        /* 헤더 */
-        .ts-header { position: relative; display: flex; align-items: center; justify-content: center; padding: 11px 0; background: linear-gradient(#eaf3fc, #d6e8f8); }
-        .ts-h-title { font-size: 16px; font-weight: 800; color: #2c5c88; letter-spacing: 1px; }
-        .ts-close { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 16px; color: #6b8bab; cursor: pointer; line-height: 1; padding: 4px 6px; border-radius: 6px; }
-        .ts-close:hover { background: rgba(255,255,255,0.6); color: #2c5c88; }
-
-        /* 서브헤더: 오늘의 사활 (n/N) + 차례 */
-        .ts-subhead { display: flex; align-items: center; justify-content: space-between; padding: 11px 15px 3px; }
-        .ts-sub-left { font-size: 14px; font-weight: 700; color: #3730a3; display: inline-flex; align-items: center; }
-        .ts-help { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: #cddff0; color: #3730a3; font-size: 11px; font-weight: 700; margin-left: 6px; cursor: help; }
-        .ts-turn { font-size: 13px; font-weight: 700; color: #555; display: inline-flex; align-items: center; gap: 6px; }
-        .ts-turn-dot { width: 13px; height: 13px; border-radius: 50%; display: inline-block; }
-        .ts-turn-dot.black { background: #222; box-shadow: inset -2px -2px 3px rgba(255,255,255,0.25); }
-        .ts-turn-dot.white { background: #fff; border: 1.5px solid #9aa4ae; }
-
-        /* 난이도 */
-        .ts-diff { display: flex; gap: 6px; justify-content: center; padding: 8px 0 12px; }
-        .diff-btn { font-size: 12px; color: #777; background: #f0f2f5; border: 1px solid #dde1e6; border-radius: 99px; padding: 4px 14px; cursor: pointer; font-weight: 600; }
-        .diff-btn:hover { background: #e6eaee; }
-        .diff-btn.active { color: #fff; background: #3730a3; border-color: #3730a3; }
-
-        /* 바둑판 (나무 프레임) */
-        .ts-body { padding: 0 15px 14px; text-align: center; }
-        .ts-board-wrap { position: relative; display: inline-block; padding: 13px; border-radius: 10px; background: linear-gradient(135deg, #c9a06a, #a97f43); box-shadow: 0 4px 14px rgba(0,0,0,0.25), inset 0 0 0 2px rgba(0,0,0,0.12); }
-        #tsumeCanvas { display: block; border-radius: 3px; cursor: pointer; touch-action: manipulation; }
-        .ts-board-wrap.dimmed::after { content: ''; position: absolute; inset: 0; border-radius: 10px; background: rgba(24,20,14,0.46); pointer-events: none; }
-
-        /* 정답 축하 오버레이 */
-        .ts-correct-ov { position: absolute; inset: 0; border-radius: 10px; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: radial-gradient(circle at 50% 42%, rgba(70,58,32,0.5), rgba(18,14,8,0.85)); animation: ovFade .25s ease; }
-        .ts-correct-ov.show { display: flex; }
-        @keyframes ovFade { from { opacity: 0; } to { opacity: 1; } }
-        .ts-correct-text { font-size: 34px; font-weight: 900; color: #ffd23f; letter-spacing: 1px; text-shadow: 0 2px 0 #b8860b, 0 0 18px rgba(255,210,63,0.85); animation: pop .4s cubic-bezier(.2,1.4,.5,1); }
-        @keyframes pop { 0% { transform: scale(0.5); } 100% { transform: scale(1); } }
-        .ts-correct-mascot { font-size: 50px; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.45)); animation: bob 1.4s ease-in-out infinite; }
-        @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
-        .ts-confirm { background: linear-gradient(#4f46e5, #3730a3); color: #fff; border: none; border-radius: 22px; padding: 9px 32px; font-size: 15px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(53,122,189,0.55); }
-        .ts-confirm:hover { filter: brightness(1.07); }
-
-        /* 완료 도장 */
-        .ts-done-stamp { position: absolute; top: 44%; left: 50%; transform: translate(-50%,-50%) rotate(-14deg); display: none; font-size: 30px; font-weight: 900; color: #5b9bd5; border: 4px solid #5b9bd5; border-radius: 12px; padding: 5px 22px; letter-spacing: 6px; opacity: 0.9; background: rgba(255,255,255,0.14); box-shadow: inset 0 0 0 2px rgba(91,155,213,0.35); }
-        .ts-done-stamp.show { display: block; animation: stamp .3s cubic-bezier(.2,1.5,.5,1); }
-        @keyframes stamp { 0% { transform: translate(-50%,-50%) rotate(-14deg) scale(1.8); opacity: 0; } 100% { transform: translate(-50%,-50%) rotate(-14deg) scale(1); opacity: 0.9; } }
-
-        /* 피드백 + 툴바 */
-        .ts-feedback { font-size: 13px; font-weight: 700; min-height: 20px; margin: 12px 0 10px; text-align: center; }
-        .fb-correct { color: #1e8449; }
-        .fb-wrong   { color: #c0392b; }
-        .fb-info    { color: #8a929b; font-weight: 500; }
-        .ts-toolbar { display: flex; gap: 8px; justify-content: center; }
-        .ts-tb-btn { flex: 1; max-width: 128px; font-size: 13px; color: #4a5560; background: #f4f6f8; border: 1px solid #dfe3e8; border-radius: 10px; padding: 9px 4px; cursor: pointer; font-weight: 600; white-space: nowrap; }
-        .ts-tb-btn:hover { background: #e9edf1; }
-        .ts-tb-btn.hint { color: #b7770d; background: #fdf3d7; border-color: #f0d98a; }
-        .ts-tb-btn.hint:hover { background: #fbecc0; }
-        .ts-tb-btn.pulse { color: #fff; background: #3730a3; border-color: #3730a3; box-shadow: 0 0 0 0 rgba(53,122,189,0.5); animation: retryPulse 1.4s ease-out infinite; }
-        @keyframes retryPulse { 0% { box-shadow: 0 0 0 0 rgba(53,122,189,0.5); } 70% { box-shadow: 0 0 0 8px rgba(53,122,189,0); } 100% { box-shadow: 0 0 0 0 rgba(53,122,189,0); } }
-        .ts-reveal-link { text-align: center; margin-top: 9px; }
-        .ts-reveal-link a { font-size: 12px; color: #aab2bd; text-decoration: underline; cursor: pointer; }
-        .ts-reveal-link a:hover { color: #777; }
-
-        .sub-msg { font-size: 12px; color: #aaa; margin: 20px 0 14px; }
-        .nav-links { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-        .nav-link { font-size: 13px; color: #4f46e5; text-decoration: none; padding: 7px 14px; border: 1px solid #4f46e5; border-radius: 8px; }
-        .nav-link:hover { background: #4f46e5; color: #fff; }
-
-        .error-state { display: none; }
-        .error-state .icon { font-size: 40px; margin-bottom: 16px; }
-        .error-msg { font-size: 14px; color: #c0392b; background: #ffe0e0; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; word-break: break-all; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 분석 중 · Baduk AI</title>
+    <link rel="stylesheet" href="/css/app-header.css">
+    <link rel="stylesheet" href="/css/waiting.css">
 </head>
 <body>
 
-<div class="card">
-    <!-- 분석 중 상태 -->
-    <div id="runningState">
-        <div class="spinner" id="spinner"></div>
-        <h2 id="runTitle">KataGo 분석 중...</h2>
-        <div class="filename" th:text="${fileName}"></div>
-        <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
-        <div class="status-msg"><span id="progressPct">0</span>% 분석됨</div>
+<header th:replace="~{fragments/appheader :: header('game')}"></header>
 
-        <div class="done-box" id="doneBox">
-            <a class="done-btn" id="doneBtn" href="#">✅ 분석 완료 — 결과 보기</a>
+<main class="page">
+
+    <!-- ══════════ 페이지 헤딩 ══════════ -->
+    <section class="page-heading">
+        <div class="breadcrumb">
+            <a href="/game">기보 복기</a>
+            <span>›</span>
+            <span class="breadcrumb-current">AI 분석</span>
         </div>
+        <h1 class="page-title">AI가 기보를 분석하고 있습니다</h1>
+        <p class="page-description">
+            분석이 끝나면 아래 버튼으로 실력 리포트를 열 수 있습니다. 기다리는 동안 사활 문제를 풀어 보세요.
+        </p>
+    </section>
 
-        <hr class="divider">
 
-        <!-- 사활 위젯 -->
-        <div class="tsume" id="tsume">
-            <div class="ts-panel">
-                <div class="ts-header">
-                    <span class="ts-h-title">사활</span>
-                    <button class="ts-close" onclick="tsumeClose()" title="닫기">✕</button>
-                </div>
+    <div class="content-grid">
 
-                <div class="ts-subhead">
-                    <span class="ts-sub-left">오늘의 사활 <b id="tsumeCount">(1/1)</b>
-                        <span class="ts-help" title="차례 표시(흑차례/백차례)에서 급소를 찾아, 정해 순서대로 두면 정답입니다. 힌트는 다음 급소를, 정답 보기는 전체 수순을 알려줘요.">?</span>
-                    </span>
-                    <span class="ts-turn" id="tsumeTurn"><span class="ts-turn-dot black"></span>흑차례</span>
-                </div>
+        <!-- ══════════ 왼쪽: 분석 진행 ══════════ -->
+        <section>
+            <div class="analysis-card">
 
-                <div class="ts-diff">
-                    <button class="diff-btn active" data-diff="쉬움" onclick="setDifficulty(this)">쉬움</button>
-                    <button class="diff-btn" data-diff="보통" onclick="setDifficulty(this)">보통</button>
-                    <button class="diff-btn" data-diff="어려움" onclick="setDifficulty(this)">어려움</button>
-                </div>
+                <!-- 파일 -->
+                <div class="analysis-top">
+                    <div class="analysis-file">
+                        <div class="file-icon">◈</div>
 
-                <div class="ts-body">
-                    <div class="ts-board-wrap" id="tsumeBoardWrap">
-                        <canvas id="tsumeCanvas" width="300" height="300"></canvas>
-                        <div class="ts-correct-ov" id="tsumeCorrectOv">
-                            <div class="ts-correct-text">정답입니다!</div>
-                            <div class="ts-correct-mascot">🐼</div>
-                            <button class="ts-confirm" onclick="tsumeConfirm()">확인</button>
+                        <div class="file-text">
+                            <div class="file-name" th:text="${fileName}" th:title="${fileName}">기보 파일</div>
+                            <div class="file-meta">
+                                <span th:if="${totalMoves > 0}" th:text="${totalMoves} + '수 · '">-</span>
+                                <span>KataGo · GPU(TensorRT) 분석</span>
+                            </div>
                         </div>
-                        <div class="ts-done-stamp" id="tsumeDoneStamp">완료</div>
+
+                        <div class="status-badge" id="statusBadge">
+                            <span class="status-dot"></span>
+                            <span id="statusText">분석 진행 중</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 진행률 -->
+                <div class="progress-section">
+                    <div class="progress-heading">
+                        <span class="progress-label">전체 분석 진행률</span>
+                        <span class="progress-percent" id="progressPercent">0%</span>
                     </div>
 
-                    <div class="ts-feedback fb-info" id="tsumeFeedback">돌을 놓을 자리를 클릭하세요</div>
-
-                    <div class="ts-toolbar">
-                        <button class="ts-tb-btn" onclick="tsumePrev()">‹ 이전 문제</button>
-                        <button class="ts-tb-btn hint" onclick="tsumeHint()">🔍 사활 힌트</button>
-                        <button class="ts-tb-btn" id="btnRetry" onclick="tsumeRetry()">재도전</button>
-                        <button class="ts-tb-btn" onclick="tsumeNext()">다음 문제 ›</button>
+                    <div class="progress-track">
+                        <div class="progress-bar" id="progressBar"></div>
                     </div>
-                    <div class="ts-reveal-link"><a onclick="tsumeReveal()">정답 보기</a></div>
+
+                    <div class="progress-info">
+                        <span id="progressMessage">분석 상태를 확인하고 있습니다…</span>
+                        <span id="remainingTime">남은 시간 계산 중</span>
+                    </div>
+
+                    <div class="analysis-stats">
+                        <div class="analysis-stat">
+                            <div class="analysis-stat-label">현재 분석 수</div>
+                            <div class="analysis-stat-value">
+                                <span id="currentMove">0</span>
+                                <small th:if="${totalMoves > 0}" th:text="'/ ' + ${totalMoves} + '수'">/ -</small>
+                            </div>
+                        </div>
+
+                        <div class="analysis-stat">
+                            <div class="analysis-stat-label">분석 정밀도</div>
+                            <div class="analysis-stat-value">
+                                <span th:text="${#numbers.formatInteger(analysisVisits, 1, 'COMMA')}">-</span>
+                                <small>visits</small>
+                            </div>
+                        </div>
+
+                        <div class="analysis-stat">
+                            <div class="analysis-stat-label">경과 시간</div>
+                            <div class="analysis-stat-value"><span id="elapsedTime">00:00</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 분석 과정: 실제 파이프라인 4단계 -->
+                <div class="process-section">
+                    <div class="section-title">분석 과정</div>
+
+                    <div class="process-list" id="processList">
+                        <div class="process-item" data-stage="0">
+                            <div class="process-marker"></div>
+                            <div class="process-text">
+                                <div class="process-name">기보 파일 확인 · 수순 파싱</div>
+                                <div class="process-detail">SGF / GIB 기보를 읽어 착수 순서를 만듭니다.</div>
+                            </div>
+                            <div class="process-state">대기 중</div>
+                        </div>
+
+                        <div class="process-item" data-stage="1">
+                            <div class="process-marker"></div>
+                            <div class="process-text">
+                                <div class="process-name">수순별 AI 분석 (1차)</div>
+                                <div class="process-detail"
+                                     th:text="'매 수의 승률 변화와 집손해를 ' + ${analysisVisits} + ' visits 로 계산합니다.'">-</div>
+                            </div>
+                            <div class="process-state">대기 중</div>
+                        </div>
+
+                        <div class="process-item" data-stage="2">
+                            <div class="process-marker"></div>
+                            <div class="process-text">
+                                <div class="process-name">실수·악수 정밀 재분석 (2차)</div>
+                                <div class="process-detail"
+                                     th:text="'집손해 3집 이상 국면만 ' + ${deepVisits} + ' visits 로 다시 봅니다.'">-</div>
+                            </div>
+                            <div class="process-state">대기 중</div>
+                        </div>
+
+                        <div class="process-item" data-stage="3">
+                            <div class="process-marker"></div>
+                            <div class="process-text">
+                                <div class="process-name">실력 리포트 생성 · 저장</div>
+                                <div class="process-detail">구간별 지표와 예상 기력, 핵심 장면을 정리합니다.</div>
+                            </div>
+                            <div class="process-state">대기 중</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="sub-msg">분석하는 동안 사활 문제로 감각을 풀어 보세요</div>
-        <div class="nav-links">
-            <a class="nav-link" href="/analysis/batch">실력 리포트</a>
-            <a class="nav-link" href="/notes">오답노트</a>
-            <a class="nav-link" href="/gallery">갤러리</a>
-            <a class="nav-link" href="/game">기보 목록</a>
-        </div>
-    </div>
 
-    <!-- 오류 상태 -->
-    <div class="error-state" id="errorState">
-        <div class="icon">⚠</div>
-        <h2>분석 실패</h2>
-        <div class="error-msg" id="errorMsg"></div>
-        <div class="nav-links"><a class="nav-link" href="/game">다시 시도</a></div>
+            <!-- 분석 중 안내 -->
+            <div class="wait-message" id="waitMessage">
+                <div class="wait-icon">↻</div>
+                <div>
+                    <div class="wait-title">분석은 서버에서 계속 진행됩니다.</div>
+                    <div class="wait-description">
+                        이 페이지를 닫아도 분석은 멈추지 않습니다. 나중에 기보 목록에서 결과를 확인할 수 있어요.
+                    </div>
+                </div>
+            </div>
+
+            <!-- 완료 -->
+            <div class="done-message" id="doneMessage">
+                <div class="done-icon">✓</div>
+                <div>
+                    <div class="done-title">분석이 완료됐습니다.</div>
+                    <div class="done-description">사활 문제를 풀던 중일 수 있어 자동으로 이동하지 않습니다.</div>
+                </div>
+                <a class="done-button" id="doneButton" href="#">실력 리포트 열기 →</a>
+            </div>
+
+            <!-- 오류 -->
+            <div class="error-message" id="errorMessage">
+                <div class="error-title" id="errorTitle">분석 실패</div>
+                <div class="error-detail" id="errorDetail"></div>
+                <a class="error-link" id="errorLink" href="/game">기보 목록으로</a>
+            </div>
+
+
+            <div class="bottom-actions">
+                <button type="button" class="cancel-button" onclick="location.href='/game'">← 기보 목록으로</button>
+                <span class="auto-info">진행 상태는 2초마다 서버에서 다시 확인합니다.</span>
+            </div>
+        </section>
+
+
+        <!-- ══════════ 오른쪽: 사활 문제 ══════════ -->
+        <aside>
+            <!-- 위젯 본체: 문제를 불러오면 JS 가 표시한다(#tsume) -->
+            <div class="tsume" id="tsume" style="display:none;">
+                <div class="ts-panel">
+
+                    <div class="ts-header">
+                        <div class="ts-h-icon">問</div>
+                        <div>
+                            <div class="ts-h-title">기다리는 동안 사활 한 문제</div>
+                            <div class="ts-h-sub">오늘의 바둑 훈련</div>
+                        </div>
+                        <button class="ts-close" onclick="tsumeClose()" title="닫기">✕</button>
+                    </div>
+
+                    <div class="ts-subhead">
+                        <span class="ts-sub-left">
+                            오늘의 사활 <b id="tsumeCount">(1/1)</b>
+                            <span class="ts-help"
+                                  title="차례 표시(흑차례/백차례)에서 급소를 찾아, 정해 순서대로 두면 정답입니다. 힌트는 다음 급소를, 정답 보기는 전체 수순을 알려줘요.">?</span>
+                        </span>
+                        <span class="ts-turn" id="tsumeTurn"><span class="ts-turn-dot black"></span>흑차례</span>
+                    </div>
+
+                    <div class="ts-diff">
+                        <button class="diff-btn active" data-diff="쉬움" onclick="setDifficulty(this)">쉬움</button>
+                        <button class="diff-btn" data-diff="보통" onclick="setDifficulty(this)">보통</button>
+                        <button class="diff-btn" data-diff="어려움" onclick="setDifficulty(this)">어려움</button>
+                    </div>
+
+                    <div class="ts-body">
+                        <div class="ts-board-wrap" id="tsumeBoardWrap">
+                            <canvas id="tsumeCanvas" width="300" height="300"></canvas>
+
+                            <div class="ts-correct-ov" id="tsumeCorrectOv">
+                                <div class="ts-correct-text">정답입니다!</div>
+                                <div class="ts-correct-mascot">🐼</div>
+                                <button class="ts-confirm" onclick="tsumeConfirm()">확인</button>
+                            </div>
+
+                            <div class="ts-done-stamp" id="tsumeDoneStamp">완료</div>
+                        </div>
+
+                        <div class="ts-feedback fb-info" id="tsumeFeedback">돌을 놓을 자리를 클릭하세요</div>
+
+                        <div class="ts-toolbar">
+                            <button class="ts-tb-btn" onclick="tsumePrev()">‹ 이전 문제</button>
+                            <button class="ts-tb-btn hint" onclick="tsumeHint()">🔍 사활 힌트</button>
+                            <button class="ts-tb-btn" id="btnRetry" onclick="tsumeRetry()">재도전</button>
+                            <button class="ts-tb-btn" onclick="tsumeNext()">다음 문제 ›</button>
+                        </div>
+
+                        <div class="ts-reveal-link"><a onclick="tsumeReveal()">정답 보기</a></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 문제를 못 불러왔을 때만 노출 -->
+            <div class="ts-panel" id="tsumeFallback" style="display:none;">
+                <div class="ts-empty">
+                    사활 문제를 불러오지 못했습니다.<br>
+                    분석은 그대로 진행 중이니 잠시만 기다려 주세요.
+                </div>
+            </div>
+        </aside>
+
     </div>
-</div>
+</main>
+
 
 <script th:inline="javascript">
-    const jobId = [[${jobId}]];
+    const jobId       = /*[[${jobId}]]*/ '';
+    const TOTAL_MOVES = /*[[${totalMoves}]]*/ 0;
+</script>
 
-    /* ───────── 분석 진행률 폴링 ───────── */
-    let resultUrl = null;
-    function setProgress(pct) {
-        document.getElementById('progressBar').style.width = pct + '%';
-        document.getElementById('progressPct').textContent = pct;
-    }
-    function onDone(resultId) {
-        setProgress(100);
-        resultUrl = '/game/result/' + resultId;
-        document.getElementById('spinner').style.display = 'none';
-        document.getElementById('runTitle').textContent = '분석 완료!';
-        const dbtn = document.getElementById('doneBtn');
-        dbtn.href = resultUrl;
-        document.getElementById('doneBox').style.display = 'block';
-        // 문제 풀던 중일 수 있으니 자동 이동하지 않고 버튼으로 안내
-    }
-    function poll() {
-        fetch('/game/status/' + jobId).then(r => r.json()).then(data => {
-            if (data.status === 'DONE') { onDone(data.resultId); }
-            else if (data.status === 'ERROR') {
-                document.getElementById('runningState').style.display = 'none';
-                document.getElementById('errorState').style.display = 'block';
-                document.getElementById('errorMsg').textContent = data.error;
-            } else if (data.status === 'UNKNOWN') {
-                // 서버 재시작 등으로 분석 세션이 사라진 경우 — 무한 로딩 방지
-                document.getElementById('runningState').style.display = 'none';
-                const es = document.getElementById('errorState');
-                es.querySelector('h2').textContent = '분석 정보를 찾을 수 없음';
-                document.getElementById('errorMsg').textContent =
-                    '이전 분석 세션이 만료되었습니다(서버 재시작 등). 완료된 결과는 결과 목록에서 확인하세요.';
-                const link = es.querySelector('.nav-link'); if (link) link.textContent = '결과 목록으로';
-                es.style.display = 'block';
-            } else {
-                setProgress(parseInt(data.progress) || 0);
-                setTimeout(poll, 2000);
-            }
-        }).catch(() => setTimeout(poll, 5000));
-    }
-    poll();  // 즉시 1회 확인 (완료 상태면 바로 '완료' 표시)
-    // 뒤로가기(bfcache)로 복원되면 상태 재확인 — 멈춘 로딩 방지
-    window.addEventListener('pageshow', (e) => { if (e.persisted && !resultUrl) poll(); });
+<!-- th:inline="none" 필수: 아래 JS 의 배열 리터럴을 Thymeleaf 가 인라인 표현식으로 해석하지 않도록 -->
+<script th:inline="none">
+/* ═════════ 분석 진행률 폴링 (기존 /game/status/{jobId} 유지) ═════════ */
+let resultUrl = null;
+let finishedPolling = false;
+const startedAt = Date.now();
 
-    /* ═════════ 사활 위젯 ═════════ */
+const $ = id => document.getElementById(id);
+
+function fmtClock(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+function fmtSpan(ms) {
+    const s = Math.max(0, Math.round(ms / 1000));
+    if (s < 60) return '약 ' + s + '초';
+    const m = Math.floor(s / 60);
+    return s % 60 ? '약 ' + m + '분 ' + (s % 60) + '초' : '약 ' + m + '분';
+}
+
+/* 경과 시간(이 화면을 연 시점 = 분석 시작 직후) */
+setInterval(() => {
+    if (!finishedPolling) $('elapsedTime').textContent = fmtClock(Date.now() - startedAt);
+}, 1000);
+
+/* 분석 과정 4단계: 0 파싱 / 1 수순별(1차) / 2 정밀 재분석(2차) / 3 리포트 생성 */
+function setStage(idx, allDone) {
+    document.querySelectorAll('#processList .process-item').forEach(item => {
+        const i = Number(item.dataset.stage);
+        item.classList.remove('completed', 'active');
+        const state = item.querySelector('.process-state');
+        if (allDone || i < idx) { item.classList.add('completed'); state.textContent = '완료'; }
+        else if (i === idx)     { item.classList.add('active');    state.textContent = '진행 중'; }
+        else                    { state.textContent = '대기 중'; }
+    });
+}
+
+function setProgress(pct) {
+    $('progressBar').style.width = pct + '%';
+    $('progressPercent').textContent = pct + '%';
+
+    if (TOTAL_MOVES > 0) $('currentMove').textContent = Math.round(TOTAL_MOVES * pct / 100);
+
+    const elapsed = Date.now() - startedAt;
+    if (pct >= 99) {
+        $('progressMessage').textContent = '실수·악수 국면을 정밀하게 다시 분석하고 있습니다.';
+        $('remainingTime').textContent = '마무리 단계';
+        setStage(2);
+    } else if (pct > 0) {
+        $('progressMessage').textContent = '수순별 AI 분석을 진행하고 있습니다.';
+        $('remainingTime').textContent = pct >= 3
+            ? '남은 시간 ' + fmtSpan(elapsed * (100 - pct) / pct)
+            : '남은 시간 계산 중';
+        setStage(1);
+    } else {
+        $('progressMessage').textContent = '기보를 읽고 분석을 준비하고 있습니다.';
+        $('remainingTime').textContent = '남은 시간 계산 중';
+        setStage(0);
+    }
+}
+
+function onDone(resultId) {
+    finishedPolling = true;
+    resultUrl = '/game/result/' + resultId;
+
+    $('progressBar').style.width = '100%';
+    $('progressBar').classList.add('settled');
+    $('progressPercent').textContent = '100%';
+    $('progressMessage').textContent = '분석이 완료됐습니다.';
+    $('remainingTime').textContent = '완료';
+    if (TOTAL_MOVES > 0) $('currentMove').textContent = TOTAL_MOVES;
+
+    $('statusBadge').className = 'status-badge done';
+    $('statusText').textContent = '분석 완료';
+    setStage(3, true);
+
+    $('waitMessage').style.display = 'none';
+    $('doneButton').href = resultUrl;
+    $('doneMessage').classList.add('show');
+    /* 사활 문제를 풀던 중일 수 있어 자동 이동하지 않고 버튼으로 안내(기존 동작 유지) */
+}
+
+function onFailed(title, detail, linkText) {
+    finishedPolling = true;
+    $('statusBadge').className = 'status-badge failed';
+    $('statusText').textContent = '분석 중단';
+    $('progressBar').classList.add('settled');
+    $('waitMessage').style.display = 'none';
+    $('progressMessage').textContent = '분석이 중단되었습니다.';
+    $('remainingTime').textContent = '—';
+    $('errorTitle').textContent = title;
+    $('errorDetail').textContent = detail;
+    if (linkText) $('errorLink').textContent = linkText;
+    $('errorMessage').classList.add('show');
+    document.querySelectorAll('#processList .process-item.active .process-state')
+        .forEach(el => { el.textContent = '중단'; });
+}
+
+function poll() {
+    fetch('/game/status/' + jobId).then(r => r.json()).then(data => {
+        if (data.status === 'DONE') {
+            onDone(data.resultId);
+        } else if (data.status === 'ERROR') {
+            onFailed('분석 실패', data.error || '알 수 없는 오류', '다시 시도');
+        } else if (data.status === 'UNKNOWN') {
+            /* 서버 재시작 등으로 분석 세션이 사라진 경우 — 무한 로딩 방지 */
+            onFailed('분석 정보를 찾을 수 없음',
+                '이전 분석 세션이 만료되었습니다(서버 재시작 등). 완료된 결과는 기보 목록에서 확인하세요.',
+                '결과 목록으로');
+        } else {
+            setProgress(parseInt(data.progress) || 0);
+            setTimeout(poll, 2000);
+        }
+    }).catch(() => setTimeout(poll, 5000));
+}
+poll();  /* 즉시 1회 확인 (완료 상태면 바로 '완료' 표시) */
+/* 뒤로가기(bfcache)로 복원되면 상태 재확인 — 멈춘 로딩 방지 */
+window.addEventListener('pageshow', (e) => { if (e.persisted && !resultUrl) poll(); });
+
+/* 사활 문제를 못 불러오면(위젯이 숨겨진 채면) 안내 카드로 대체 */
+setTimeout(() => {
+    const w = document.getElementById('tsume');
+    if (w && w.style.display === 'none') document.getElementById('tsumeFallback').style.display = '';
+}, 4000);
+
+
+/* ═════════ 사활 위젯 ═════════ */
     const COLS = 'ABCDEFGHJKLMNOPQRST';
     function gtpToGrid(g){ const x = COLS.indexOf(g[0].toUpperCase()); const y = parseInt(g.slice(1)) - 1; return {x, y}; }
     function gridToGtp(x, y){ return COLS[x] + (y + 1); }
@@ -463,6 +613,8 @@
     }
 
     fetchNewProblem();
+
 </script>
+
 </body>
 </html>

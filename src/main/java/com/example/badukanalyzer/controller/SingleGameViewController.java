@@ -1,6 +1,8 @@
 package com.example.badukanalyzer.controller;
 
+import com.example.badukanalyzer.dto.SingleGameResult;
 import com.example.badukanalyzer.service.AnalysisJobStore;
+import com.example.badukanalyzer.service.KataGoService;
 import com.example.badukanalyzer.service.SingleGameService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -19,19 +22,59 @@ public class SingleGameViewController {
 
     private final SingleGameService singleGameService;
     private final AnalysisJobStore jobStore;
+    private final KataGoService kataGoService;   // 대기 화면 visits 표시용
 
-    public SingleGameViewController(SingleGameService singleGameService, AnalysisJobStore jobStore) {
+    public SingleGameViewController(SingleGameService singleGameService, AnalysisJobStore jobStore,
+                                    KataGoService kataGoService) {
         this.singleGameService = singleGameService;
         this.jobStore = jobStore;
+        this.kataGoService = kataGoService;
     }
 
     @GetMapping
     public String index(Model model) throws Exception {
-        model.addAttribute("files", singleGameService.listGameFiles());
-        model.addAttribute("proFiles", singleGameService.listProGameFiles());
-        model.addAttribute("results", singleGameService.listResultSummaries());
+        List<String> files = singleGameService.listGameFiles();
+        List<String> proFiles = singleGameService.listProGameFiles();
+        List<SingleGameResult> results = singleGameService.listResultSummaries();
+
+        // 목록 표에서 파일명으로 바로 결과를 찾도록 색인(이미 파일명 기준 최신만 남은 목록).
+        Map<String, SingleGameResult> resultByFile = new LinkedHashMap<>();
+        Map<String, Double> accuracyByFile = new LinkedHashMap<>();
+        double accSum = 0;
+        long durationMs = 0;
+        for (SingleGameResult r : results) {
+            if (r.getFileName() == null || resultByFile.containsKey(r.getFileName())) continue;
+            resultByFile.put(r.getFileName(), r);
+            Double acc = overallMatchRate(r);
+            if (acc != null) {
+                accuracyByFile.put(r.getFileName(), acc);
+                accSum += acc;
+            }
+            if (r.getAnalysisDurationMs() != null) durationMs += r.getAnalysisDurationMs();
+        }
+
+        model.addAttribute("files", files);
+        model.addAttribute("proFiles", proFiles);
+        model.addAttribute("results", results);
         model.addAttribute("resultMap", singleGameService.getResultMap());
+        // 아래 4개는 목록 화면 표시용(서비스·DTO 변경 없이 위 결과에서 계산)
+        model.addAttribute("resultByFile", resultByFile);
+        model.addAttribute("accuracyByFile", accuracyByFile);
+        model.addAttribute("avgAccuracy", accuracyByFile.isEmpty() ? null : accSum / accuracyByFile.size());
+        model.addAttribute("totalAnalysisMinutes", Math.round(durationMs / 60000.0));
         return "game/index";
+    }
+
+    /** 구간(초·중·종반) 최선수 일치율을 수 개수로 가중평균 — 한 판의 전체 일치율. */
+    private static Double overallMatchRate(SingleGameResult r) {
+        SingleGameResult.PhaseStats[] phases = { r.getOpening(), r.getMiddle(), r.getEndgame() };
+        double num = 0, den = 0;
+        for (SingleGameResult.PhaseStats p : phases) {
+            if (p == null || p.getMoveCount() <= 0) continue;
+            num += p.getMatchRate() * p.getMoveCount();
+            den += p.getMoveCount();
+        }
+        return den == 0 ? null : num / den;
     }
 
     @PostMapping("/analyze")
@@ -47,6 +90,16 @@ public class SingleGameViewController {
     public String waiting(@PathVariable String jobId, @RequestParam String fileName, Model model) {
         model.addAttribute("jobId", jobId);
         model.addAttribute("fileName", fileName);
+        // 대기 화면 표시용 — 진행률(%)만으로는 "몇 수째"를 알 수 없어 총 수를 함께 넘긴다.
+        int totalMoves = 0;
+        try {
+            totalMoves = singleGameService.getRawMoves(fileName).size();
+        } catch (Exception ignored) {
+            // 파싱 실패해도 대기 화면은 그대로 뜬다(총 수만 숨김)
+        }
+        model.addAttribute("totalMoves", totalMoves);
+        model.addAttribute("analysisVisits", kataGoService.getAnalysisVisits());
+        model.addAttribute("deepVisits", kataGoService.getDeepVisits());
         return "game/waiting";
     }
 

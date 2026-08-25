@@ -1,100 +1,601 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>샘플 기보 갤러리</title>
-    <link rel="stylesheet" href="/css/common.css">
-    <style>
-        .gal-filters { display:flex; gap:8px; margin-bottom:18px; }
-        .gf-btn { border:1px solid var(--border-strong); background:var(--surface); color:var(--text-secondary); font-size:13px; padding:6px 14px; border-radius:var(--radius-pill); cursor:pointer; font-weight:600; transition:all .14s; }
-        .gf-btn:hover { background:var(--surface-2); }
-        .gf-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
-
-        .gal-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(248px, 1fr)); gap:var(--gap); }
-        .gal-card { background:var(--surface); border-radius:12px; padding:14px 16px; border:1px solid var(--border); display:flex; flex-direction:column; gap:10px; text-decoration:none; color:inherit; transition:border-color .12s; border-top:3px solid var(--accent-purple); }
-        .gal-card.mine { border-top-color:var(--primary); }
-        .gal-card:hover { transform:translateY(-3px); box-shadow:var(--shadow-md); }
-        .gal-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
-        .gal-title { font-size:14px; font-weight:800; color:var(--text-primary); line-height:1.35; word-break:break-word; }
-        .gal-tag { font-size:11px; font-weight:700; padding:3px 9px; border-radius:var(--radius-pill); white-space:nowrap; flex-shrink:0; }
-        .gal-tag.pro  { background:var(--ai-bg); color:#6b2fce; }
-        .gal-tag.mine { background:var(--primary-light); color:var(--primary-dark); }
-        .gal-meta { font-size:12px; color:var(--text-muted); }
-        .gal-match-lbl { display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); margin-bottom:4px; }
-        .gal-match-lbl b { color:var(--text-primary); }
-        .gal-track { background:#e6eaef; border-radius:99px; height:8px; overflow:hidden; }
-        .gal-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,var(--primary),var(--primary-blue)); }
-        .gal-pills { display:flex; gap:6px; flex-wrap:wrap; }
-        .gal-pill { font-size:11px; padding:3px 9px; border-radius:var(--radius-pill); background:var(--surface-2); color:var(--text-secondary); }
-        .gal-pill.good { background:var(--success-bg); color:#1a8a45; }
-        .gal-pill.warn { background:var(--warning-bg); color:#b5770a; }
-        .gal-pill.bad  { background:var(--danger-bg); color:#c62828; }
-        .gal-foot { font-size:12px; color:var(--accent-purple); font-weight:700; margin-top:auto; }
-        .gal-card.mine .gal-foot { color:var(--primary); }
-        .empty { color:var(--text-muted); text-align:center; padding:44px; background:var(--surface); border-radius:12px; border:1px solid var(--border); }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>갤러리 · Baduk AI</title>
+    <link rel="stylesheet" href="/css/app-header.css">
+    <link rel="stylesheet" th:href="@{/css/gallery.css}">
 </head>
 <body>
-    <aside th:replace="~{fragments/shell :: side('gallery')}"></aside>
-    <main class="main">
-        <header th:replace="~{fragments/shell :: topbar}"></header>
-<div class="page">
-    <h1>샘플 기보 갤러리</h1>
-    <p class="subtitle">KataGo로 분석한 기보 모음이에요. 카드를 누르면 상세 복기로 이동합니다.</p>
 
-    <div class="gal-filters" th:if="${not #lists.isEmpty(items)}">
-        <button class="gf-btn active" data-f="all" onclick="galFilter(this)">전체</button>
-        <button class="gf-btn" data-f="pro" onclick="galFilter(this)">프로 기보</button>
-        <button class="gf-btn" data-f="mine" onclick="galFilter(this)">내 기보</button>
-    </div>
+<header th:replace="~{fragments/appheader :: header('gallery')}"></header>
 
-    <p th:if="${#lists.isEmpty(items)}" class="empty">아직 분석된 기보가 없어요. 기보를 복기하면 여기에 모입니다.</p>
+<main class="gallery-page">
 
-    <div class="gal-grid" id="galGrid">
-        <a th:each="it : ${items}"
-           th:href="'/game/result/' + ${it.id}"
-           th:classappend="${it.pro ? '' : 'mine'}"
-           class="gal-card" th:attr="data-pro=${it.pro}">
-            <div class="gal-top">
-                <div class="gal-title" th:text="${it.title}">제목</div>
-                <span th:class="${it.pro ? 'gal-tag pro' : 'gal-tag mine'}" th:text="${it.pro ? '프로' : '내 기보'}">태그</span>
+    <!-- ══════════ 페이지 헤더 ══════════ -->
+    <section class="page-header">
+        <div>
+            <h1>갤러리</h1>
+            <p>번들된 사활 문제와 분석을 마친 기보를 한곳에서 탐색하고 학습해 보세요.</p>
+        </div>
+
+        <div class="page-actions">
+            <div class="search-box">
+                <input type="text" id="gallerySearch" placeholder="제목, 유형, 대국자 검색..." autocomplete="off">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="M20 20L16 16"></path>
+                </svg>
             </div>
-            <div class="gal-meta">
-                <span th:text="${it.dateText}"></span> · <span th:text="${it.totalMoves} + '수'"></span>
+
+            <a class="upload-button" href="/game" title="기보 복기에서 새 기보를 분석하면 갤러리에 추가됩니다">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="8"></circle>
+                    <path d="M12 8v8"></path>
+                    <path d="M8 12h8"></path>
+                </svg>
+                기보 분석하기
+            </a>
+        </div>
+    </section>
+
+
+    <section class="gallery-layout">
+
+        <!-- ────────── 필터 ────────── -->
+        <aside class="filter-sidebar">
+
+            <div class="filter-card">
+                <h3>카테고리</h3>
+                <div class="category-list">
+                    <button class="category-item active" data-category="all">
+                        <span class="category-icon">▦</span><span>전체</span>
+                        <strong th:text="${#lists.size(tsumegos) + #lists.size(items)}">0</strong>
+                    </button>
+                    <button class="category-item" data-category="tsume">
+                        <span class="category-icon">◈</span><span>사활 문제</span>
+                        <strong th:text="${#lists.size(tsumegos)}">0</strong>
+                    </button>
+                    <button class="category-item" data-category="pro">
+                        <span class="category-icon">♜</span><span>프로 기보</span>
+                        <strong th:text="${#lists.size(items.?[pro])}">0</strong>
+                    </button>
+                    <button class="category-item" data-category="mine">
+                        <span class="category-icon">◫</span><span>나의 기보</span>
+                        <strong th:text="${#lists.size(items.?[!pro])}">0</strong>
+                    </button>
+                </div>
             </div>
+
+            <div class="filter-card">
+                <h3>난이도</h3>
+                <div class="difficulty-grid">
+                    <button class="difficulty-button active" data-difficulty="all">전체</button>
+                    <button class="difficulty-button" data-difficulty="쉬움">쉬움</button>
+                    <button class="difficulty-button" data-difficulty="보통">보통</button>
+                    <button class="difficulty-button" data-difficulty="어려움">어려움</button>
+                </div>
+                <p class="filter-note">난이도는 사활 문제에만 매겨져 있습니다. 선택하면 기보 카드는 숨겨집니다.</p>
+            </div>
+
+            <div class="filter-card">
+                <h3>정렬 기준</h3>
+                <select class="sort-select" id="sortSelect">
+                    <option value="default">기본 (사활 → 기보)</option>
+                    <option value="title">제목순</option>
+                    <option value="difficulty">난이도 낮은순</option>
+                    <option value="match">AI 유사도 높은순</option>
+                </select>
+            </div>
+
+            <div class="filter-card">
+                <h3>출처</h3>
+                <label class="checkbox-row">
+                    <input type="checkbox" class="source-check" value="tsume">
+                    <span>번들 사활집</span>
+                    <strong th:text="${#lists.size(tsumegos)}">0</strong>
+                </label>
+                <label class="checkbox-row">
+                    <input type="checkbox" class="source-check" value="pro">
+                    <span>프로 기보</span>
+                    <strong th:text="${#lists.size(items.?[pro])}">0</strong>
+                </label>
+                <label class="checkbox-row">
+                    <input type="checkbox" class="source-check" value="mine">
+                    <span>나의 기보</span>
+                    <strong th:text="${#lists.size(items.?[!pro])}">0</strong>
+                </label>
+            </div>
+        </aside>
+
+
+        <!-- ────────── 카드 ────────── -->
+        <div class="gallery-content">
+
+            <div class="gallery-toolbar">
+                <div class="result-count">총 <strong id="resultCount">0</strong>개</div>
+
+                <div class="toolbar-right">
+                    <div class="view-toggle">
+                        <button class="view-button active" data-view="grid" aria-label="그리드 보기">
+                            <svg viewBox="0 0 24 24">
+                                <rect x="4" y="4" width="6" height="6"></rect>
+                                <rect x="14" y="4" width="6" height="6"></rect>
+                                <rect x="4" y="14" width="6" height="6"></rect>
+                                <rect x="14" y="14" width="6" height="6"></rect>
+                            </svg>
+                        </button>
+                        <button class="view-button" data-view="list" aria-label="리스트 보기">
+                            <svg viewBox="0 0 24 24">
+                                <line x1="8" y1="6" x2="20" y2="6"></line>
+                                <line x1="8" y1="12" x2="20" y2="12"></line>
+                                <line x1="8" y1="18" x2="20" y2="18"></line>
+                                <line x1="4" y1="6" x2="4.01" y2="6"></line>
+                                <line x1="4" y1="12" x2="4.01" y2="12"></line>
+                                <line x1="4" y1="18" x2="4.01" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <select class="page-size-select" id="pageSize">
+                        <option value="20">20개씩 보기</option>
+                        <option value="40">40개씩 보기</option>
+                        <option value="60">60개씩 보기</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="gallery-grid" id="galleryGrid">
+
+                <!-- 사활 문제: 번들된 SGF 그대로 -->
+                <article class="gallery-card" th:each="t : ${tsumegos}"
+                         data-kind="tsume"
+                         th:data-id="${t.id}"
+                         th:data-difficulty="${t.difficulty}"
+                         th:data-title="${t.id}"
+                         th:data-stones="${#strings.listJoin(t.stones.![color + at], ',')}"
+                         th:data-region="${t.region != null ? t.region[0] + ',' + t.region[1] + ',' + t.region[2] + ',' + t.region[3] : ''}"
+                         th:data-toplay="${t.toPlay}"
+                         th:data-prompt="${t.prompt}"
+                         th:data-solution="${t.solution != null ? #strings.listJoin(t.solution, ' → ') : ''}"
+                         th:data-search="${t.id + ' 사활 문제 ' + t.difficulty}">
+
+                    <div class="board-thumbnail">
+                        <canvas class="go-board"></canvas>
+                        <span class="difficulty-badge"
+                              th:classappend="${t.difficulty == '쉬움' ? 'beginner' : (t.difficulty == '보통' ? 'intermediate' : 'advanced')}"
+                              th:text="${t.difficulty}">난이도</span>
+                        <button class="bookmark-button" type="button" title="이 브라우저에만 저장됩니다">♡</button>
+                    </div>
+
+                    <div class="card-body">
+                        <h3 th:text="${t.id}" th:title="${t.prompt}">사활 문제</h3>
+                        <p class="card-meta"
+                           th:text="'사활 문제 · ' + (${t.toPlay} == 'B' ? '흑 차례' : '백 차례')">사활 문제</p>
+                        <div class="card-stats">
+                            <span th:text="'정해 ' + ${t.solution != null ? #lists.size(t.solution) : 0} + '수'">정해</span>
+                            <span th:text="'급소 ' + ${t.answers != null ? #lists.size(t.answers) : 0} + '곳'">급소</span>
+                        </div>
+                        <span class="card-author">번들 사활집</span>
+                    </div>
+                </article>
+
+                <!-- 분석 기보: 기존 GalleryItem 그대로 -->
+                <article class="gallery-card" th:each="g : ${items}"
+                         th:data-kind="${g.pro ? 'pro' : 'mine'}"
+                         th:data-id="${g.id}"
+                         data-difficulty=""
+                         th:data-title="${g.title}"
+                         th:data-moves="${g.previewMoves}"
+                         th:data-match="${g.matchRate}"
+                         th:data-search="${g.title + ' ' + (g.pro ? '프로 기보' : '나의 기보') + ' ' + g.dateText}">
+
+                    <div class="board-thumbnail">
+                        <canvas class="go-board"></canvas>
+                        <span class="difficulty-badge record" th:text="${g.pro ? '프로 기보' : '나의 기보'}">기보</span>
+                        <button class="bookmark-button" type="button" title="이 브라우저에만 저장됩니다">♡</button>
+                    </div>
+
+                    <div class="card-body">
+                        <h3 th:text="${g.title}" th:title="${g.title}">기보</h3>
+                        <p class="card-meta" th:text="${g.dateText} + ' · 총 ' + ${g.totalMoves} + '수'">-</p>
+                        <div class="card-stats">
+                            <span th:text="'AI 유사도 ' + ${g.matchRate} + '%'">-</span>
+                            <span th:if="${g.bestPhase != null}" th:text="${g.bestPhase} + ' 강세'">-</span>
+                        </div>
+                        <span class="card-author" th:text="${g.pro ? '프로 기보' : '나의 기보'}">-</span>
+                    </div>
+                </article>
+
+                <div class="grid-empty" id="gridEmpty" style="display:none;">
+                    조건에 맞는 항목이 없습니다.<br>검색어나 필터를 바꿔 보세요.
+                </div>
+            </div>
+
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </section>
+</main>
+
+
+<!-- ══════════ 사활 문제 보기 ══════════ -->
+<div class="tsume-overlay" id="tsumeOverlay">
+    <div class="tsume-modal">
+        <div class="tsume-head">
             <div>
-                <div class="gal-match-lbl"><span>전체 AI 유사도</span><b th:text="${it.matchRate} + '%'"></b></div>
-                <div class="gal-track"><div class="gal-fill" th:style="'width:' + ${it.matchRate} + '%'"></div></div>
+                <h3 id="tsumeTitle">사활 문제</h3>
+                <div class="sub" id="tsumeSub">-</div>
             </div>
-            <div class="gal-pills">
-                <span th:if="${it.openingLoss > 0 or it.middleLoss > 0 or it.endgameLoss > 0}"
-                      th:class="${it.openingLoss < 1.5 ? 'gal-pill good' : (it.openingLoss < 3 ? 'gal-pill warn' : 'gal-pill bad')}"
-                      th:text="'초반 ' + ${it.openingLoss} + '집'"></span>
-                <span th:if="${it.middleLoss > 0}"
-                      th:class="${it.middleLoss < 1.5 ? 'gal-pill good' : (it.middleLoss < 3 ? 'gal-pill warn' : 'gal-pill bad')}"
-                      th:text="'중반 ' + ${it.middleLoss} + '집'"></span>
-                <span th:if="${it.endgameLoss > 0}"
-                      th:class="${it.endgameLoss < 1.5 ? 'gal-pill good' : (it.endgameLoss < 3 ? 'gal-pill warn' : 'gal-pill bad')}"
-                      th:text="'종반 ' + ${it.endgameLoss} + '집'"></span>
-            </div>
-            <div class="gal-foot">복기 보기 →</div>
-        </a>
-    </div>
-    </div>
+            <button class="tsume-close" type="button" onclick="closeTsume()">✕</button>
+        </div>
 
-    <script>
-    function galFilter(btn) {
-        document.querySelectorAll('.gf-btn').forEach(function(b){ b.classList.remove('active'); });
-        btn.classList.add('active');
-        const f = btn.dataset.f;
-        document.querySelectorAll('.gal-card').forEach(function(c){
-            const isPro = c.dataset.pro === 'true';
-            const show = f === 'all' || (f === 'pro' && isPro) || (f === 'mine' && !isPro);
-            c.style.display = show ? '' : 'none';
-        });
+        <div class="tsume-body">
+            <div class="tsume-board-wrap">
+                <canvas id="tsumeModalCanvas" width="420" height="420"></canvas>
+            </div>
+
+            <div class="tsume-actions">
+                <button class="tsume-btn" type="button" id="tsumeAnswerBtn" onclick="toggleTsumeSolution()">정답 수순 보기</button>
+                <a class="tsume-btn primary" href="/study" style="display:flex;align-items:center;justify-content:center;text-decoration:none;">분석판에서 놓아보기</a>
+            </div>
+
+            <div class="tsume-solution" id="tsumeSolution" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+
+<!-- th:inline="none" — 아래 JS 의 배열 리터럴을 Thymeleaf 가 해석하지 않도록 -->
+<script th:inline="none">
+(function () {
+    const COLS = 'ABCDEFGHJKLMNOPQRST';
+    const $ = id => document.getElementById(id);
+
+    /* ════════ 바둑판 렌더 (SGF/GIB 데이터로 교체하기 쉽게 분리) ════════ */
+    function gtpToGrid(g) {
+        if (!g) return null;
+        const x = COLS.indexOf(g[0].toUpperCase());
+        const y = parseInt(g.slice(1), 10) - 1;
+        return (x < 0 || isNaN(y) || y < 0 || y > 18) ? null : { x, y };
     }
-    </script>
-    </main>
+    function adj(x, y) {
+        const a = [];
+        if (x > 0) a.push([x - 1, y]);
+        if (x < 18) a.push([x + 1, y]);
+        if (y > 0) a.push([x, y - 1]);
+        if (y < 18) a.push([x, y + 1]);
+        return a;
+    }
+    function group(b, x, y) {
+        const c = b[x][y], st = [[x, y]], seen = new Set([x + ',' + y]), out = [];
+        while (st.length) {
+            const p = st.pop(); out.push(p);
+            for (const nb of adj(p[0], p[1])) {
+                const k = nb[0] + ',' + nb[1];
+                if (!seen.has(k) && b[nb[0]][nb[1]] === c) { seen.add(k); st.push(nb); }
+            }
+        }
+        return out;
+    }
+    function hasLib(b, g) {
+        for (const p of g) for (const nb of adj(p[0], p[1])) if (b[nb[0]][nb[1]] === null) return true;
+        return false;
+    }
+    /** "BQ16,WD4,…" → 최종 국면(따냄 반영) */
+    function boardFromMoves(seq) {
+        const b = Array.from({ length: 19 }, () => Array(19).fill(null));
+        let last = null;
+        (seq || '').split(',').filter(Boolean).forEach(item => {
+            const color = item[0], g = gtpToGrid(item.slice(1));
+            if (!g || b[g.x][g.y]) return;
+            b[g.x][g.y] = color; last = g;
+            const opp = color === 'B' ? 'W' : 'B';
+            for (const nb of adj(g.x, g.y)) {
+                if (b[nb[0]][nb[1]] === opp) {
+                    const grp = group(b, nb[0], nb[1]);
+                    if (!hasLib(b, grp)) grp.forEach(p => b[p[0]][p[1]] = null);
+                }
+            }
+            if (!hasLib(b, group(b, g.x, g.y))) b[g.x][g.y] = null;
+        });
+        return { board: b, last };
+    }
+    /** "BQ16,WD4,…" → 그대로 놓은 배치(사활 문제 초기 배치) */
+    function boardFromStones(str) {
+        const b = Array.from({ length: 19 }, () => Array(19).fill(null));
+        (str || '').split(',').filter(Boolean).forEach(item => {
+            const g = gtpToGrid(item.slice(1));
+            if (g) b[g.x][g.y] = item[0];
+        });
+        return { board: b, last: null };
+    }
+
+    function drawStone(ctx, cx, cy, r, color) {
+        const g = ctx.createRadialGradient(cx - r * .3, cy - r * .35, r * .1, cx, cy, r);
+        if (color === 'B') { g.addColorStop(0, '#555'); g.addColorStop(.45, '#202020'); g.addColorStop(1, '#050505'); }
+        else { g.addColorStop(0, '#fff'); g.addColorStop(.7, '#e9e9e9'); g.addColorStop(1, '#c7c7c7'); }
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = color === 'B' ? 'rgba(0,0,0,.45)' : 'rgba(0,0,0,.18)';
+        ctx.lineWidth = .8; ctx.stroke();
+    }
+
+    /**
+     * 판 그리기. region 을 주면 그 범위만 확대(사활 문제),
+     * 없으면 19줄 전체(기보 최종 국면).
+     */
+    function drawBoard(cv, state, region) {
+        const box = cv.parentElement;
+        const size = Math.max(box.clientWidth, 120);
+        const dpr = window.devicePixelRatio || 1;
+        cv.width = size * dpr; cv.height = size * dpr;
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        /* 나무 바탕 + 결 */
+        const bg = ctx.createLinearGradient(0, 0, size, size);
+        bg.addColorStop(0, '#e9c98b'); bg.addColorStop(1, '#d9b46c');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, size, size);
+        ctx.globalAlpha = .07; ctx.strokeStyle = '#7d5528'; ctx.lineWidth = 1;
+        for (let i = 0; i < size; i += 7) { ctx.beginPath(); ctx.moveTo(0, i + .5); ctx.lineTo(size, i + .5); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+
+        const r = (region && region.length === 4) ? region : [0, 0, 18, 18];
+        const cols = r[2] - r[0] + 1, rows = r[3] - r[1] + 1;
+        const n = Math.max(cols, rows);
+        const pad = size * (n > 12 ? .055 : .10);
+        const cell = (size - pad * 2) / (n - 1);
+        const ox = pad + (size - pad * 2 - cell * (cols - 1)) / 2;
+        const oy = pad + (size - pad * 2 - cell * (rows - 1)) / 2;
+        const px = x => ox + (x - r[0]) * cell;
+        const py = y => oy + (r[3] - y) * cell;
+
+        ctx.strokeStyle = 'rgba(50,35,20,.75)'; ctx.lineWidth = 1;
+        for (let i = 0; i < cols; i++) { const x = px(r[0] + i); ctx.beginPath(); ctx.moveTo(x, py(r[3])); ctx.lineTo(x, py(r[1])); ctx.stroke(); }
+        for (let j = 0; j < rows; j++) { const y = py(r[1] + j); ctx.beginPath(); ctx.moveTo(px(r[0]), y); ctx.lineTo(px(r[2]), y); ctx.stroke(); }
+
+        /* 화점 */
+        ctx.fillStyle = '#40301d';
+        [3, 9, 15].forEach(a => [3, 9, 15].forEach(b => {
+            if (a < r[0] || a > r[2] || b < r[1] || b > r[3]) return;
+            ctx.beginPath(); ctx.arc(px(a), py(b), Math.max(1.5, cell * .07), 0, Math.PI * 2); ctx.fill();
+        }));
+
+        const rad = cell * .46;
+        for (let x = r[0]; x <= r[2]; x++) for (let y = r[1]; y <= r[3]; y++) {
+            const c = state.board[x][y];
+            if (c) drawStone(ctx, px(x), py(y), rad, c);
+        }
+        if (state.last) {
+            ctx.strokeStyle = '#d64545'; ctx.lineWidth = Math.max(1.2, cell * .09);
+            ctx.beginPath(); ctx.arc(px(state.last.x), py(state.last.y), rad * .55, 0, Math.PI * 2); ctx.stroke();
+        }
+    }
+
+    function renderCard(card) {
+        const cv = card.querySelector('canvas.go-board');
+        if (!cv) return;
+        if (card.dataset.kind === 'tsume') {
+            const reg = (card.dataset.region || '').split(',').filter(s => s !== '').map(Number);
+            drawBoard(cv, boardFromStones(card.dataset.stones), reg.length === 4 ? reg : null);
+        } else {
+            drawBoard(cv, boardFromMoves(card.dataset.moves), null);
+        }
+    }
+
+    /* ════════ 목록: 검색 · 필터 · 정렬 · 페이징 ════════ */
+    const grid = $('galleryGrid');
+    const cards = Array.from(grid.querySelectorAll('.gallery-card'));
+    const empty = $('gridEmpty');
+    let category = 'all', difficulty = 'all', page = 1;
+
+    const DIFF_ORDER = { '쉬움': 1, '보통': 2, '어려움': 3 };
+
+    function sources() {
+        return Array.from(document.querySelectorAll('.source-check:checked')).map(c => c.value);
+    }
+
+    function matches(card) {
+        const kw = $('gallerySearch').value.trim().toLowerCase();
+        if (kw && !(card.dataset.search || '').toLowerCase().includes(kw)) return false;
+        if (category !== 'all' && card.dataset.kind !== category) return false;
+        if (difficulty !== 'all' && card.dataset.difficulty !== difficulty) return false;
+        const src = sources();
+        if (src.length && !src.includes(card.dataset.kind)) return false;
+        return true;
+    }
+
+    function sortCards(list) {
+        const mode = $('sortSelect').value;
+        const byTitle = (a, b) => (a.dataset.title || '').localeCompare(b.dataset.title || '', 'ko');
+        if (mode === 'title') return list.sort(byTitle);
+        if (mode === 'difficulty') {
+            return list.sort((a, b) => (DIFF_ORDER[a.dataset.difficulty] || 9) - (DIFF_ORDER[b.dataset.difficulty] || 9) || byTitle(a, b));
+        }
+        if (mode === 'match') {
+            return list.sort((a, b) => (Number(b.dataset.match) || -1) - (Number(a.dataset.match) || -1) || byTitle(a, b));
+        }
+        return list;   /* 기본: 서버가 준 순서(사활 → 프로 → 나의) */
+    }
+
+    function render() {
+        const visible = sortCards(cards.filter(matches));
+        cards.forEach(c => { c.style.display = 'none'; });
+
+        const size = Number($('pageSize').value);
+        const pages = Math.max(1, Math.ceil(visible.length / size));
+        if (page > pages) page = pages;
+
+        visible.slice((page - 1) * size, page * size).forEach(c => {
+            c.style.display = '';
+            grid.appendChild(c);
+            renderCard(c);
+        });
+
+        empty.style.display = visible.length ? 'none' : '';
+        $('resultCount').textContent = visible.length;
+        renderPagination(pages);
+    }
+
+    function pageBtn(label, target, opts) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'page-button' + ((opts && opts.arrow) ? ' arrow' : '') + ((opts && opts.active) ? ' active' : '');
+        b.textContent = label;
+        if (opts && opts.disabled) b.disabled = true;
+        else b.addEventListener('click', () => { page = target; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+        return b;
+    }
+
+    function renderPagination(pages) {
+        const box = $('pagination');
+        box.textContent = '';
+        if (pages <= 1) return;
+        box.appendChild(pageBtn('‹', page - 1, { arrow: true, disabled: page === 1 }));
+
+        const nums = new Set([1, pages, page, page - 1, page + 1]);
+        const list = Array.from(nums).filter(n => n >= 1 && n <= pages).sort((a, b) => a - b);
+        let prev = 0;
+        list.forEach(n => {
+            if (prev && n - prev > 1) {
+                const s = document.createElement('span');
+                s.className = 'pagination-dots'; s.textContent = '...';
+                box.appendChild(s);
+            }
+            box.appendChild(pageBtn(String(n), n, { active: n === page }));
+            prev = n;
+        });
+        box.appendChild(pageBtn('›', page + 1, { arrow: true, disabled: page === pages }));
+    }
+
+    /* 필터 이벤트 */
+    $('gallerySearch').addEventListener('input', () => { page = 1; render(); });
+    $('sortSelect').addEventListener('change', () => { page = 1; render(); });
+    $('pageSize').addEventListener('change', () => { page = 1; render(); });
+    document.querySelectorAll('.source-check').forEach(c =>
+        c.addEventListener('change', () => { page = 1; render(); }));
+
+    document.querySelectorAll('.category-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.category-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            category = btn.dataset.category;
+            page = 1; render();
+        });
+    });
+    document.querySelectorAll('.difficulty-button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.difficulty-button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            difficulty = btn.dataset.difficulty;
+            page = 1; render();
+        });
+    });
+
+    /* 보기 전환 */
+    document.querySelectorAll('.view-button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.view-button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            grid.classList.toggle('list-view', btn.dataset.view === 'list');
+            render();
+        });
+    });
+
+    /* 북마크 — 이 브라우저에만 저장(localStorage) */
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem('galleryBookmarks') || '[]'); } catch (e) { saved = []; }
+    cards.forEach(card => {
+        const id = card.dataset.id;
+        const btn = card.querySelector('.bookmark-button');
+        if (saved.includes(id)) { btn.classList.add('saved'); btn.textContent = '♥'; }
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const on = btn.classList.toggle('saved');
+            btn.textContent = on ? '♥' : '♡';
+            saved = on ? saved.concat([id]) : saved.filter(x => x !== id);
+            try { localStorage.setItem('galleryBookmarks', JSON.stringify(saved)); } catch (e2) {}
+        });
+    });
+
+    /* 카드 클릭 — 기보는 리포트로, 사활은 문제 보기 */
+    cards.forEach(card => {
+        card.addEventListener('click', () => {
+            if (card.dataset.kind === 'tsume') openTsume(card);
+            else location.href = '/game/result/' + card.dataset.id;
+        });
+    });
+
+    /* ════════ 사활 문제 보기 ════════ */
+    let modalCard = null, showSolution = false;
+
+    function drawModal() {
+        if (!modalCard) return;
+        const cv = $('tsumeModalCanvas');
+        const reg = (modalCard.dataset.region || '').split(',').filter(s => s !== '').map(Number);
+        const state = boardFromStones(modalCard.dataset.stones);
+
+        if (showSolution) {
+            /* 정해 수순을 차례대로 올려 마지막 국면까지 보여준다 */
+            const seq = (modalCard.dataset.solution || '').split('→').map(s => s.trim()).filter(Boolean);
+            let color = modalCard.dataset.toplay || 'B';
+            seq.forEach(mv => {
+                const g = gtpToGrid(mv);
+                if (g && !state.board[g.x][g.y]) { state.board[g.x][g.y] = color; state.last = g; }
+                color = color === 'B' ? 'W' : 'B';
+            });
+        }
+        drawBoard(cv, state, reg.length === 4 ? reg : null);
+    }
+
+    window.openTsume = function (card) {
+        modalCard = card; showSolution = false;
+        $('tsumeTitle').textContent = card.dataset.title || '사활 문제';
+        $('tsumeSub').textContent = (card.dataset.prompt || '')
+            + ' · 난이도 ' + (card.dataset.difficulty || '-');
+        $('tsumeAnswerBtn').textContent = '정답 수순 보기';
+        $('tsumeSolution').style.display = 'none';
+        $('tsumeSolution').textContent = '';
+        $('tsumeOverlay').classList.add('open');
+        requestAnimationFrame(drawModal);
+    };
+
+    window.closeTsume = function () {
+        $('tsumeOverlay').classList.remove('open');
+        modalCard = null;
+    };
+
+    window.toggleTsumeSolution = function () {
+        showSolution = !showSolution;
+        $('tsumeAnswerBtn').textContent = showSolution ? '문제로 되돌리기' : '정답 수순 보기';
+        const box = $('tsumeSolution');
+        if (showSolution) {
+            box.style.display = '';
+            box.textContent = '정해 수순: ' + (modalCard.dataset.solution || '기록 없음');
+        } else {
+            box.style.display = 'none';
+        }
+        drawModal();
+    };
+
+    $('tsumeOverlay').addEventListener('click', e => {
+        if (e.target.id === 'tsumeOverlay') closeTsume();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeTsume(); });
+
+    let rz;
+    window.addEventListener('resize', () => {
+        clearTimeout(rz);
+        rz = setTimeout(() => {
+            cards.forEach(c => { if (c.style.display !== 'none') renderCard(c); });
+            drawModal();
+        }, 180);
+    });
+
+    render();
+})();
+</script>
+
 </body>
 </html>

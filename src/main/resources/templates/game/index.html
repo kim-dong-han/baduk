@@ -1,263 +1,515 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>1판 복기 분석</title>
-    <link rel="stylesheet" href="/css/common.css">
-    <style>
-        /* h1, .subtitle 은 common.css 공통 규칙 사용 */
-        .nav { margin-bottom: 20px; }
-        .nav a { color: var(--primary); text-decoration: none; font-size: 14px; }
-
-        .error-box { background: var(--danger-bg); border: 1px solid #f3b6b6; color: #c0392b; padding: 14px 18px; border-radius: var(--radius-sm); margin-bottom: 20px; max-width: 680px; font-size: 14px; }
-
-        /* ── 탭 파일 선택 박스 ── */
-        .select-box { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
-
-        .tabs { display: flex; border-bottom: 2px solid var(--border); background: transparent; padding: 0; border-radius: 0; }
-        .tab { flex: 1; padding: 15px 0; text-align: center; font-size: 14px; font-weight: 700; cursor: pointer; color: var(--text-muted); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.15s; user-select: none; background: transparent; border-radius: 0; }
-        .tab.active { color: var(--primary); border-bottom-color: var(--primary); background: transparent; box-shadow: none; }
-        .tab:hover:not(.active) { color: var(--text-secondary); background: var(--surface-2); }
-        .tab-count { font-size: 11px; font-weight: 600; background: var(--surface-2); border-radius: var(--radius-pill); padding: 1px 7px; margin-left: 6px; color: var(--text-muted); }
-        .tab.active .tab-count { background: var(--primary-light); color: var(--primary); }
-
-        .file-list { max-height: 360px; overflow-y: auto; padding: 8px 0; }
-        .file-list::-webkit-scrollbar { width: 5px; }
-        .file-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
-
-        .file-item { padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--surface-2); transition: background 0.1s; }
-        .file-item:hover { background: var(--surface-2); }
-        .file-item.selected { background: var(--primary-light); border-left: 3px solid var(--primary); padding-left: 17px; }
-        .file-item:last-child { border-bottom: none; }
-
-        .file-icon { font-size: 16px; flex-shrink: 0; opacity: 0.6; }
-        .file-name { font-size: 14px; color: var(--text-primary); flex: 1; }
-        .analyzed-badge { font-size: 11px; background: var(--success-bg); color: #1a8a45; padding: 3px 9px; border-radius: var(--radius-pill); font-weight: 700; white-space: nowrap; }
-
-        .empty-list { color: var(--text-muted); font-size: 14px; text-align: center; padding: 32px 0; }
-
-        .action-bar { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 12px; background: var(--surface-2); }
-        .selected-label { font-size: 13px; color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .selected-label span { color: var(--text-primary); font-weight: 700; }
-        .btn { background: linear-gradient(135deg, var(--primary), var(--primary-blue)); color: #fff; border: none; border-radius: 11px; padding: 11px 28px; font-size: 14px; cursor: pointer; font-weight: 700; white-space: nowrap; box-shadow: 0 6px 16px -8px rgba(79,70,229,0.6); transition: transform .1s, box-shadow .15s, filter .15s; }
-        .btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
-        .btn:disabled { background: #ccd2da; box-shadow: none; cursor: not-allowed; filter: none; transform: none; }
-
-        /* ── 최근 분석 결과 ── */
-        .results-section { min-width: 0; }
-        .results-section h2 { font-size: 18px; margin-bottom: 16px; }
-        .result-card { background: var(--surface); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 10px; box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-        .result-info { flex: 1; min-width: 0; }
-        .result-filename { font-size: 14px; font-weight: 700; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .result-meta { font-size: 12px; color: var(--text-muted); }
-        .phase-pills { display: flex; gap: 6px; flex-shrink: 0; }
-        .pill { font-size: 12px; padding: 3px 10px; border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text-secondary); }
-        .pill.good { background: var(--success-bg); color: #1a8a45; }
-        .pill.warn { background: var(--warning-bg); color: #b5770a; }
-        .pill.bad  { background: var(--danger-bg); color: #c62828; }
-        .view-btn { font-size: 13px; color: var(--primary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--primary); border-radius: var(--radius-sm); white-space: nowrap; flex-shrink: 0; }
-        .view-btn:hover { background: var(--primary); color: #fff; }
-
-        /* ── 파일 목록 인라인 진행바 ── */
-        .file-name-wrap { flex: 1; min-width: 0; }
-        .inline-progress { display: none; margin-top: 5px; align-items: center; gap: 6px; }
-        .inline-progress.active { display: flex; }
-        .inline-bar-wrap { flex: 1; height: 5px; background: #e0e6ee; border-radius: 2px; overflow: hidden; }
-        .inline-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--primary-blue)); border-radius: 2px; transition: width 0.5s; }
-        .inline-pct { font-size: 11px; color: var(--primary); font-weight: 700; white-space: nowrap; }
-        .analyzing-badge { display: none; font-size: 11px; background: var(--primary-light); color: var(--primary-dark); padding: 3px 9px; border-radius: var(--radius-pill); font-weight: 700; white-space: nowrap; animation: pulse 1.5s ease-in-out infinite; }
-        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기보 복기 · Baduk AI</title>
+    <!-- 상단 헤더형 독립 레이아웃(common.css=사이드바 셸 미사용) -->
+    <link rel="stylesheet" href="/css/app-header.css">
+    <link rel="stylesheet" href="/css/game-list.css">
 </head>
 <body>
 
-    <aside th:replace="~{fragments/shell :: side('game')}"></aside>
-    <main class="main">
-        <header th:replace="~{fragments/shell :: topbar}"></header>
-<div class="page">
-<h1>1판 복기 분석</h1>
-<p class="subtitle">기보 한 판을 수별로 분석해 핵심 실수와 최선수를 알려드립니다.</p>
+<header th:replace="~{fragments/appheader :: header('game')}"></header>
 
-<div th:if="${error}" class="error-box" th:text="${error}"></div>
+<main class="page">
 
-<div class="select-box">
-    <!-- 탭 -->
-    <div class="tabs">
-        <div class="tab active" id="tabPro" onclick="switchTab('pro')">
-            프로기보
-            <span class="tab-count" th:text="${#lists.size(proFiles)}"></span>
+    <div th:if="${error}" class="alert-box" th:text="${error}"></div>
+
+    <!-- ══════════ HERO ══════════ -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">기보 복기</h1>
+            <p class="hero-description">
+                KataGo AI가 분석한 기보를 확인하고<br>
+                아직 분석하지 않은 기보는 여기서 바로 분석을 시작하세요.
+            </p>
         </div>
-        <div class="tab" id="tabMy" onclick="switchTab('my')">
-            나의기보
-            <span class="tab-count" th:text="${#lists.size(files)}"></span>
-        </div>
-    </div>
 
-    <!-- 프로기보 목록 -->
-    <div class="file-list" id="listPro">
-        <div th:if="${#lists.isEmpty(proFiles)}" class="empty-list">프로기보 없음</div>
-        <div th:each="f : ${proFiles}"
-             th:data-file="${f}"
-             th:data-result-id="${resultMap != null and resultMap.containsKey(f) ? resultMap.get(f) : ''}"
-             th:class="${resultMap != null and resultMap.containsKey(f) ? 'file-item analyzed' : 'file-item'}"
-             onclick="selectFile(this)">
-            <span class="file-icon">♟</span>
-            <div class="file-name-wrap">
-                <span class="file-name" th:text="${f}"></span>
-                <div class="inline-progress">
-                    <div class="inline-bar-wrap"><div class="inline-bar-fill"></div></div>
-                    <span class="inline-pct">0%</span>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-label">전체 기보</div>
+                <div class="hero-stat-value">
+                    <span th:text="${#lists.size(proFiles) + #lists.size(files)}">0</span>
+                    <small>개</small>
                 </div>
+                <div class="hero-stat-sub" th:text="'분석 완료 ' + ${resultByFile.size()} + '개'">-</div>
             </div>
-            <span th:if="${resultMap != null and resultMap.containsKey(f)}" class="analyzed-badge">분석 완료 · 결과 보기 →</span>
-            <span class="analyzing-badge">분석 중</span>
-        </div>
-    </div>
 
-    <!-- 나의기보 목록 -->
-    <div class="file-list" id="listMy" style="display:none;">
-        <div th:if="${#lists.isEmpty(files)}" class="empty-list">나의기보 없음</div>
-        <div th:each="f : ${files}"
-             th:data-file="${f}"
-             th:data-result-id="${resultMap != null and resultMap.containsKey(f) ? resultMap.get(f) : ''}"
-             th:class="${resultMap != null and resultMap.containsKey(f) ? 'file-item analyzed' : 'file-item'}"
-             onclick="selectFile(this)">
-            <span class="file-icon">🎯</span>
-            <div class="file-name-wrap">
-                <span class="file-name" th:text="${f}"></span>
-                <div class="inline-progress">
-                    <div class="inline-bar-wrap"><div class="inline-bar-fill"></div></div>
-                    <span class="inline-pct">0%</span>
+            <div class="hero-stat">
+                <div class="hero-stat-label">평균 AI 일치율</div>
+                <div class="hero-stat-value">
+                    <span th:text="${avgAccuracy != null} ? ${#numbers.formatDecimal(avgAccuracy,1,1)} : '-'">-</span>
+                    <small>%</small>
                 </div>
+                <div class="hero-stat-sub">분석 완료 기보 기준</div>
             </div>
-            <span th:if="${resultMap != null and resultMap.containsKey(f)}" class="analyzed-badge">분석 완료 · 결과 보기 →</span>
-            <span class="analyzing-badge">분석 중</span>
+
+            <div class="hero-stat">
+                <div class="hero-stat-label">누적 분석 시간</div>
+                <div class="hero-stat-value">
+                    <span th:text="${totalAnalysisMinutes}">0</span>
+                    <small>분</small>
+                </div>
+                <div class="hero-stat-sub">KataGo 엔진 소요 시간</div>
+            </div>
         </div>
-    </div>
 
-    <!-- 하단 액션 바 -->
-    <div class="action-bar">
-        <div class="selected-label" id="selectedLabel">기보를 선택하세요</div>
-        <form method="post" action="/game/analyze" onsubmit="document.getElementById('submitBtn').disabled = true" id="analyzeForm">
-            <input type="hidden" name="fileName" id="selectedFile">
-            <button class="btn" type="submit" id="submitBtn" disabled>분석 시작</button>
-        </form>
-    </div>
-</div>
+        <div class="hero-board"></div>
+    </section>
 
-<!-- 전체 재분석(일괄) -->
-<div class="results-section" style="margin-bottom:24px;">
-    <div class="result-card" style="display:block;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-            <div>
-                <div style="font-size:15px;font-weight:700;">🔁 저장된 기보 전체 재분석</div>
-                <div style="font-size:12px;color:#888;margin-top:3px;">현재 정밀도(visits=1000)로 저장된 모든 기보를 다시 분석해 구 등급·형세 오판을 최신 기준으로 갱신합니다. TRT 가속으로 판당 수십 초.</div>
+
+    <!-- ══════════ 기보 관리 패널 ══════════ -->
+    <section class="game-panel">
+
+        <!-- 탭 + 일괄 재분석 -->
+        <div class="tabs-area">
+            <div class="tabs">
+                <button class="tab active" type="button" data-filter="all">
+                    전체 기보
+                    <span class="tab-count" th:text="${#lists.size(proFiles) + #lists.size(files)}">0</span>
+                </button>
+                <button class="tab" type="button" data-filter="pro">
+                    프로기보
+                    <span class="tab-count" th:text="${#lists.size(proFiles)}">0</span>
+                </button>
+                <button class="tab" type="button" data-filter="my">
+                    나의기보
+                    <span class="tab-count" th:text="${#lists.size(files)}">0</span>
+                </button>
+                <button class="tab" type="button" data-filter="done">
+                    분석 완료
+                    <span class="tab-count" th:text="${resultByFile.size()}">0</span>
+                </button>
+                <button class="tab" type="button" data-filter="pending">
+                    미분석
+                    <span class="tab-count"
+                          th:text="${#lists.size(proFiles) + #lists.size(files) - resultByFile.size()}">0</span>
+                </button>
             </div>
-            <form method="post" th:action="@{/game/reanalyze-all}" onsubmit="return confirm('저장된 모든 기보를 재분석합니다. 시간이 걸릴 수 있어요. 시작할까요?');">
-                <button type="submit" class="btn" id="bulkBtn">전체 재분석 시작</button>
+
+            <!-- 업로드 자리에 이 화면의 실제 일괄 동작(전체 재분석)을 둔다 -->
+            <form method="post" th:action="@{/game/reanalyze-all}" style="margin:0;"
+                  onsubmit="return confirm('저장된 모든 기보를 현재 정밀도로 다시 분석합니다. 시간이 걸릴 수 있어요. 시작할까요?');">
+                <button type="submit" class="bulk-button" id="bulkBtn">🔁 전체 재분석</button>
             </form>
         </div>
-        <div id="bulkProgress" style="display:none;margin-top:14px;">
-            <div style="height:10px;background:#eee;border-radius:99px;overflow:hidden;">
-                <div id="bulkBar" style="height:100%;width:0;background:#4a90d9;transition:width .3s;"></div>
-            </div>
-            <div id="bulkText" style="font-size:12px;color:#666;margin-top:6px;"></div>
+
+        <div class="bulk-progress" id="bulkProgress" style="display:none;">
+            <div class="bulk-bar-wrap"><div class="bulk-bar" id="bulkBar"></div></div>
+            <div class="bulk-text" id="bulkText"></div>
         </div>
-    </div>
-</div>
-<script>
+
+
+        <!-- 검색 · 필터 · 정렬 -->
+        <div class="filter-area">
+            <div class="search-box">
+                <span class="search-icon">⌕</span>
+                <input type="text" id="gameSearch" placeholder="기보 파일명, 대국자로 검색..." autocomplete="off">
+            </div>
+
+            <select class="filter-select" id="periodFilter">
+                <option value="all">분석일 전체</option>
+                <option value="7">최근 7일</option>
+                <option value="30">최근 30일</option>
+                <option value="90">최근 3개월</option>
+            </select>
+
+            <select class="filter-select" id="kindFilter">
+                <option value="all">프로·나의기보 전체</option>
+                <option value="pro">프로기보</option>
+                <option value="my">나의기보</option>
+            </select>
+
+            <select class="filter-select sort" id="sortSelect">
+                <option value="recent">정렬: 최근 분석순</option>
+                <option value="name">정렬: 파일명순</option>
+                <option value="accDesc">정렬: 일치율 높은순</option>
+                <option value="accAsc">정렬: 일치율 낮은순</option>
+            </select>
+        </div>
+
+
+        <!-- 목록 -->
+        <div class="table-wrapper">
+            <table class="game-table">
+                <thead>
+                <tr>
+                    <th class="game-info-column">기보 정보</th>
+                    <th class="status-column">분석 상태</th>
+                    <th class="accuracy-column">AI 일치율</th>
+                    <th class="phase-column">구간별 일치율</th>
+                    <th class="date-column">분석 일시</th>
+                    <th class="action-column">액션</th>
+                </tr>
+                </thead>
+
+                <tbody id="gameTableBody">
+
+                <!-- 프로기보 → 나의기보 순으로 한 표에 담고, 필터·정렬·페이징은 아래 JS 가 처리 -->
+                <th:block th:each="grp : ${ {'pro','my'} }" th:with="list=${grp == 'pro' ? proFiles : files}">
+                    <tr class="game-row" th:each="f : ${list}"
+                        th:with="r=${resultByFile.containsKey(f) ? resultByFile.get(f) : null},
+                                 acc=${accuracyByFile.containsKey(f) ? accuracyByFile.get(f) : null}"
+                        th:data-file="${f}"
+                        th:data-kind="${grp}"
+                        th:data-status="${r != null ? 'done' : 'pending'}"
+                        th:data-acc="${acc != null ? acc : -1}"
+                        th:data-date="${r != null and r.analyzedAt != null ? r.analyzedAt : ''}"
+                        th:data-result-id="${r != null ? r.id : ''}"
+                        th:data-search="${f + ' ' + (r != null and r.blackPlayer != null ? r.blackPlayer : '')
+                                           + ' ' + (r != null and r.whitePlayer != null ? r.whitePlayer : '')}">
+
+                        <!-- 기보 정보 -->
+                        <td>
+                            <div class="game-info">
+                                <div class="game-thumbnail">
+                                    <span class="kind-tag" th:text="${grp == 'pro' ? '프로' : '나의'}">프로</span>
+                                </div>
+                                <div class="game-title-area">
+                                    <div class="game-title" th:text="${f}" th:title="${f}">기보 파일</div>
+                                    <div class="game-meta">
+                                        <span th:if="${r != null and r.blackPlayer != null and r.whitePlayer != null}"
+                                              th:text="${r.blackPlayer} + ' vs ' + ${r.whitePlayer} + ' · '">-</span>
+                                        <span th:if="${r != null}" th:text="'총 ' + ${r.totalMoves} + '수 · '">-</span>
+                                        <span th:text="${grp == 'pro' ? '프로기보' : '나의기보'}">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- 분석 상태 -->
+                        <td class="status-column">
+                            <span class="status-badge" th:classappend="${r != null ? 'done' : 'pending'}"
+                                  th:text="${r != null ? '분석 완료' : '미분석'}">-</span>
+                            <div class="status-sub" th:if="${r != null and r.analysisVisits != null}"
+                                 th:text="'visits ' + ${r.analysisVisits}">-</div>
+                            <div class="row-progress">
+                                <div class="row-bar-wrap"><div class="row-bar"></div></div>
+                                <div class="row-pct">0%</div>
+                            </div>
+                        </td>
+
+                        <!-- AI 일치율 -->
+                        <td class="accuracy-column">
+                            <div class="accuracy" th:if="${acc != null}">
+                                <div class="accuracy-ring"
+                                     th:style="${'background: conic-gradient(#5c50e8 0 ' + #numbers.formatDecimal(acc,1,1) + '%, #edf0f7 0 100%)'}">
+                                    <span class="accuracy-value" th:text="${#numbers.formatInteger(acc,1)} + '%'">-</span>
+                                </div>
+                                <div class="accuracy-info">
+                                    <div class="accuracy-main" th:text="${#numbers.formatDecimal(acc,1,1)} + '%'">-</div>
+                                    <div class="accuracy-sub">최선수 일치</div>
+                                </div>
+                            </div>
+                            <span th:if="${acc == null}" style="color:#a8b0c0;">—</span>
+                        </td>
+
+                        <!-- 구간별 일치율 -->
+                        <td class="phase-column">
+                            <div class="phase-bars" th:if="${r != null}">
+                                <div class="phase-row" th:each="ps : ${ {r.opening, r.middle, r.endgame} }"
+                                     th:if="${ps != null and ps.moveCount > 0}">
+                                    <span class="phase-name" th:text="${ps.phase}">구간</span>
+                                    <span class="phase-track">
+                                        <span class="phase-fill"
+                                              th:style="'width:' + ${ps.matchRate} + '%; background:'
+                                                  + (${ps.matchRate} >= 60 ? '#19a86c' : (${ps.matchRate} >= 40 ? '#f0a12a' : '#e35b5b'))"></span>
+                                    </span>
+                                    <span class="phase-pct" th:text="${#numbers.formatDecimal(ps.matchRate,1,0)} + '%'">-</span>
+                                </div>
+                            </div>
+                            <span th:if="${r == null}" style="color:#a8b0c0;">—</span>
+                        </td>
+
+                        <!-- 분석 일시 -->
+                        <td class="date-column">
+                            <div class="analysis-date"
+                                 th:if="${r != null and r.analyzedAt != null}"
+                                 th:text="${#strings.length(r.analyzedAt) >= 16
+                                            ? #strings.substring(r.analyzedAt,0,10) + ' ' + #strings.substring(r.analyzedAt,11,16)
+                                            : r.analyzedAt}">-</div>
+                            <div class="analysis-duration"
+                                 th:if="${r != null and r.analysisDurationMs != null}"
+                                 th:text="'분석 ' + ${r.analysisDurationMs / 60000} + '분 '
+                                          + ${(r.analysisDurationMs / 1000) % 60} + '초'">-</div>
+                            <span th:if="${r == null}" style="color:#a8b0c0;">—</span>
+                        </td>
+
+                        <!-- 액션 -->
+                        <td class="action-column">
+                            <div class="actions">
+                                <a th:if="${r != null}" class="action-button" th:href="@{'/game/result/' + ${r.id}}">
+                                    <span class="action-icon">▤</span>
+                                    <span>리포트·복기</span>
+                                </a>
+                                <a th:if="${r != null}" class="action-button download"
+                                   th:href="@{'/game/result/' + ${r.id} + '/sgf'}">
+                                    <span class="action-icon">↓</span>
+                                    <span>SGF 저장</span>
+                                </a>
+                                <form class="action-form" method="post" th:action="@{/game/analyze}">
+                                    <input type="hidden" name="fileName" th:value="${f}">
+                                    <button type="submit" class="action-button"
+                                            th:classappend="${r == null ? 'analyze' : ''}">
+                                        <span class="action-icon" th:text="${r == null ? '▶' : '⟳'}">▶</span>
+                                        <span th:text="${r == null ? '분석 시작' : '재분석'}">분석 시작</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                </th:block>
+
+                <!-- 서버 데이터 자체가 없을 때 -->
+                <tr class="empty-row" th:if="${#lists.isEmpty(proFiles) and #lists.isEmpty(files)}">
+                    <td colspan="6">
+                        저장된 기보가 없습니다.
+                        <span class="empty-sub"
+                              th:text="'기보 폴더에 SGF·GIB 파일을 넣으면 이 목록에 나타납니다.'">-</span>
+                    </td>
+                </tr>
+
+                <!-- 필터 결과가 0건일 때(JS 가 표시) -->
+                <tr class="empty-row" id="noMatchRow" style="display:none;">
+                    <td colspan="6">
+                        조건에 맞는 기보가 없습니다.
+                        <span class="empty-sub">검색어나 필터를 바꿔 보세요.</span>
+                    </td>
+                </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+
+        <!-- 페이지네이션 -->
+        <div class="pagination-area">
+            <div class="pagination" id="pagination"></div>
+            <div class="total-count" id="totalCount"></div>
+            <select class="page-size" id="pageSize">
+                <option value="10">10개씩 보기</option>
+                <option value="20" selected>20개씩 보기</option>
+                <option value="50">50개씩 보기</option>
+            </select>
+        </div>
+
+    </section>
+</main>
+
+
+<script th:inline="none">
 (function () {
-    const prog = document.getElementById('bulkProgress'), bar = document.getElementById('bulkBar'),
-          txt = document.getElementById('bulkText'), btn = document.getElementById('bulkBtn');
-    let wasRunning = false;
-    function poll() {
-        fetch('/game/reanalyze-all/status').then(r => r.json()).then(s => {
-            if (s.running) {
-                wasRunning = true; prog.style.display = '';
-                if (btn) { btn.disabled = true; btn.textContent = '재분석 중…'; }
-                const pct = s.total ? Math.round(s.done * 100 / s.total) : 0;
-                bar.style.width = pct + '%';
-                txt.textContent = `${s.done}/${s.total} 완료${s.current ? ' · 현재: ' + s.current : ''}`;
-                setTimeout(poll, 1500);
-            } else if (wasRunning) {                         // 방금 끝남 → 결과 목록 갱신
-                bar.style.width = '100%'; txt.textContent = s.message || '완료';
-                setTimeout(() => location.reload(), 1200);
-            } else if (s.message) {                          // 직전 완료 요약 표시
-                prog.style.display = ''; bar.style.width = '100%'; txt.textContent = s.message;
-            }
-        }).catch(() => {});
+
+    /* ══ 목록: 검색 · 필터 · 정렬 · 페이징 (클라이언트) ══ */
+    const tbody   = document.getElementById('gameTableBody');
+    const rows    = Array.from(tbody.querySelectorAll('tr.game-row'));
+    const noMatch = document.getElementById('noMatchRow');
+    const search  = document.getElementById('gameSearch');
+    const period  = document.getElementById('periodFilter');
+    const kind    = document.getElementById('kindFilter');
+    const sortSel = document.getElementById('sortSelect');
+    const pageBox = document.getElementById('pagination');
+    const totalEl = document.getElementById('totalCount');
+    const sizeSel = document.getElementById('pageSize');
+
+    let tabFilter = 'all';
+    let page = 1;
+
+    function matches(row) {
+        const kw = search.value.trim().toLowerCase();
+        if (kw && !(row.dataset.search || '').toLowerCase().includes(kw)) return false;
+
+        const k = kind.value;
+        if (k !== 'all' && row.dataset.kind !== k) return false;
+
+        if (tabFilter === 'pro' || tabFilter === 'my') {
+            if (row.dataset.kind !== tabFilter) return false;
+        } else if (tabFilter === 'done' || tabFilter === 'pending') {
+            if (row.dataset.status !== tabFilter) return false;
+        }
+
+        const days = period.value;
+        if (days !== 'all') {
+            const d = row.dataset.date;
+            if (!d) return false;
+            const t = Date.parse(d);
+            if (isNaN(t) || (Date.now() - t) > Number(days) * 86400000) return false;
+        }
+        return true;
     }
-    poll();
+
+    function sortRows(list) {
+        const mode = sortSel.value;
+        const byName = (a, b) => (a.dataset.file || '').localeCompare(b.dataset.file || '', 'ko');
+        if (mode === 'name') return list.sort(byName);
+        if (mode === 'accDesc') return list.sort((a, b) => Number(b.dataset.acc) - Number(a.dataset.acc) || byName(a, b));
+        if (mode === 'accAsc') {
+            /* 미분석(-1)은 뒤로 보낸다 */
+            return list.sort((a, b) => {
+                const x = Number(a.dataset.acc), y = Number(b.dataset.acc);
+                if (x < 0 && y >= 0) return 1;
+                if (y < 0 && x >= 0) return -1;
+                return x - y || byName(a, b);
+            });
+        }
+        return list.sort((a, b) => (b.dataset.date || '').localeCompare(a.dataset.date || '') || byName(a, b));
+    }
+
+    function render() {
+        const visible = sortRows(rows.filter(matches));
+        rows.forEach(r => { r.style.display = 'none'; });
+
+        const size = Number(sizeSel.value);
+        const pages = Math.max(1, Math.ceil(visible.length / size));
+        if (page > pages) page = pages;
+
+        visible.slice((page - 1) * size, page * size).forEach(r => {
+            r.style.display = '';
+            tbody.appendChild(r);          /* 정렬 순서를 DOM 에 반영 */
+        });
+
+        noMatch.style.display = visible.length ? 'none' : '';
+        totalEl.textContent = visible.length
+            ? '총 ' + visible.length + '개 중 ' + ((page - 1) * size + 1) + '–'
+              + Math.min(page * size, visible.length) + '개'
+            : '';
+
+        renderPagination(pages);
+    }
+
+    function pageBtn(label, target, opts) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'page-button' + (opts && opts.active ? ' active' : '');
+        b.textContent = label;
+        if (opts && opts.disabled) b.disabled = true;
+        else b.addEventListener('click', () => { page = target; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+        return b;
+    }
+
+    function renderPagination(pages) {
+        pageBox.textContent = '';
+        if (pages <= 1) return;
+
+        pageBox.append(
+            pageBtn('«', 1, { disabled: page === 1 }),
+            pageBtn('‹', page - 1, { disabled: page === 1 })
+        );
+
+        /* 현재 페이지 주변만 노출 + 양 끝 */
+        const nums = new Set([1, pages, page, page - 1, page + 1]);
+        const list = Array.from(nums).filter(n => n >= 1 && n <= pages).sort((a, b) => a - b);
+        let prev = 0;
+        list.forEach(n => {
+            if (prev && n - prev > 1) {
+                const dots = document.createElement('span');
+                dots.className = 'page-ellipsis';
+                dots.textContent = '...';
+                pageBox.appendChild(dots);
+            }
+            pageBox.appendChild(pageBtn(String(n), n, { active: n === page }));
+            prev = n;
+        });
+
+        pageBox.append(
+            pageBtn('›', page + 1, { disabled: page === pages }),
+            pageBtn('»', pages, { disabled: page === pages })
+        );
+    }
+
+    [search, period, kind, sortSel, sizeSel].forEach(el => {
+        el.addEventListener('input', () => { page = 1; render(); });
+        el.addEventListener('change', () => { page = 1; render(); });
+    });
+
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function () {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            tabFilter = this.dataset.filter;
+            page = 1;
+            render();
+        });
+    });
+
+    render();
+
+
+    /* ══ 개별 분석 진행률 폴링 (기존 /game/running-jobs 유지) ══ */
+    let prevRunning = new Set();
+
+    function pollRunningJobs() {
+        fetch('/game/running-jobs')
+            .then(r => r.json())
+            .then(jobs => {
+                const current = new Set(jobs.map(j => j.fileName));
+
+                /* 진행 중이던 게 끝나면 새로고침해서 결과를 반영 */
+                for (const fn of prevRunning) {
+                    if (!current.has(fn)) { location.reload(); return; }
+                }
+                prevRunning = current;
+
+                rows.forEach(row => {
+                    const running = current.has(row.dataset.file);
+                    const prog = row.querySelector('.row-progress');
+                    const badge = row.querySelector('.status-badge');
+                    prog.classList.toggle('active', running);
+                    if (running) {
+                        const job = jobs.find(j => j.fileName === row.dataset.file);
+                        prog.querySelector('.row-bar').style.width = job.progress + '%';
+                        prog.querySelector('.row-pct').textContent = job.progress + '%';
+                        badge.className = 'status-badge running';
+                        badge.textContent = '분석 중';
+                    } else if (badge.classList.contains('running')) {
+                        badge.className = 'status-badge ' + (row.dataset.status === 'done' ? 'done' : 'pending');
+                        badge.textContent = row.dataset.status === 'done' ? '분석 완료' : '미분석';
+                    }
+                });
+
+                setTimeout(pollRunningJobs, 2000);
+            })
+            .catch(() => setTimeout(pollRunningJobs, 5000));
+    }
+    pollRunningJobs();
+
+
+    /* ══ 전체 재분석 진행률 폴링 (기존 /game/reanalyze-all/status 유지) ══ */
+    (function () {
+        const prog = document.getElementById('bulkProgress');
+        const bar  = document.getElementById('bulkBar');
+        const txt  = document.getElementById('bulkText');
+        const btn  = document.getElementById('bulkBtn');
+        let wasRunning = false;
+
+        function poll() {
+            fetch('/game/reanalyze-all/status').then(r => r.json()).then(s => {
+                if (s.running) {
+                    wasRunning = true;
+                    prog.style.display = '';
+                    if (btn) { btn.disabled = true; btn.textContent = '재분석 중…'; }
+                    const pct = s.total ? Math.round(s.done * 100 / s.total) : 0;
+                    bar.style.width = pct + '%';
+                    txt.textContent = s.done + '/' + s.total + ' 완료'
+                        + (s.current ? ' · 현재: ' + s.current : '');
+                    setTimeout(poll, 1500);
+                } else if (wasRunning) {
+                    bar.style.width = '100%';
+                    txt.textContent = s.message || '완료';
+                    setTimeout(() => location.reload(), 1200);
+                } else if (s.message) {
+                    prog.style.display = '';
+                    bar.style.width = '100%';
+                    txt.textContent = s.message;
+                }
+            }).catch(() => {});
+        }
+        poll();
+    })();
+
 })();
 </script>
 
-<script>
-function switchTab(tab) {
-    document.getElementById('tabPro').classList.toggle('active', tab === 'pro');
-    document.getElementById('tabMy').classList.toggle('active', tab === 'my');
-    document.getElementById('listPro').style.display = tab === 'pro' ? '' : 'none';
-    document.getElementById('listMy').style.display  = tab === 'my'  ? '' : 'none';
-}
-
-function selectFile(el) {
-    // 이미 분석된 기보는 선택 대신 결과 화면으로 바로 이동
-    const resultId = el.dataset.resultId;
-    if (resultId) { location.href = '/game/result/' + resultId; return; }
-    const fileName = el.dataset.file;
-    document.querySelectorAll('.file-item.selected').forEach(e => e.classList.remove('selected'));
-    el.classList.add('selected');
-    document.getElementById('selectedFile').value = fileName;
-    document.getElementById('selectedLabel').innerHTML = '선택: <span>' + fileName + '</span>';
-    document.getElementById('submitBtn').disabled = false;
-}
-
-// 실행 중인 분석 진행률 폴링
-let prevRunningFiles = new Set();
-
-function pollRunningJobs() {
-    fetch('/game/running-jobs')
-        .then(r => r.json())
-        .then(jobs => {
-            const currentFiles = new Set(jobs.map(j => j.fileName));
-
-            // 이전에 분석 중이었지만 지금은 아닌 항목 → 페이지 새로고침(완료 배지 반영)
-            if (prevRunningFiles.size > 0) {
-                for (const fn of prevRunningFiles) {
-                    if (!currentFiles.has(fn)) {
-                        location.reload();
-                        return;
-                    }
-                }
-            }
-            prevRunningFiles = currentFiles;
-
-            // 모든 file-item 초기화
-            document.querySelectorAll('.file-item').forEach(el => {
-                el.querySelector('.inline-progress').classList.remove('active');
-                el.querySelector('.analyzing-badge').style.display = 'none';
-            });
-
-            // 진행 중인 항목 업데이트
-            jobs.forEach(job => {
-                const el = Array.from(document.querySelectorAll('.file-item'))
-                    .find(e => e.dataset.file === job.fileName);
-                if (!el) return;
-                const prog = el.querySelector('.inline-progress');
-                prog.classList.add('active');
-                prog.querySelector('.inline-bar-fill').style.width = job.progress + '%';
-                prog.querySelector('.inline-pct').textContent = job.progress + '%';
-                el.querySelector('.analyzing-badge').style.display = '';
-            });
-
-            setTimeout(pollRunningJobs, 2000);
-        })
-        .catch(() => setTimeout(pollRunningJobs, 5000));
-}
-
-pollRunningJobs();
-</script>
-</div>
-    </main>
 </body>
 </html>

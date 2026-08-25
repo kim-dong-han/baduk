@@ -14,9 +14,12 @@ import java.util.Map;
 public class AnalysisController {
 
     private final AnalysisService analysisService;
+    private final com.example.badukanalyzer.service.TsumegoService tsumegoService;
 
-    public AnalysisController(AnalysisService analysisService) {
+    public AnalysisController(AnalysisService analysisService,
+                              com.example.badukanalyzer.service.TsumegoService tsumegoService) {
         this.analysisService = analysisService;
+        this.tsumegoService = tsumegoService;
     }
 
     @GetMapping("/analysis/batch")
@@ -42,6 +45,8 @@ public class AnalysisController {
     @GetMapping("/gallery")
     public String gallery(Model model) {
         model.addAttribute("items", analysisService.getGalleryItems());
+        // 번들된 사활 문제도 같은 갤러리에서 카드로 보여준다(별도 API 없이 목록 그대로 사용)
+        model.addAttribute("tsumegos", tsumegoService.all());
         return "analysis/gallery";
     }
 

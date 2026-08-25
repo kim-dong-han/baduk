@@ -1,420 +1,383 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>복기 분석 결과</title>
-    <link rel="stylesheet" href="/css/common.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실력 리포트 · Baduk AI</title>
+    <link rel="stylesheet" href="/css/app-header.css">
+    <link rel="stylesheet" href="/css/result.css">
+    <!-- AI 착수 통계 차트용(로컬 번들). 승부 흐름 그래프는 라이브러리 없이 직접 그린다. -->
     <script src="/js/chart.min.js"></script>
-    <style>
-        .header { margin-bottom: 20px; }
-        .header h1 { font-size: 22px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
-        .header-sub { font-size: 15px; font-weight: 700; color: #4a5a6a; margin: 0 0 8px; }
-        .header-meta { font-size: 13px; color: #999; display: flex; gap: 16px; flex-wrap: wrap; }
-
-        /* ── 리뷰 그리드 레이아웃 ──
-           구간카드(전체폭) / 바둑판 | 핵심실수+AI통계 */
-        .review-grid {
-            display: grid;
-            gap: 16px;
-            grid-template-columns: 636px minmax(0, 1fr);
-            grid-template-areas:
-                "phases phases"
-                "board  side";
-            align-items: start;
-        }
-        .area-phases { grid-area: phases; }
-        .area-board  { grid-area: board; }
-        .area-side   { grid-area: side; display: flex; flex-direction: column; gap: 16px; }
-
-        /* AI 착수 통계(위, 6) : 핵심 실수(아래, 4) = 6:4.
-           side 컬럼 높이는 JS가 바둑판 높이에 맞춰 설정 → 바둑판 기준 6:4 분할 */
-        .side-ai       { flex: 6; display: flex; flex-direction: column; min-height: 0; }
-        .side-mistakes { flex: 4; display: flex; flex-direction: column; min-height: 0; }
-        .ai-chart-holder { flex: 1; min-height: 0; position: relative; }
-        .side-mistakes .mistakes { flex: 1; min-height: 0; max-height: none; }
-
-        /* 좁은 화면: 한 줄씩 세로 스택 + 바둑판 가운데 */
-        @media (max-width: 1100px) {
-            .review-grid {
-                grid-template-columns: 1fr;
-                grid-template-areas:
-                    "phases"
-                    "board"
-                    "side";
-            }
-            .area-board.card-box { display: flex; flex-direction: column; align-items: center; }
-            .area-board.card-box > * { width: 100%; max-width: 596px; }
-            .side-ai, .side-mistakes { flex: none; }
-            .ai-chart-holder { min-height: 220px; }
-            .side-mistakes .mistakes { max-height: 420px; }
-        }
-
-        /* ── 공통 카드 ── */
-        .card-box { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(30,50,80,0.06); border: 1px solid #edf0f3; }
-
-        /* ── 구간 카드 (3열 그리드, 좁으면 자동 줄바꿈) ── */
-        .phase-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        @media (max-width: 560px) { .phase-cards { grid-template-columns: 1fr; } }
-        .phase-card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-top: 5px solid #ccc; }
-        .phase-card.good { border-top-color: #2ecc71; }
-        .phase-card.warn { border-top-color: #f39c12; }
-        .phase-card.bad  { border-top-color: #e74c3c; }
-        .card-phase { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
-        .stat-row { display: flex; justify-content: space-between; font-size: 13px; color: #888; margin-bottom: 8px; }
-        .stat-row .val { font-weight: 700; color: #333; }
-        .gauge-track { background: #eee; border-radius: 99px; height: 8px; margin-bottom: 14px; }
-        .gauge-fill { height: 100%; border-radius: 99px; }
-        .fill-good { background: #2ecc71; }
-        .fill-warn { background: #f39c12; }
-        .fill-bad  { background: #e74c3c; }
-        .card-badges { display: flex; gap: 6px; flex-wrap: wrap; }
-        /* .badge, .gauge-label, table, @keyframes spin 베이스는 common.css 공통 규칙 사용 */
-        .badge-red { background: #fadbd8; color: #c0392b; }
-        .badge-org { background: #fdebd0; color: #b7770d; }
-        .badge-grn { background: #d5f5e3; color: #1e8449; }
-        .no-data { color: #bbb; font-size: 13px; text-align: center; padding: 16px 0; }
-
-        /* ── 섹션 공통 ── */
-        .section-title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
-        .section-desc  { font-size: 12px; color: #999; margin: 0 0 14px; }
-
-        /* ── ② 한 줄 총평 배너 ── */
-        .game-summary { background: linear-gradient(135deg,#2c3e50,#34495e); color:#ecf0f1; border-radius:14px; padding:16px 22px; margin-bottom:16px; box-shadow:0 3px 12px rgba(0,0,0,0.15); }
-        .gs-head { font-size:12px; font-weight:700; color:#a3c9e8; margin-bottom:7px; letter-spacing:0.3px; }
-        .gs-body { font-size:14.5px; line-height:1.7; }
-        .gs-body b { color:#ffd23f; }
-        .gs-body .gs-turn { color:#7fd1ff; cursor:pointer; text-decoration:underline dotted; font-weight:700; }
-
-        /* ── ① 승부 흐름 그래프 ── */
-        .flow-card { background:#fff; border-radius:12px; padding:16px 18px 12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:16px; }
-        .flow-legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:#888; margin-top:6px; }
-        .flow-legend span { display:inline-flex; align-items:center; gap:5px; }
-        .flow-dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
-        #flowCanvas { width:100%; display:block; cursor:pointer; }
-
-        /* ── ③ 잘 둔 수(호수) ── */
-        .good-moves { display:flex; flex-direction:column; gap:8px; }
-        .gm-item { display:flex; align-items:center; gap:12px; background:#f4faf6; border:1px solid #d7efe0; border-radius:10px; padding:10px 12px; cursor:pointer; transition:background .12s; }
-        .gm-item:hover { background:#e8f7ee; }
-        .gm-turn { font-weight:800; color:#1e8449; font-size:15px; min-width:48px; }
-        .gm-meta { flex:1; font-size:13px; color:#555; }
-        .gm-gain { font-weight:700; color:#27ae60; font-size:13px; white-space:nowrap; }
-
-        /* ── AI 착수 통계 (흑·백 일치율) ── */
-        .ai-matchrate { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
-        .amr-side { display: flex; align-items: center; gap: 8px; }
-        .amr-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-        .amr-dot.black { background: #333; }
-        .amr-dot.white { background: #fff; border: 1px solid #bbb; }
-        .amr-label { font-size: 13px; color: #555; width: 18px; }
-        .amr-bar { flex: 1; background: #eee; border-radius: 99px; height: 14px; overflow: hidden; }
-        .amr-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
-        .amr-fill.black { background: #3a3a3a; }
-        .amr-fill.white { background: #9aa0a6; }
-        .amr-pct { font-size: 13px; font-weight: 700; width: 54px; text-align: right; }
-
-        /* ── 바둑판 ── */
-        #boardCanvas { display: block; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.18); max-width: 100%; height: auto; scroll-margin-top: 72px; }
-
-        /* ── 대국자 (바둑판 위 흑/백 구분) ── */
-        .board-players { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-        .bp-side { display: flex; align-items: center; gap: 7px; min-width: 0; }
-        .bp-side.right { flex-direction: row-reverse; }
-        .bp-stone { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
-        .bp-stone.black { background: radial-gradient(circle at 35% 32%, #666, #000); }
-        .bp-stone.white { background: radial-gradient(circle at 35% 32%, #fff, #cfcfcf); border: 1px solid #bbb; }
-        .bp-name { font-size: 15px; font-weight: 700; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .bp-tag { font-size: 11px; color: #fff; border-radius: 4px; padding: 1px 7px; flex-shrink: 0; font-weight: 700; }
-        .bp-tag.black { background: #3a3a3a; }
-        .bp-tag.white { background: #9aa0a6; }
-
-        /* ── 실시간 승률 바 ── */
-        .winrate-bar { position: relative; height: 26px; border-radius: 6px; overflow: hidden; display: flex; margin-bottom: 6px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06); }
-        .wb-black { height: 100%; background: linear-gradient(90deg,#2b2b2b,#454545); transition: width 0.45s ease; }
-        .wb-white { height: 100%; flex: 1; background: linear-gradient(90deg,#d4d4d4,#efefef); }
-        .wb-label { position: absolute; top: 0; line-height: 26px; font-size: 12px; font-weight: 700; }
-        .wb-label.black { left: 9px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
-        .wb-label.white { right: 9px; color: #555; text-shadow: 0 1px 2px rgba(255,255,255,0.7); }
-
-        /* ── 현재 형세(집 차이) ── */
-        .score-diff { text-align: center; font-size: 13px; font-weight: 700; margin-bottom: 12px; color: #888; }
-        .score-diff .lead-b { color: #222; }
-        .score-diff .lead-w { color: #888; }
-
-        .move-info-panel { margin-top: 12px; background: #f8f9fa; border-radius: 8px; padding: 12px 14px; }
-        .info-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px solid #eee; }
-        .info-row:last-child { border-bottom: none; }
-        .info-label { color: #aaa; }
-        .info-placeholder { color: #bbb; font-size: 13px; text-align: center; padding: 10px 0; }
-
-        .nav-controls { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
-        .nav-row2     { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
-        .nav-btn { background: #f0f2f5; border: 1px solid #ddd; border-radius: 6px; padding: 6px 14px; font-size: 17px; cursor: pointer; color: #555; line-height: 1; transition: background 0.15s; }
-        .nav-btn:hover:not(:disabled) { background: #4a90d9; color: #fff; border-color: #4a90d9; }
-        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .nav-btn.active { background: #4a90d9; color: #fff; border-color: #4a90d9; }
-        .nav-btn.sm { font-size: 13px; padding: 6px 14px; }
-        .move-counter { font-size: 13px; color: #666; min-width: 80px; text-align: center; font-weight: 600; }
-        .move-input { width: 58px; padding: 6px 8px; font-size: 13px; border: 1px solid #ddd; border-radius: 6px; text-align: center; outline: none; }
-        .move-input:focus { border-color: #4a90d9; }
-
-        /* ── 핵심 실수 ── */
-        .mistakes { display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
-        .mistakes::-webkit-scrollbar { width: 5px; }
-        .mistakes::-webkit-scrollbar-thumb { background: #ddd; border-radius: 99px; }
-        .mistakes-count { font-size: 12px; font-weight: 600; color: #e74c3c; background: #fdecea; border-radius: 99px; padding: 1px 9px; margin-left: 4px; }
-        .mistakes-empty { color: #bbb; font-size: 13px; text-align: center; padding: 18px 0; }
-        .mistake-card { background: #fff7f7; border: 1px solid #fad7d7; border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: box-shadow 0.15s; display: flex; align-items: center; gap: 14px; }
-        .mistake-card:hover { box-shadow: 0 3px 12px rgba(231,76,60,0.18); }
-        .mistake-rank { font-size: 11px; color: #e74c3c; font-weight: 700; flex-shrink: 0; width: 32px; }
-        .mistake-move { font-size: 20px; font-weight: 800; color: #333; flex-shrink: 0; }
-        .mistake-spacer { flex: 1; }
-        .mistake-loss { font-size: 16px; font-weight: 700; color: #e74c3c; flex-shrink: 0; }
-
-        /* ── 실시간 AI 승률 바 ── */
-        .wr-bar-section { margin-top: 10px; background: #1a1a2e; border-radius: 8px; padding: 10px 14px; }
-        .wr-bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; font-size: 12px; }
-        .wr-black-val { color: #eee; font-weight: 700; font-size: 13px; }
-        .wr-center-label { color: #7a8aaa; letter-spacing: 1px; font-size: 11px; }
-        .wr-white-val { color: #bbb; font-weight: 700; font-size: 13px; }
-        .wr-bar { height: 20px; border-radius: 4px; overflow: hidden; display: flex; }
-        .wr-bar-black { background: linear-gradient(90deg, #111, #333); transition: width 0.4s ease; }
-        .wr-bar-white { flex: 1; background: linear-gradient(90deg, #ccc, #eee); }
-        .wr-score-line { text-align: center; margin-top: 6px; font-size: 13px; font-weight: 700; color: #e0e0e0; letter-spacing: 0.5px; }
-
-        .grade-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
-        .deep-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #ede9fe; color: #6d28d9; margin-left: 4px; }
-        /* 등급 배지: 초록(좋음)에서 빨강(나쁨)으로 직관적 그라데이션 */
-        .g-최선 { background: #d3f0dd; color: #1e8449; }
-        .g-좋음 { background: #eaf7e1; color: #5a9216; }
-        .g-보통 { background: #fdf3d7; color: #b7770d; }
-        .g-실수 { background: #fde3cf; color: #d35400; }
-        .g-악수 { background: #fadbd8; color: #c0392b; }
-        /* 패착 카드 */
-        .side-losing { border-left: 5px solid #e74c3c; }
-        .losing-move-line { display:flex; align-items:center; gap:10px; margin:6px 0 10px; }
-        .losing-turn { font-size:22px; font-weight:800; color:#c0392b; line-height:1; }
-        .losing-stone { display:inline-block; width:14px; height:14px; border-radius:50%; vertical-align:middle; }
-        .losing-stone.B { background:#222; }
-        .losing-stone.W { background:#fff; border:1px solid #bbb; }
-        .losing-swing { font-size:13px; color:#555; }
-        .losing-swing b { color:#c0392b; }
-        .losing-desc { font-size:13px; color:#555; line-height:1.6; }
-        .losing-desc .arrow { color:#aaa; }
-        .losing-btn { margin-top:10px; width:100%; padding:8px; border:none; border-radius:8px; background:#e74c3c; color:#fff; font-weight:700; font-size:13px; cursor:pointer; }
-        .losing-btn:hover { background:#c0392b; }
-        .badge-losing { background:#c0392b; color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; margin-left:4px; }
-        .badge-desperate { background:#f39c12; color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; margin-left:4px; }
-        /* 나란히 비교 모달 */
-        .cmp-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: rgba(20,20,35,0.72); align-items: center; justify-content: center; padding: 20px; }
-        .cmp-box { background: #fff; border-radius: 14px; max-width: 1120px; width: 100%; max-height: 94vh; overflow-y: auto; padding: 22px 24px 26px; box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
-        .cmp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-        .cmp-head h3 { margin: 0; font-size: 18px; color: #222; }
-        .cmp-close { border: none; background: #f0f0f0; width: 32px; height: 32px; border-radius: 8px; font-size: 18px; cursor: pointer; color: #555; }
-        .cmp-close:hover { background: #e2e2e2; }
-        .cmp-diff { text-align: center; font-size: 14px; color: #555; margin: 6px 0 14px; }
-        .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-        .cmp-panel { display: flex; flex-direction: column; align-items: center; }
-        .cmp-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; padding: 5px 12px; border-radius: 20px; }
-        .cmp-title.mine { background: #fdecea; color: #c0392b; }
-        .cmp-title.best { background: #eaf2fb; color: #2471a3; }
-        .cmp-panel canvas { width: 100%; max-width: 460px; height: auto; border-radius: 8px; }
-        .cmp-stat { margin-top: 10px; font-size: 14px; color: #333; }
-        .cmp-pv { margin-top: 6px; font-size: 12px; color: #888; text-align: center; max-width: 460px; }
-        @media (max-width: 760px) { .cmp-grid { grid-template-columns: 1fr; } }
-
-        /* ── 예상 기력 배너 ── */
-        .rank-estimate {
-            margin: 0 0 16px; padding: 12px 16px; border-radius: 12px;
-            background: linear-gradient(135deg, #f5f3ff, #eef2ff);
-            border: 1px solid #ddd6fe;
-        }
-        .rank-estimate .re-head { font-size: 12px; color: #7c3aed; font-weight: 800; margin-bottom: 8px; }
-        .rank-estimate .re-row  { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 14px; padding: 3px 0; }
-        .rank-estimate .re-band { font-weight: 800; }
-        .rank-estimate .re-sub  { font-size: 12px; color: #888; }
-        .rank-estimate .re-note { margin-top: 6px; font-size: 11px; color: #a78bda; }
-    </style>
 </head>
 <body>
 
-    <aside th:replace="~{fragments/shell :: side('game')}"></aside>
-    <main class="main">
-        <header th:replace="~{fragments/shell :: topbar}"></header>
-<div class="page">
-<div class="header">
-    <h1>📊 실력 리포트</h1>
-    <div class="header-sub"
-         th:if="${(result.blackPlayer != null and !result.blackPlayer.isEmpty()) or (result.whitePlayer != null and !result.whitePlayer.isEmpty())}">
-        <span th:text="${result.blackPlayer != null and !result.blackPlayer.isEmpty() ? result.blackPlayer : '흑'}">흑</span>
-        <span style="color:#aab2bd;font-weight:600;"> vs </span>
-        <span th:text="${result.whitePlayer != null and !result.whitePlayer.isEmpty() ? result.whitePlayer : '백'}">백</span>
+<header th:replace="~{fragments/appheader :: header('game')}"></header>
+
+<main class="page">
+
+    <div class="breadcrumb">
+        <a href="/game">기보 복기</a>
+        <span>›</span>
+        <span class="breadcrumb-current">실력 리포트</span>
     </div>
-    <div class="header-meta">
-        <span>📄 <span th:text="${result.fileName}"></span></span>
-        <span>🕐 <span th:text="${result.analyzedAt != null ? result.analyzedAt.substring(0,10) : ''}"></span></span>
-        <span>총 <span th:text="${result.totalMoves}"></span>수</span>
-        <span th:if="${result.engineNet != null}" title="KataGo 네트워크">🧠 <span th:text="${result.engineNet}"></span></span>
-        <span th:if="${result.analysisVisits != null and result.analysisVisits > 0}" title="수당 탐색 횟수(클수록 정밀)">🔎 <span th:text="${result.analysisVisits}"></span> visits/수</span>
-        <span th:if="${result.deepVisits != null and result.deepMoveCount != null and result.deepMoveCount > 0}"
-              title="실수·악수로 잡힌 국면만 고visits로 2차 정밀 재분석">🎯 실수·악수 <span th:text="${result.deepMoveCount}"></span>수 <span th:text="${result.deepVisits}"></span> visits 정밀</span>
-        <span th:if="${result.analysisDurationMs != null and result.analysisDurationMs > 0}" title="이 기보 분석에 걸린 시간">⏱ <span th:text="${#numbers.formatDecimal(result.analysisDurationMs / 1000.0, 1, 1)}"></span>초</span>
-    </div>
-</div>
 
-<!-- ② 한 줄 총평 -->
-<div id="gameSummary" class="game-summary" style="display:none;">
-    <div class="gs-head">📋 한 줄 총평</div>
-    <div class="gs-body" id="gameSummaryBody"></div>
-</div>
+    <!-- ══════════ 제목 + 액션 ══════════ -->
+    <section class="result-header">
+        <div>
+            <h1 class="result-title">실력 리포트</h1>
+            <p class="result-subtitle">
+                KataGo가 한 수씩 분석한 이번 대국의 흐름과 주요 장면을 확인해 보세요.
+            </p>
+        </div>
 
-<div id="rankEstimate" class="rank-estimate" style="display:none;"></div>
+        <div class="header-actions">
+            <button type="button" class="header-button" onclick="location.href='/game'">← 기보 목록</button>
+            <a class="header-button primary" th:href="@{/game/result/{id}/sgf(id=${result.id})}"
+               title="등급·집손해·최선수 코멘트가 달린 SGF 파일로 내려받기">📄 주석 SGF 다운로드</a>
+        </div>
+    </section>
 
-<!-- ① 승부 흐름 그래프 -->
-<div class="flow-card">
-    <p class="section-title">📈 승부 흐름 <span style="font-size:12px;color:#999;font-weight:400;">— 흑 승률 추이 · 그래프를 클릭하면 그 수로 이동</span></p>
-    <canvas id="flowCanvas"></canvas>
-    <div class="flow-legend">
-        <span><span class="flow-dot" style="background:#2c3e50;"></span>흑 우세(위)/백 우세(아래)</span>
-        <span><span class="flow-dot" style="background:#e67e22;"></span>실수</span>
-        <span><span class="flow-dot" style="background:#c0392b;"></span>악수</span>
-        <span><span class="flow-dot" style="background:#f1c40f;"></span>패착</span>
-        <span><span class="flow-dot" style="background:#3498db;"></span>현재 수</span>
-    </div>
-</div>
 
-<div class="review-grid">
+    <!-- ══════════ 기보 메타 ══════════ -->
+    <section class="game-meta">
+        <div class="meta-item">
+            <span class="meta-label">기보 파일</span>
+            <span class="meta-value file-name" th:text="${result.fileName}" th:title="${result.fileName}">-</span>
+        </div>
 
-    <!-- ══ 구간별 카드 (전체 폭) ══ -->
-    <div class="phase-cards area-phases">
-        <div th:with="p=${result.opening}"
-             th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'phase-card good' : (p.avgScoreLoss < 3.0 ? 'phase-card warn' : 'phase-card bad')) : 'phase-card'}">
-            <div class="card-phase">초반 <small style="font-size:11px;color:#aaa;font-weight:400;">1~50수</small></div>
-            <div th:if="${p != null and p.moveCount > 0}">
-                <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
-                <div class="gauge-track"><div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}" th:style="'width:' + ${p.matchRate} + '%'"></div></div>
-                <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
-                <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
-                <div class="card-badges" style="margin-top:10px;">
-                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'악수 ' + ${p.blunderCount} + '개'"></span>
-                    <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
-                    <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
+        <div class="meta-item">
+            <span class="meta-label">대국자</span>
+            <span class="meta-value file-name"
+                  th:text="${(result.blackPlayer != null and !result.blackPlayer.isEmpty() ? result.blackPlayer : '흑')
+                            + ' vs ' + (result.whitePlayer != null and !result.whitePlayer.isEmpty() ? result.whitePlayer : '백')}">-</span>
+        </div>
+
+        <div class="meta-item">
+            <span class="meta-label">총 수</span>
+            <span class="meta-value" th:text="${result.totalMoves} + '수'">-</span>
+        </div>
+
+        <div class="meta-item">
+            <span class="meta-label">분석 엔진</span>
+            <span class="meta-value" th:text="${result.engineNet != null ? result.engineNet : 'KataGo'}"
+                  th:title="${result.engineNet}">KataGo</span>
+        </div>
+
+        <div class="meta-item">
+            <span class="meta-label">정밀도</span>
+            <span class="meta-value"
+                  th:if="${result.analysisVisits != null and result.analysisVisits > 0}"
+                  th:text="${result.analysisVisits} + ' visits'">-</span>
+            <span class="meta-value dim" th:unless="${result.analysisVisits != null and result.analysisVisits > 0}">기록 없음</span>
+            <span class="card-description"
+                  th:if="${result.deepVisits != null and result.deepMoveCount != null and result.deepMoveCount > 0}"
+                  th:text="'정밀재분석 ' + ${result.deepMoveCount} + '수 · ' + ${result.deepVisits} + ' visits'">-</span>
+        </div>
+
+        <div class="meta-item">
+            <span class="meta-label">분석 일시 · 소요</span>
+            <span class="meta-value"
+                  th:text="${result.analyzedAt != null ? result.analyzedAt.substring(0,10) : '-'}">-</span>
+            <span class="card-description"
+                  th:if="${result.analysisDurationMs != null and result.analysisDurationMs > 0}"
+                  th:text="${result.analysisDurationMs / 60000} + '분 ' + ${(result.analysisDurationMs / 1000) % 60} + '초 소요'">-</span>
+        </div>
+    </section>
+
+
+    <!-- ══════════ 한 줄 총평 (JS가 채우고 표시) ══════════ -->
+    <section class="summary-banner" id="gameSummary" style="display:none;">
+        <div class="summary-result">
+            <span class="summary-result-label">최종 형세</span>
+            <span class="summary-result-value" id="summaryFinal">-</span>
+        </div>
+
+        <div class="summary-text gs-body" id="gameSummaryBody"></div>
+
+        <div class="summary-key">
+            <span class="summary-key-label">가장 큰 승부처</span>
+            <span class="summary-key-move none" id="summaryKeyMove">-</span>
+        </div>
+    </section>
+
+
+    <!-- ══════════ 본문 2열 ══════════ -->
+    <div class="main-grid">
+
+        <!-- ────────── 왼쪽: 바둑판 + 승부 흐름 ────────── -->
+        <div class="area-board">
+
+            <section class="card board-card">
+
+                <div class="card-header">
+                    <div class="board-header-left">
+                        <span class="card-title">복기 바둑판</span>
+                        <span class="move-counter" id="moveCounter">-</span>
+                    </div>
+                    <span class="card-description">판을 클릭하면 AI 추천수 정보를 볼 수 있습니다</span>
                 </div>
-            </div>
-            <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
+
+                <!-- 대국자 -->
+                <div class="board-players">
+                    <div class="bp-side">
+                        <span class="bp-stone black"></span>
+                        <span class="bp-name" th:text="${result.blackPlayer != null and !result.blackPlayer.isEmpty() ? result.blackPlayer : '흑'}">흑</span>
+                        <span class="bp-tag black">흑</span>
+                    </div>
+                    <div class="bp-side right">
+                        <span class="bp-tag white">백</span>
+                        <span class="bp-name" th:text="${result.whitePlayer != null and !result.whitePlayer.isEmpty() ? result.whitePlayer : '백'}">백</span>
+                        <span class="bp-stone white"></span>
+                    </div>
+                </div>
+
+                <!-- 현재 국면 승률 바 -->
+                <div class="winrate-bar">
+                    <div class="wb-black" id="wbBlack" style="width:50%"></div>
+                    <div class="wb-white" id="wbWhite"></div>
+                    <span class="wb-label black" id="wbBlackPct">-</span>
+                    <span class="wb-label white" id="wbWhitePct">-</span>
+                </div>
+
+                <div class="score-diff" id="scoreDiff">수를 이동하면 현재 형세가 표시됩니다</div>
+
+                <!-- 판 -->
+                <div class="board-area">
+                    <canvas id="boardCanvas"></canvas>
+                    <div id="candTooltip" style="display:none;position:fixed;z-index:200;background:rgba(26,26,46,0.95);color:#fff;font-size:12px;line-height:1.55;padding:8px 11px;border-radius:8px;pointer-events:none;box-shadow:0 3px 12px rgba(0,0,0,0.3);white-space:nowrap;"></div>
+                </div>
+
+                <!-- AI 승률 -->
+                <div id="winrateBar" class="wr-bar-section" style="display:none;">
+                    <div class="wr-bar-header">
+                        <span class="wr-black-val" id="wrBlackVal">흑 -</span>
+                        <span class="wr-center-label">AI 승률</span>
+                        <span class="wr-white-val" id="wrWhiteVal">백 -</span>
+                    </div>
+                    <div class="wr-bar">
+                        <div class="wr-bar-black" id="wrBarBlack" style="width:50%"></div>
+                        <div class="wr-bar-white"></div>
+                    </div>
+                    <div class="wr-score-line"><span id="wrScoreText">-</span></div>
+                </div>
+
+                <!-- 컨트롤 -->
+                <div class="board-controls">
+                    <div class="nav-controls">
+                        <button class="nav-btn" id="btnFirst" onclick="showMove(0)"                title="처음으로">«</button>
+                        <button class="nav-btn" id="btnPrev5" onclick="skipMove(-5)"               title="5수 뒤로 (Shift+←)">‹‹</button>
+                        <button class="nav-btn" id="btnPrev"  onclick="prevMove()"                 title="이전 수 (←)">‹</button>
+                        <button class="nav-btn" id="btnNext"  onclick="nextMove()"                 title="다음 수 (→)">›</button>
+                        <button class="nav-btn" id="btnNext5" onclick="skipMove(5)"                title="5수 앞으로 (Shift+→)">››</button>
+                        <button class="nav-btn" id="btnLast"  onclick="showMove(moves.length - 1)" title="끝으로">»</button>
+                    </div>
+
+                    <div class="nav-row2">
+                        <input class="move-input" id="moveInput" type="number" min="1" placeholder="수번">
+                        <button class="nav-btn sm" onclick="jumpToInput()">이동</button>
+                        <button class="nav-btn sm" id="btnSeq"  onclick="toggleSequence()">수순</button>
+                        <button class="nav-btn sm" id="btnVar"  onclick="toggleVariation()" title="최선수를 뒀을 때의 예상 진행">변화도</button>
+                        <button class="nav-btn sm" id="btnCmp"  onclick="openCompare()" title="내가 둔 수와 AI 최선수의 이후 진행을 나란히 비교">나란히 비교</button>
+                        <button class="nav-btn sm" id="btnTerr" onclick="toggleOwnership()" title="AI가 예측한 집(영역)">집예측</button>
+                        <button class="nav-btn sm" id="btnTry"  onclick="toggleTryMode()" title="바둑판에 직접 돌을 놓아보며 이후 수를 시험해봅니다. ‹ 로 한 수씩 되돌리고, 다시 누르면 종료">놓아보기</button>
+                    </div>
+
+                    <div id="moveInfo" class="move-info-panel">
+                        <div class="info-placeholder">수를 클릭하거나 화살표 버튼으로 이동하세요</div>
+                    </div>
+
+                    <button class="replay-button" id="btnReplay" onclick="replayFromHere()"
+                            title="이 국면에서 KataGo와 직접 이어 둡니다">▶ 이 수부터 AI와 다시 두기</button>
+                </div>
+            </section>
+
+
+            <!-- 승부 흐름 -->
+            <section class="card chart-card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">승부 흐름</div>
+                        <div class="card-description">흑 기준 승률 추이 · 그래프를 클릭하면 그 수로 이동</div>
+                    </div>
+                    <div class="chart-legend">
+                        <span class="legend-item"><span class="legend-dot mistake"></span>실수</span>
+                        <span class="legend-item"><span class="legend-dot blunder"></span>악수</span>
+                        <span class="legend-item"><span class="legend-dot losing"></span>패착</span>
+                        <span class="legend-item"><span class="legend-dot cur"></span>현재 수</span>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="flowCanvas"></canvas>
+                </div>
+            </section>
         </div>
 
-        <div th:with="p=${result.middle}"
-             th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'phase-card good' : (p.avgScoreLoss < 3.0 ? 'phase-card warn' : 'phase-card bad')) : 'phase-card'}">
-            <div class="card-phase">중반 <small style="font-size:11px;color:#aaa;font-weight:400;">51~150수</small></div>
-            <div th:if="${p != null and p.moveCount > 0}">
-                <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
-                <div class="gauge-track"><div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}" th:style="'width:' + ${p.matchRate} + '%'"></div></div>
-                <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
-                <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
-                <div class="card-badges" style="margin-top:10px;">
-                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'악수 ' + ${p.blunderCount} + '개'"></span>
-                    <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
-                    <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
-                </div>
-            </div>
-            <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
-        </div>
 
-        <div th:with="p=${result.endgame}"
-             th:class="${p != null and p.moveCount > 0 ? (p.avgScoreLoss < 1.5 ? 'phase-card good' : (p.avgScoreLoss < 3.0 ? 'phase-card warn' : 'phase-card bad')) : 'phase-card'}">
-            <div class="card-phase">종반 <small style="font-size:11px;color:#aaa;font-weight:400;">151수~</small></div>
-            <div th:if="${p != null and p.moveCount > 0}">
-                <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
-                <div class="gauge-track"><div th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}" th:style="'width:' + ${p.matchRate} + '%'"></div></div>
-                <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
-                <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
-                <div class="card-badges" style="margin-top:10px;">
-                    <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'악수 ' + ${p.blunderCount} + '개'"></span>
-                    <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
-                    <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
+        <!-- ────────── 오른쪽: 분석 카드 ────────── -->
+        <div class="area-side">
+
+            <!-- 예상 기력 -->
+            <section class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">예상 기력</div>
+                        <div class="card-description">착수 정밀도를 기반으로 추정</div>
+                    </div>
                 </div>
-            </div>
-            <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
+                <div class="rank-estimate" id="rankEstimate" style="display:none;"></div>
+            </section>
+
+            <!-- 구간별 성적 -->
+            <section class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">구간별 성적</div>
+                        <div class="card-description">초반 1~50수 · 중반 51~150수 · 종반 151수~</div>
+                    </div>
+                </div>
+
+                <div class="phase-cards">
+                    <div th:with="p=${result.opening}" class="phase-card">
+                        <div class="card-phase">초반 <span class="card-description" style="display:inline;">1~50수</span></div>
+                        <div th:if="${p != null and p.moveCount > 0}">
+                            <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
+                            <div class="gauge-track">
+                                <span th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}"
+                                      th:style="'width:' + ${p.matchRate} + '%'"></span>
+                            </div>
+                            <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
+                            <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
+                            <div class="card-badges" style="margin-top:9px;">
+                                <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'악수 ' + ${p.blunderCount} + '개'"></span>
+                                <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
+                                <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
+                            </div>
+                        </div>
+                        <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
+                    </div>
+
+                    <div th:with="p=${result.middle}" class="phase-card">
+                        <div class="card-phase">중반 <span class="card-description" style="display:inline;">51~150수</span></div>
+                        <div th:if="${p != null and p.moveCount > 0}">
+                            <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
+                            <div class="gauge-track">
+                                <span th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}"
+                                      th:style="'width:' + ${p.matchRate} + '%'"></span>
+                            </div>
+                            <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
+                            <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
+                            <div class="card-badges" style="margin-top:9px;">
+                                <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'악수 ' + ${p.blunderCount} + '개'"></span>
+                                <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
+                                <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
+                            </div>
+                        </div>
+                        <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
+                    </div>
+
+                    <div th:with="p=${result.endgame}" class="phase-card">
+                        <div class="card-phase">종반 <span class="card-description" style="display:inline;">151수~</span></div>
+                        <div th:if="${p != null and p.moveCount > 0}">
+                            <div class="gauge-label"><span>최선수 일치율</span><span th:text="${p.matchRate} + '%'"></span></div>
+                            <div class="gauge-track">
+                                <span th:class="${p.avgScoreLoss < 1.5 ? 'gauge-fill fill-good' : (p.avgScoreLoss < 3 ? 'gauge-fill fill-warn' : 'gauge-fill fill-bad')}"
+                                      th:style="'width:' + ${p.matchRate} + '%'"></span>
+                            </div>
+                            <div class="stat-row"><span>평균 집 손해</span><span class="val" th:text="${p.avgScoreLoss} + '집'"></span></div>
+                            <div class="stat-row"><span>총 수</span><span class="val" th:text="${p.moveCount} + '수'"></span></div>
+                            <div class="card-badges" style="margin-top:9px;">
+                                <span th:if="${p.blunderCount > 0}" class="badge badge-red" th:text="'악수 ' + ${p.blunderCount} + '개'"></span>
+                                <span th:if="${p.mistakeCount > 0}" class="badge badge-org" th:text="'실수 ' + ${p.mistakeCount} + '개'"></span>
+                                <span th:if="${p.blunderCount == 0 and p.mistakeCount == 0}" class="badge badge-grn">실수 없음</span>
+                            </div>
+                        </div>
+                        <div th:if="${p == null or p.moveCount == 0}" class="no-data">해당 없음</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI 착수 통계 -->
+            <section class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">AI 착수 통계</div>
+                        <div class="card-description">최선수 일치율 및 수 품질 분포</div>
+                    </div>
+                </div>
+
+                <div class="ai-stats">
+                    <div class="ai-matchrate">
+                        <div class="amr-side">
+                            <span class="amr-dot black"></span><span class="amr-label">흑</span>
+                            <div class="amr-bar"><span class="amr-fill black" id="amrBlackFill"></span></div>
+                            <span class="amr-pct" id="amrBlackPct">-</span>
+                        </div>
+                        <div class="amr-side">
+                            <span class="amr-dot white"></span><span class="amr-label">백</span>
+                            <div class="amr-bar"><span class="amr-fill white" id="amrWhiteFill"></span></div>
+                            <span class="amr-pct" id="amrWhitePct">-</span>
+                        </div>
+                    </div>
+                    <div class="ai-chart-holder"><canvas id="aiStatChart"></canvas></div>
+                </div>
+            </section>
+
+            <!-- 패착 -->
+            <section class="card turning-card" id="losingCard" style="display:none;">
+                <div class="card-header turning-header">
+                    <div style="display:flex;align-items:center;gap:9px;">
+                        <span class="turning-icon">!</span>
+                        <div>
+                            <div class="card-title">패착 · 승부의 분기점</div>
+                            <div class="card-description">가장 큰 승률 변화가 발생한 수</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="turning-content" id="losingCallout"></div>
+            </section>
+
+            <!-- 핵심 실수 -->
+            <section class="card" id="mistakesCard">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">핵심 실수</div>
+                        <div class="card-description">클릭하면 그 수로 이동합니다</div>
+                    </div>
+                    <span class="mistakes-count" id="mistakesCount"></span>
+                </div>
+                <div class="mistakes" id="mistakesList"></div>
+            </section>
+
+            <!-- 이 판의 호수 -->
+            <section class="card good-card" id="goodMovesCard" style="display:none;">
+                <div class="card-header good-header">
+                    <div>
+                        <div class="card-title">이 판의 호수</div>
+                        <div class="card-description">AI 평가가 좋아진 수 · 클릭하면 이동</div>
+                    </div>
+                </div>
+                <div class="good-moves" id="goodMovesList"></div>
+            </section>
+
         </div>
     </div>
 
-    <!-- ══ 바둑판 (왼쪽) ══ -->
-    <div class="card-box area-board">
-        <!-- 흑/백 대국자 -->
-        <div class="board-players">
-            <div class="bp-side">
-                <span class="bp-stone black"></span>
-                <span class="bp-name" th:text="${result.blackPlayer != null and !result.blackPlayer.isEmpty() ? result.blackPlayer : '흑'}">흑</span>
-                <span class="bp-tag black">흑</span>
-            </div>
-            <div class="bp-side right">
-                <span class="bp-stone white"></span>
-                <span class="bp-name" th:text="${result.whitePlayer != null and !result.whitePlayer.isEmpty() ? result.whitePlayer : '백'}">백</span>
-                <span class="bp-tag white">백</span>
-            </div>
-        </div>
-        <!-- 실시간 승률 바 -->
-        <div class="winrate-bar">
-            <div class="wb-black" id="wbBlack" style="width:50%"></div>
-            <div class="wb-white" id="wbWhite"></div>
-            <span class="wb-label black" id="wbBlackPct">-</span>
-            <span class="wb-label white" id="wbWhitePct">-</span>
-        </div>
-        <div class="score-diff" id="scoreDiff">수를 이동하면 현재 형세가 표시됩니다</div>
 
-        <canvas id="boardCanvas"></canvas>
-        <div id="candTooltip" style="display:none;position:fixed;z-index:200;background:rgba(26,26,46,0.95);color:#fff;font-size:12px;line-height:1.55;padding:8px 11px;border-radius:8px;pointer-events:none;box-shadow:0 3px 12px rgba(0,0,0,0.3);white-space:nowrap;"></div>
-        <!-- 실시간 AI 승률 바 -->
-        <div id="winrateBar" class="wr-bar-section" style="display:none;">
-            <div class="wr-bar-header">
-                <span class="wr-black-val" id="wrBlackVal">흑 -</span>
-                <span class="wr-center-label">AI 승률</span>
-                <span class="wr-white-val" id="wrWhiteVal">백 -</span>
-            </div>
-            <div class="wr-bar">
-                <div class="wr-bar-black" id="wrBarBlack" style="width:50%"></div>
-                <div class="wr-bar-white"></div>
-            </div>
-            <div class="wr-score-line">
-                <span id="wrScoreText">-</span>
-            </div>
+    <!-- ══════════ 학습 요약 ══════════ -->
+    <section class="bottom-grid">
+        <div class="card lesson-card good-side">
+            <div class="lesson-title">이번 대국에서 잘한 점</div>
+            <ul class="lesson-list" id="lessonGood"></ul>
         </div>
 
-        <div class="nav-controls">
-            <button class="nav-btn" id="btnFirst" onclick="showMove(0)"                  title="처음으로">«</button>
-            <button class="nav-btn" id="btnPrev5" onclick="skipMove(-5)"                 title="5수 뒤로 (Shift+←)">‹‹</button>
-            <button class="nav-btn" id="btnPrev"  onclick="prevMove()"                   title="이전 수 (←)">‹</button>
-            <span class="move-counter" id="moveCounter">-</span>
-            <button class="nav-btn" id="btnNext"  onclick="nextMove()"                   title="다음 수 (→)">›</button>
-            <button class="nav-btn" id="btnNext5" onclick="skipMove(5)"                  title="5수 앞으로 (Shift+→)">››</button>
-            <button class="nav-btn" id="btnLast"  onclick="showMove(moves.length - 1)"   title="끝으로">»</button>
+        <div class="card lesson-card">
+            <div class="lesson-title">다음 대국에서 집중할 점</div>
+            <ul class="lesson-list" id="lessonNext"></ul>
         </div>
-        <div class="nav-row2">
-            <input class="move-input" id="moveInput" type="number" min="1" placeholder="수번" />
-            <button class="nav-btn sm" onclick="jumpToInput()">이동</button>
-            <button class="nav-btn sm" id="btnSeq" onclick="toggleSequence()">수순</button>
-            <button class="nav-btn sm" id="btnVar" onclick="toggleVariation()" title="최선수를 뒀을 때의 예상 진행">변화도</button>
-            <button class="nav-btn sm" id="btnCmp" onclick="openCompare()" title="내가 둔 수와 AI 최선수의 이후 진행을 나란히 비교">나란히 비교</button>
-            <button class="nav-btn sm" id="btnTerr" onclick="toggleOwnership()" title="AI가 예측한 집(영역)">집예측</button>
-            <button class="nav-btn sm" id="btnTry" onclick="toggleTryMode()" title="바둑판에 직접 돌을 놓아보며 이후 수를 시험해봅니다. ‹ 로 한 수씩 되돌리고, 다시 누르면 종료">놓아보기</button>
-        </div>
+    </section>
 
-        <div id="moveInfo" class="move-info-panel">
-            <div class="info-placeholder">수를 클릭하거나 화살표 버튼으로 이동하세요</div>
-        </div>
-        <button id="btnReplay" onclick="replayFromHere()" title="이 국면에서 KataGo와 직접 이어 둡니다"
-                style="width:100%;margin-top:12px;padding:11px;border:none;border-radius:10px;background:#2ecc71;color:#fff;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(46,204,113,0.35);">
-            ▶ 이 수부터 AI와 다시 두기
-        </button>
-        <a th:href="@{/game/result/{id}/sgf(id=${result.id})}" title="등급·집손해·최선수 코멘트가 달린 SGF 파일로 내려받기 (다른 바둑 프로그램에서 열람)"
-           style="display:block;text-align:center;margin-top:8px;padding:9px;border-radius:10px;background:#eef2f7;color:#456;font-weight:700;font-size:13px;text-decoration:none;">
-            📄 주석 SGF 내려받기
-        </a>
-    </div>
 
-    <!-- ══ 내 수 vs 최선수 나란히 비교 모달 ══ -->
+    <!-- ══════════ 내 수 vs 최선수 나란히 비교 ══════════ -->
     <div class="cmp-overlay" id="compareModal">
         <div class="cmp-box">
             <div class="cmp-head">
@@ -439,51 +402,8 @@
         </div>
     </div>
 
-    <!-- ══ AI 착수 통계 (위) + 핵심 실수 (아래) ══ -->
-    <div class="area-side">
+</main>
 
-        <!-- 패착 (승부의 분기점) -->
-        <div class="card-box side-losing" id="losingCard" style="display:none;">
-            <p class="section-title">🔑 패착 <span style="font-size:12px;color:#999;font-weight:400;">승부의 분기점</span></p>
-            <div id="losingCallout"></div>
-        </div>
-
-        <!-- AI 착수 통계 -->
-        <div class="card-box side-ai">
-            <p class="section-title">AI 착수 통계</p>
-            <p class="section-desc">흑·백 각각 AI 최선수와 얼마나 일치했는지, 그리고 수의 품질 분포를 보여줍니다.</p>
-            <div class="ai-matchrate">
-                <div class="amr-side">
-                    <span class="amr-dot black"></span><span class="amr-label">흑</span>
-                    <div class="amr-bar"><div class="amr-fill black" id="amrBlackFill"></div></div>
-                    <span class="amr-pct" id="amrBlackPct">-</span>
-                </div>
-                <div class="amr-side">
-                    <span class="amr-dot white"></span><span class="amr-label">백</span>
-                    <div class="amr-bar"><div class="amr-fill white" id="amrWhiteFill"></div></div>
-                    <span class="amr-pct" id="amrWhitePct">-</span>
-                </div>
-            </div>
-            <div class="ai-chart-holder"><canvas id="aiStatChart"></canvas></div>
-        </div>
-
-        <!-- 핵심 실수 -->
-        <div class="card-box side-mistakes" id="mistakesCard">
-            <p class="section-title">핵심 실수 <span class="mistakes-count" id="mistakesCount"></span></p>
-            <p class="section-desc">실수·악수로 분류된 수입니다. 클릭하면 바둑판에서 위치를 확인할 수 있습니다.</p>
-            <div class="mistakes" id="mistakesList"></div>
-        </div>
-
-    </div>
-
-</div>
-
-<!-- ③ 이 판의 호수 -->
-<div class="card-box" id="goodMovesCard" style="margin-top:16px;display:none;">
-    <p class="section-title">✨ 이 판의 호수 <span style="font-size:12px;color:#999;font-weight:400;">AI 평가가 좋아진 수</span></p>
-    <p class="section-desc">클릭하면 바둑판에서 위치를 확인할 수 있어요.</p>
-    <div class="good-moves" id="goodMovesList"></div>
-</div>
 
 <script th:inline="javascript">
 const moves = /*[[${result.moves}]]*/ [];
@@ -1385,18 +1305,6 @@ new Chart(document.getElementById('aiStatChart').getContext('2d'), {
     }
 });
 
-/* ── side 컬럼 높이를 바둑판 높이에 맞춤 (그 안에서 6:4 분할) ── */
-function syncSideHeight() {
-    const board = document.querySelector('.area-board');
-    const side  = document.querySelector('.area-side');
-    if (!board || !side) return;
-    if (window.matchMedia('(max-width: 1100px)').matches) {
-        side.style.height = '';                       // 모바일: 자연 높이
-    } else {
-        side.style.height = board.offsetHeight + 'px'; // 데스크톱: 바둑판 높이에 일치
-    }
-}
-window.addEventListener('resize', syncSideHeight);
 
 /* ── 초기 표시 ── */
 /* ── 예상 기력 추정 (착수 정밀도 기반 근사) ──
@@ -1451,9 +1359,7 @@ document.addEventListener('DOMContentLoaded', () => {
         buildGoodMoves();     // ③ 이 판의 호수
         drawFlowChart();      // ① 승부 흐름 그래프
     }
-    syncSideHeight();
 });
-window.addEventListener('load', syncSideHeight);
 
 /* ── 키보드 ── */
 document.addEventListener('keydown', e => {
@@ -1621,7 +1527,95 @@ if (flowCanvas) {
     window.addEventListener('resize', () => { clearTimeout(flowResizeT); flowResizeT = setTimeout(drawFlowChart, 150); });
 }
 </script>
-</div>
-    </main>
+
+<!-- 새 레이아웃 보강: 총평 배너의 좌·우 슬롯과 학습 요약을 기존 분석 데이터로 채운다 -->
+<script th:inline="none">
+(function () {
+    const $ = id => document.getElementById(id);
+
+    /* 총평 배너: 최종 형세 + 가장 큰 승부처 */
+    function fillSummarySlots() {
+        const last = moves.slice().reverse().find(m => m.scoreLeadAfter != null);
+        const fin = $('summaryFinal');
+        if (fin && last) {
+            const lead = last.scoreLeadAfter;
+            fin.textContent = Math.abs(lead) < 0.5
+                ? '반집 접전'
+                : (lead > 0 ? '흑' : '백') + ' ' + Math.abs(lead).toFixed(1) + '집 우세';
+        }
+
+        const key = losingMove || (keyMistakes.length ? keyMistakes[0] : null);
+        const el = $('summaryKeyMove');
+        if (el && key) {
+            const side = key.color === 'B' ? '흑' : '백';
+            el.classList.remove('none');
+            el.textContent = key.turnNumber + '수(' + side + ') · -' + key.scoreLoss.toFixed(1) + '집';
+            el.onclick = () => showMove(key.turnNumber - 1);
+        } else if (el) {
+            el.textContent = '큰 실착 없음';
+        }
+    }
+
+    /* 학습 요약: 구간(1~50 / 51~150 / 151~)별 실측값으로 문장을 만든다 */
+    function phaseStat(from, to) {
+        const ms = moves.filter(m => m.turnNumber >= from && m.turnNumber <= to);
+        if (!ms.length) return null;
+        const hit = ms.filter(m => m.bestMove && m.move === m.bestMove).length;
+        const loss = ms.reduce((s, m) => s + Math.max(0, m.scoreLoss || 0), 0) / ms.length;
+        const bad = ms.filter(m => m.grade === '악수').length;
+        return { n: ms.length, match: hit / ms.length * 100, loss: loss, bad: bad };
+    }
+
+    function buildLessonCards() {
+        const phases = [
+            { name: '초반', s: phaseStat(1, 50) },
+            { name: '중반', s: phaseStat(51, 150) },
+            { name: '종반', s: phaseStat(151, 9999) }
+        ].filter(p => p.s);
+        if (!phases.length) return;
+
+        const good = [], next = [];
+        const best  = phases.reduce((a, b) => b.s.match > a.s.match ? b : a);
+        const worst = phases.reduce((a, b) => b.s.loss  > a.s.loss  ? b : a);
+
+        good.push('<b>' + best.name + '</b>에서 최선수 일치율이 ' + best.s.match.toFixed(0)
+            + '%로 가장 높았습니다. (' + best.s.n + '수)');
+        const clean = phases.filter(p => p.s.bad === 0);
+        if (clean.length) good.push(clean.map(p => p.name).join(' · ') + '에는 <b>악수가 한 번도 없었습니다</b>.');
+        if (typeof goodMoves !== 'undefined' && goodMoves.length) {
+            const g = goodMoves[0];
+            good.push(g.turnNumber + '수는 <b>+' + Math.abs(g.scoreLoss).toFixed(1)
+                + '집</b>을 만든 이 판의 호수였습니다.');
+        }
+        if (good.length < 3) good.push('끝까지 한 판을 마무리한 것 자체가 복기의 출발점입니다.');
+
+        next.push('<b>' + worst.name + '</b>의 평균 집손해가 ' + worst.s.loss.toFixed(2)
+            + '집으로 가장 컸습니다. 이 구간부터 다시 두어 보세요.');
+        if (losingMove) {
+            const s = losingMove.color === 'B' ? '흑' : '백';
+            next.push('패착 <b>' + losingMove.turnNumber + '수(' + s + ')</b>에서 균형이 무너졌습니다. AI 최선수 '
+                + (losingMove.bestMove || '-') + '와 비교해 보세요.');
+        }
+        const blunders = moves.filter(m => m.grade === '악수').length;
+        if (blunders > 0) next.push('악수로 분류된 수가 <b>' + blunders + '개</b>입니다. 오답노트에서 반복 패턴을 확인해 보세요.');
+        if (next.length < 3) next.push('한 수 두기 전에 후보수를 두 개 이상 비교하는 습관을 들여 보세요.');
+
+        const put = (id, arr) => {
+            const ul = $(id);
+            if (!ul) return;
+            ul.innerHTML = arr.slice(0, 3).map(t => '<li>' + t + '</li>').join('');
+        };
+        put('lessonGood', good);
+        put('lessonNext', next);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!moves.length) return;
+        fillSummarySlots();
+        buildLessonCards();
+    });
+})();
+</script>
+
 </body>
 </html>

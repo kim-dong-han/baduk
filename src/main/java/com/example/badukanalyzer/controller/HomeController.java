@@ -21,12 +21,17 @@ public class HomeController {
     @GetMapping("/")
     public String home(Model model) {
         List<SingleGameResult> recent = List.of();
+        int totalGames = 0;
         try {
-            recent = singleGameService.listResultSummaries().stream().limit(4).toList();
+            List<SingleGameResult> all = singleGameService.listResultSummaries();
+            totalGames = all.size();
+            recent = all.stream().limit(4).toList();
         } catch (Exception ignored) {
             // 결과 폴더 접근 실패 시 최근 목록만 비움(메인 진입은 유지)
         }
         model.addAttribute("recent", recent);
+        // 홈 '분석한 기보' 카운터용 — 최근 4건과 별개로 전체 개수. 목록은 위에서 이미 한 번만 읽는다.
+        model.addAttribute("totalGames", totalGames);
         return "home";
     }
 }

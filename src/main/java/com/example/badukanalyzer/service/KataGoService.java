@@ -36,6 +36,14 @@ public class KataGoService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** 단일 기보 전수 분석에 쓰는 visits (분석 메타 패널 표기용). */
+    /** 실시간 분석판(analyzeTop)에 쓰는 수당 탐색 횟수. 화면 표시에도 쓰인다. */
+    public static final int TOP_VISITS = 500;
+    /** 분석 쿼리에 넣는 덤(집). 화면 표시에도 쓰인다. */
+    public static final double KOMI = 6.5;
+
+    public int getTopVisits() { return TOP_VISITS; }
+    public double getKomi() { return KOMI; }
+
     public int getAnalysisVisits() { return analysisVisits; }
 
     /** 2차 정밀 분석 visits (실수·악수 국면 재분석용). */
@@ -157,7 +165,7 @@ public class KataGoService {
         query.put("boardXSize", 19);
         query.put("boardYSize", 19);
         query.put("rules", "korean");   // 타이젬=한국식(집내기, 코미 6.5)
-        query.put("komi", 6.5);
+        query.put("komi", KOMI);
         query.set("moves", movesArray.deepCopy());
         query.set("analyzeTurns", objectMapper.valueToTree(analyzeTurns));
         query.put("maxVisits", maxVisits);
@@ -426,7 +434,7 @@ public class KataGoService {
         }
 
         String queryId = "trytop_" + System.currentTimeMillis();
-        ObjectNode query = buildQuery(queryId, movesArray, List.of(moves.size()), 500, true);  // 집(영역) 예측 포함
+        ObjectNode query = buildQuery(queryId, movesArray, List.of(moves.size()), TOP_VISITS, true);  // 집(영역) 예측 포함
         playWriter.write(query.toString());
         playWriter.newLine();
         playWriter.flush();

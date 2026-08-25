@@ -1,0 +1,503 @@
+/* ════════════════════════════════════════════════════════════
+   실력 리포트(/game/result/{id}) 전용 스타일
+   헤더는 app-header.css. 클래스명 중 JS 가 생성/토글하는 것
+   (.re-*, .losing-*, .mistake-*, .gm-*, .info-*, .grade-badge, .g-*, .active …)
+   은 이름을 바꾸지 않는다 — 스크립트 계약.
+   ════════════════════════════════════════════════════════════ */
+
+:root {
+    --rs-indigo: #5146e5;
+    --rs-navy:   #1b2541;
+    --rs-line:   #e5e8ef;
+    --rs-line-soft: #edf0f4;
+    --rs-muted:  #858ea0;
+
+    --rs-good:   #27a978;   /* 좋은 수 = 초록 */
+    --rs-normal: #b6bcc7;
+    --rs-mistake:#ef9b3c;   /* 실수 = 주황 */
+    --rs-blunder:#e34c42;   /* 악수 = 빨강 */
+    --rs-losing: #f1b833;   /* 패착 = 노랑 */
+}
+
+body { background: #f5f6fa; color: #1d2742; }
+html { scroll-behavior: smooth; }
+button { font: inherit; cursor: pointer; }
+input { font: inherit; }
+
+/* ── 페이지 ── */
+.page {
+    width: min(1440px, calc(100% - 52px));
+    margin: 0 auto;
+    padding: 30px 0 70px;
+}
+
+/* ── breadcrumb ── */
+.breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 13px;
+    color: #929aab; font-size: 11px;
+}
+.breadcrumb a:hover { color: var(--rs-indigo); }
+.breadcrumb-current { color: #626c82; font-weight: 600; }
+
+/* ── 제목 + 액션 ── */
+.result-header {
+    display: flex; justify-content: space-between; align-items: flex-end; gap: 16px;
+    margin-bottom: 20px;
+}
+.result-title { margin: 0; color: var(--rs-navy); font-size: 29px; font-weight: 800; letter-spacing: -1.3px; }
+.result-subtitle { margin: 7px 0 0; color: var(--rs-muted); font-size: 12px; }
+
+.header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.header-button {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 37px; padding: 0 14px;
+    border: 1px solid #dfe3eb; border-radius: 7px;
+    background: #fff; color: #69738a;
+    font-size: 11px; font-weight: 600;
+    transition: transform .12s ease;
+}
+.header-button:hover { transform: translateY(-1px); }
+.header-button.primary { border-color: var(--rs-indigo); background: var(--rs-indigo); color: #fff; }
+.header-button.primary:hover { background: #4238c9; }
+
+/* ── 기보 메타 ── */
+.game-meta {
+    display: grid;
+    grid-template-columns: 2.1fr repeat(5, 1fr);
+    margin-bottom: 18px;
+    background: #fff;
+    border: 1px solid #e6e9f0;
+    border-radius: 11px;
+    overflow: hidden;
+}
+.meta-item {
+    min-height: 66px; padding: 13px 17px;
+    border-right: 1px solid var(--rs-line-soft);
+    display: flex; flex-direction: column; justify-content: center; min-width: 0;
+}
+.meta-item:last-child { border-right: 0; }
+.meta-label { margin-bottom: 5px; color: #9aa1b0; font-size: 9px; }
+.meta-value { color: #34405c; font-size: 12px; font-weight: 750; }
+.meta-value.file-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.meta-value.dim { color: #9aa1b0; font-weight: 600; }
+
+/* ── 한 줄 총평 배너 ── */
+.summary-banner {
+    display: grid;
+    grid-template-columns: 175px minmax(0, 1fr) 210px;
+    align-items: center;
+    min-height: 108px;
+    margin-bottom: 18px;
+    padding: 20px 23px;
+    border-radius: 12px;
+    background: linear-gradient(110deg, #202d55 0%, #293b6d 100%);
+    color: #fff;
+    box-shadow: 0 7px 25px rgba(30,43,82,.12);
+}
+.summary-result {
+    display: flex; flex-direction: column; gap: 5px;
+    border-right: 1px solid rgba(255,255,255,.13);
+}
+.summary-result-label { color: rgba(255,255,255,.57); font-size: 9px; }
+.summary-result-value { font-size: 20px; font-weight: 800; letter-spacing: -.5px; }
+
+.summary-text { padding: 0 27px; color: rgba(255,255,255,.88); font-size: 13px; line-height: 1.65; }
+.summary-text b, .summary-text strong { color: #fff; }
+/* 총평 안의 "N수" 링크(JS 생성) */
+.gs-body .gs-turn {
+    color: #9fc6ff; cursor: pointer;
+    text-decoration: underline dotted; font-weight: 700;
+}
+.gs-body .gs-turn:hover { color: #fff; }
+
+.summary-key { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.summary-key-label { color: rgba(255,255,255,.55); font-size: 9px; }
+.summary-key-move {
+    padding: 7px 11px; border-radius: 6px;
+    background: rgba(255,255,255,.1); color: #fff;
+    font-size: 11px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+}
+.summary-key-move:hover { background: rgba(255,255,255,.19); }
+.summary-key-move.none { cursor: default; color: rgba(255,255,255,.6); }
+
+/* ── 2열 ── */
+.main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(340px, .85fr);
+    gap: 18px;
+    align-items: start;
+}
+.area-board, .area-side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+
+/* ── 카드 ── */
+.card {
+    background: #fff;
+    border: 1px solid var(--rs-line);
+    border-radius: 12px;
+    box-shadow: 0 4px 18px rgba(30,40,70,.035);
+    overflow: hidden;
+}
+.card-header {
+    min-height: 59px; padding: 12px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    border-bottom: 1px solid var(--rs-line-soft);
+}
+.card-title { color: #303a54; font-size: 13px; font-weight: 750; }
+.card-description { color: #9aa1b0; font-size: 10px; margin-top: 2px; }
+.card-body { padding: 18px 20px 20px; }
+
+/* ════════════ 바둑판 카드 ════════════ */
+.board-header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.move-counter {
+    padding: 5px 9px; border-radius: 5px;
+    background: #f1f2f7; color: #687288;
+    font-size: 10px; font-weight: 700; white-space: nowrap;
+}
+
+/* 대국자 */
+.board-players {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--rs-line-soft);
+}
+.bp-side { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bp-side.right { justify-content: flex-end; }
+.bp-stone { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; }
+.bp-stone.black { background: radial-gradient(circle at 33% 28%, #555, #151515 55%, #000); }
+.bp-stone.white { background: radial-gradient(circle at 32% 28%, #fff, #ededed 60%, #c8c8c8); border: 1px solid #c4c4c4; }
+.bp-name {
+    color: #37415c; font-size: 12px; font-weight: 700;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bp-tag { padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 700; flex-shrink: 0; }
+.bp-tag.black { background: #232a3b; color: #fff; }
+.bp-tag.white { background: #eef0f4; color: #5d6678; }
+
+/* 상단 승률 바(흑/백) */
+.winrate-bar {
+    position: relative;
+    display: flex; height: 22px;
+    background: #e9ebf1;
+}
+.wb-black { background: #242b3a; transition: width .3s ease; }
+.wb-white { flex: 1; background: #f3f4f7; }
+.wb-label {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    font-size: 10px; font-weight: 800;
+}
+.wb-label.black { left: 10px; color: #fff; }
+.wb-label.white { right: 10px; color: #5d6678; }
+
+.score-diff {
+    padding: 9px 20px;
+    border-bottom: 1px solid var(--rs-line-soft);
+    color: #77819a; font-size: 11px; text-align: center;
+}
+.score-diff .lead-b { color: #222b3d; font-weight: 800; }
+.score-diff .lead-w { color: #6b7488; font-weight: 800; }
+
+/* 판 */
+.board-area {
+    padding: 22px;
+    background: linear-gradient(135deg, #f9f8f4, #f6f4ed);
+    display: flex; justify-content: center;
+}
+#boardCanvas {
+    display: block;
+    width: 100%;
+    border-radius: 6px;
+    box-shadow: 0 8px 22px rgba(68,48,22,.16);
+    cursor: pointer;
+}
+
+/* AI 승률 바(수 이동 시) */
+.wr-bar-section { padding: 14px 20px 0; }
+.wr-bar-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
+.wr-black-val { color: #262d40; font-size: 11px; font-weight: 800; }
+.wr-white-val { color: #7d8598; font-size: 11px; font-weight: 800; }
+.wr-center-label { color: #9aa2b1; letter-spacing: 1px; font-size: 9px; }
+.wr-bar { display: flex; height: 8px; border-radius: 20px; overflow: hidden; background: #e7e8eb; }
+.wr-bar-black { background: #242a39; transition: width .3s ease; }
+.wr-bar-white { flex: 1; background: #f1f1f1; }
+.wr-score-line { margin-top: 7px; color: #8a92a4; font-size: 10px; text-align: center; }
+
+/* 컨트롤 */
+.board-controls { padding: 15px 20px; border-top: 1px solid var(--rs-line-soft); }
+.nav-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nav-btn {
+    min-width: 37px; height: 34px; padding: 0 9px;
+    border: 1px solid #dfe3ea; border-radius: 6px;
+    background: #fff; color: #667187;
+    font-size: 12px; font-weight: 600;
+}
+.nav-btn:hover { background: #f7f7fa; }
+.nav-btn.sm { font-size: 11px; }
+.nav-btn.active { background: var(--rs-indigo); border-color: var(--rs-indigo); color: #fff; }
+.nav-row2 { display: flex; align-items: center; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+.move-input {
+    width: 78px; height: 34px; padding: 0 10px;
+    border: 1px solid #dfe3ea; border-radius: 6px;
+    color: #46506a; font-size: 12px;
+}
+
+/* 수 정보 패널 */
+.move-info-panel {
+    margin-top: 13px; padding: 13px 15px;
+    border-radius: 9px;
+    background: #f8f9fc; border: 1px solid var(--rs-line-soft);
+    min-height: 62px;
+}
+.info-placeholder { color: #99a1b2; font-size: 11px; }
+.info-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; color: #46506a; }
+.info-label { width: 62px; flex-shrink: 0; color: #8992a5; font-size: 10px; }
+.grade-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+.g-최선 { background: #d9f3e5; color: #17835a; }
+.g-좋음 { background: #e8f6dc; color: #558f16; }
+.g-보통 { background: #f3f4f8; color: #6c7589; }
+.g-실수 { background: #fdecd9; color: #cf7612; }
+.g-악수 { background: #fbdedb; color: #c33a2e; }
+.deep-badge {
+    display: inline-block; padding: 2px 6px; border-radius: 4px;
+    background: #eeecff; color: #5146e5; font-size: 9px; font-weight: 700;
+}
+
+.replay-button {
+    display: block; width: 100%; margin-top: 11px;
+    padding: 11px; border: none; border-radius: 9px;
+    background: var(--rs-good); color: #fff;
+    font-size: 13px; font-weight: 700;
+    box-shadow: 0 6px 15px rgba(39,169,120,.22);
+}
+.replay-button:hover { background: #1f8f65; }
+
+/* ════════════ 승부 흐름 ════════════ */
+.chart-legend { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 5px; color: #838c9f; font-size: 9px; }
+.flow-dot, .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.legend-dot.mistake { background: var(--rs-mistake); }
+.legend-dot.blunder { background: var(--rs-blunder); }
+.legend-dot.losing  { background: var(--rs-losing); }
+.legend-dot.good    { background: var(--rs-good); }
+.legend-dot.cur     { background: #3498db; }
+
+.chart-wrapper { padding: 15px 20px 18px; position: relative; }
+#flowCanvas { width: 100%; display: block; cursor: pointer; }
+
+/* ════════════ 예상 기력 ════════════ */
+.rank-estimate { padding: 20px; }
+.re-head { color: #929aaa; font-size: 10px; margin-bottom: 4px; }
+.re-row {
+    display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
+    padding: 11px 0; border-bottom: 1px solid #f0f1f4;
+    color: #5d6678; font-size: 11px; font-weight: 700;
+}
+.re-row:last-of-type { border-bottom: 0; }
+.re-band { color: #28334e; font-size: 19px; font-weight: 850; letter-spacing: -.7px; }
+.re-sub { color: #8a92a4; font-size: 10px; font-weight: 500; }
+.re-note { margin-top: 11px; color: #979faf; font-size: 10px; line-height: 1.55; }
+
+/* ════════════ 구간별 성적 ════════════ */
+.phase-cards { padding: 4px 20px 16px; }
+.phase-card { padding: 14px 0; border-bottom: 1px solid #f0f1f4; }
+.phase-card:last-child { border-bottom: 0; }
+.card-phase { color: #59637a; font-size: 11px; font-weight: 700; margin-bottom: 9px; }
+.gauge-label { display: flex; justify-content: space-between; color: #7d8698; font-size: 10px; margin-bottom: 5px; }
+.gauge-label span:last-child { color: #34405b; font-weight: 800; }
+.gauge-track { height: 7px; border-radius: 20px; background: #eceef3; overflow: hidden; }
+.gauge-fill { display: block; height: 100%; border-radius: inherit; }
+.fill-good { background: var(--rs-good); }
+.fill-warn { background: var(--rs-mistake); }
+.fill-bad  { background: var(--rs-blunder); }
+.stat-row { display: flex; justify-content: space-between; margin-top: 7px; color: #8992a5; font-size: 10px; }
+.stat-row .val { color: #45506a; font-weight: 700; }
+.card-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+.badge { padding: 3px 7px; border-radius: 4px; font-size: 9px; font-weight: 700; }
+.badge-red { background: #fbdedb; color: #c33a2e; }
+.badge-org { background: #fdecd9; color: #cf7612; }
+.badge-grn { background: #d9f3e5; color: #17835a; }
+.no-data { color: #a8b0c0; font-size: 10px; padding: 6px 0; }
+
+/* ════════════ AI 착수 통계 ════════════ */
+.ai-stats { padding: 18px 20px 20px; }
+.ai-matchrate { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.amr-side { display: flex; align-items: center; gap: 8px; }
+.amr-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.amr-dot.black { background: #232a3b; }
+.amr-dot.white { background: #fff; border: 1px solid #c3c7d1; }
+.amr-label { width: 16px; color: #666f83; font-size: 10px; font-weight: 700; }
+.amr-bar { flex: 1; height: 7px; border-radius: 20px; background: #eceef3; overflow: hidden; }
+.amr-fill { display: block; height: 100%; border-radius: inherit; transition: width .4s ease; }
+.amr-fill.black { background: #242b3a; }
+.amr-fill.white { background: #b8bdc7; }
+.amr-pct { width: 38px; text-align: right; color: #34405b; font-size: 12px; font-weight: 800; }
+
+.ai-chart-holder { position: relative; height: 190px; }
+
+/* ════════════ 패착 ════════════ */
+.turning-card { border-color: #f1df9e; }
+.turning-header { background: #fffdf4; border-bottom-color: #f5ebc5; }
+.turning-icon {
+    width: 27px; height: 27px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 7px;
+    background: #fff0af; color: #a37b00;
+    font-size: 13px; font-weight: 800;
+}
+.turning-content { padding: 16px 20px 18px; }
+.losing-move-line { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; flex-wrap: wrap; }
+.losing-turn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 34px; height: 30px; padding: 0 8px;
+    border-radius: 7px;
+    background: #fff0b0; color: #8b6a00;
+    font-size: 10px; font-weight: 800;
+}
+.losing-stone { width: 13px; height: 13px; border-radius: 50%; display: inline-block; }
+.losing-stone.B { background: #1c1c1c; }
+.losing-stone.W { background: #fff; border: 1px solid #bbb; }
+.losing-desc { color: #77725f; font-size: 10px; line-height: 1.6; }
+.losing-swing { margin-top: 7px; color: #6d6754; font-size: 11px; }
+.losing-swing b { color: var(--rs-blunder); }
+.arrow { color: #a89b6d; }
+.losing-btn {
+    width: 100%; margin-top: 11px; padding: 9px;
+    border: none; border-radius: 8px;
+    background: #f1b833; color: #4b3a00;
+    font-size: 11px; font-weight: 800;
+}
+.losing-btn:hover { background: #e2a91f; }
+
+/* ════════════ 핵심 실수 ════════════ */
+.mistakes { padding: 4px 20px 12px; max-height: 420px; overflow-y: auto; }
+.mistake-card {
+    display: flex; align-items: center; gap: 10px;
+    min-height: 55px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f1f4;
+    cursor: pointer;
+}
+.mistake-card > .grade-badge { flex-shrink: 0; }
+.mistake-card:last-child { border-bottom: 0; }
+.mistake-card:hover { background: #fafaff; }
+.mistake-rank {
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 7px;
+    background: #fdecd9; color: #cf7612;
+    font-size: 9px; font-weight: 800;
+}
+.mistake-move { color: #37415c; font-size: 12px; font-weight: 700; }
+.mistake-spacer { flex: 1; min-width: 4px; }
+.mistake-loss { color: #d55345; font-size: 11px; font-weight: 800; white-space: nowrap; flex-shrink: 0; }
+.badge-losing {
+    display: inline-block; margin-left: 5px; padding: 2px 6px;
+    border-radius: 4px; background: #fff2c9; color: #8b6a00;
+    font-size: 9px; font-weight: 800;
+}
+.badge-desperate {
+    display: inline-block; margin-left: 5px; padding: 2px 6px;
+    border-radius: 4px; background: #fbdedb; color: #c33a2e;
+    font-size: 9px; font-weight: 800;
+}
+.mistakes-empty { padding: 22px 0; color: #9aa2b2; font-size: 11px; text-align: center; line-height: 1.7; }
+.mistakes-count { color: #9aa1b0; font-size: 10px; font-weight: 600; }
+
+/* ════════════ 호수 ════════════ */
+.good-card { border-color: #dcefe7; }
+.good-header { background: #f8fdfb; border-bottom-color: #e7f3ee; }
+.good-moves { padding: 4px 20px 12px; }
+.gm-item {
+    display: grid; grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 10px; align-items: center;
+    min-height: 52px; padding: 8px 0;
+    border-bottom: 1px solid #f0f2f4;
+    cursor: pointer;
+}
+.gm-item:last-child { border-bottom: 0; }
+.gm-item:hover { background: #f8fdfb; }
+.gm-turn {
+    width: 33px; height: 33px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 7px;
+    background: #e8f8f1; color: #1b9568;
+    font-size: 9px; font-weight: 800;
+}
+.gm-meta { color: #59637a; font-size: 10px; line-height: 1.45; }
+.gm-gain { color: #229469; font-size: 10px; font-weight: 800; text-align: right; white-space: nowrap; }
+
+/* ════════════ 학습 요약 ════════════ */
+.bottom-grid { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.lesson-card { padding: 22px; min-height: 150px; }
+.lesson-title { margin-bottom: 12px; color: #303a55; font-size: 13px; font-weight: 750; }
+.lesson-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.lesson-list li {
+    position: relative; padding-left: 16px;
+    color: #737d91; font-size: 10px; line-height: 1.6;
+}
+.lesson-list li::before {
+    content: ""; position: absolute; left: 0; top: 6px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--rs-indigo);
+}
+.lesson-card.good-side .lesson-list li::before { background: var(--rs-good); }
+.lesson-list li b { color: #4a5570; }
+
+/* ════════════ 나란히 비교 모달 ════════════ */
+.cmp-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 300;
+    align-items: center; justify-content: center;
+    padding: 20px;
+    background: rgba(18,24,44,.55);
+}
+.cmp-box {
+    width: min(920px, 100%); max-height: 92vh; overflow: auto;
+    background: #fff; border-radius: 14px;
+    box-shadow: 0 24px 60px rgba(20,28,60,.28);
+}
+.cmp-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--rs-line-soft);
+}
+.cmp-head h3 { margin: 0; font-size: 15px; font-weight: 800; color: #26314c; }
+.cmp-close { border: none; background: none; color: #97a0b2; font-size: 15px; padding: 4px 7px; border-radius: 6px; }
+.cmp-close:hover { background: #f3f4f8; color: #5c6478; }
+.cmp-diff { padding: 12px 20px; color: #5c6478; font-size: 12px; background: #fafbfd; }
+.cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 20px 20px; }
+.cmp-panel { min-width: 0; }
+.cmp-title { padding: 7px 10px; border-radius: 7px; font-size: 11px; font-weight: 800; margin-bottom: 9px; }
+.cmp-title.mine { background: #fdecd9; color: #cf7612; }
+.cmp-title.best { background: #d9f3e5; color: #17835a; }
+.cmp-panel canvas { width: 100%; height: auto; display: block; border-radius: 6px; }
+.cmp-stat { margin-top: 9px; color: #46506a; font-size: 11px; line-height: 1.6; }
+.cmp-pv { margin-top: 6px; color: #8992a5; font-size: 10px; line-height: 1.55; word-break: break-all; }
+
+/* ════════════ 반응형 ════════════ */
+@media (max-width: 1150px) {
+    .page { width: min(100% - 30px, 1440px); }
+    .game-meta { grid-template-columns: repeat(3, 1fr); }
+    .meta-item:nth-child(3n) { border-right: 0; }
+    .main-grid { grid-template-columns: 1fr; }
+    .area-side { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+    .bottom-grid { grid-template-columns: 1fr; }
+    #boardCanvas { max-width: 596px; margin: 0 auto; }
+}
+
+@media (max-width: 760px) {
+    .page { width: calc(100% - 24px); padding: 22px 0 50px; }
+    .result-header { flex-direction: column; align-items: flex-start; gap: 14px; }
+    .header-actions { width: 100%; }
+    .header-button { flex: 1; justify-content: center; }
+    .game-meta { grid-template-columns: 1fr 1fr; }
+    .meta-item { border-right: 0; border-bottom: 1px solid var(--rs-line-soft); }
+    .summary-banner { grid-template-columns: 1fr; gap: 15px; }
+    .summary-result { border-right: 0; }
+    .summary-text { padding: 0; }
+    .summary-key { align-items: flex-start; }
+    .area-side { display: flex; }
+    .board-area { padding: 12px; }
+    .board-controls { padding: 12px; }
+    .cmp-grid { grid-template-columns: 1fr; }
+}

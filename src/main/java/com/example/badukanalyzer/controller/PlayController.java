@@ -28,7 +28,10 @@ public class PlayController {
 
     /** 실시간 분석판: AI 대국 없이 직접 흑·백을 놓으며 추천수·승률을 실시간 확인(빈 판 시작). */
     @GetMapping("/study")
-    public String studyPage() {
+    public String studyPage(org.springframework.ui.Model model) {
+        // 분석 설정 표시용 — 엔진에 실제로 넘기는 값 그대로
+        model.addAttribute("studyVisits", com.example.badukanalyzer.service.KataGoService.TOP_VISITS);
+        model.addAttribute("komi", com.example.badukanalyzer.service.KataGoService.KOMI);
         return "game/study";
     }
 

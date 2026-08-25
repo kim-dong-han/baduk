@@ -1,133 +1,243 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>로그인 · 바둑 분석</title>
-    <link rel="stylesheet" href="/css/common.css">
-    <style>
-        body { background:
-            radial-gradient(1100px 620px at 12% -10%, #e7ecff 0%, transparent 55%),
-            radial-gradient(1000px 720px at 112% 112%, #f0e9fe 0%, transparent 52%),
-            var(--background); }
-        .login-wrap {
-            min-height: 100vh;
-            display: flex; align-items: center; justify-content: center;
-            padding: 40px 20px;
-        }
-        .login-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 64px;
-            align-items: center;
-            max-width: 960px; width: 100%;
-        }
-        /* ── 왼쪽 히어로 ── */
-        .hero { text-align: center; }
-        .hero .board-mark {
-            font-size: 92px; line-height: 1; margin-bottom: 18px;
-            filter: drop-shadow(0 8px 18px rgba(79,70,229,0.22));
-        }
-        .hero h1 { font-size: 31px; font-weight: 800; letter-spacing: -1px; margin: 0 0 10px; color: var(--text-primary); }
-        .hero p { font-size: 15px; color: var(--text-secondary); margin: 0; line-height: 1.6; }
-        .hero .tagpill {
-            display: inline-block; margin-top: 20px;
-            background: linear-gradient(135deg, var(--primary), var(--accent-purple)); color: #fff;
-            font-size: 13px; font-weight: 700; padding: 8px 18px; border-radius: var(--radius-pill);
-            box-shadow: 0 8px 18px -4px rgba(79,70,229,0.4);
-        }
-        /* ── 오른쪽 로그인 카드 ── */
-        .login-card {
-            background: var(--surface); border-radius: var(--radius-lg); padding: 38px 34px;
-            box-shadow: var(--shadow-lg), 0 2px 8px rgba(0,0,0,0.04);
-            border: 1px solid var(--border);
-        }
-        .login-card .brand { font-size: 20px; font-weight: 800; color: var(--text-primary); margin-bottom: 22px; letter-spacing: -0.5px; }
-        .field {
-            width: 100%; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
-            padding: 13px 15px; font-size: 14px; margin-bottom: 11px; background: var(--surface-2);
-            transition: border-color .15s, background .15s, box-shadow .15s;
-        }
-        .field:focus { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(79,70,229,0.15); }
-        .login-btn {
-            width: 100%; border: none; border-radius: 11px; cursor: pointer;
-            background: linear-gradient(135deg, var(--primary), var(--primary-blue)); color: #fff; font-size: 15px; font-weight: 700;
-            padding: 14px 0; margin-top: 6px; transition: filter .15s, transform .05s, box-shadow .15s;
-            box-shadow: 0 10px 22px -8px rgba(79,70,229,0.6);
-        }
-        .login-btn:hover { filter: brightness(1.06); box-shadow: 0 13px 26px -8px rgba(79,70,229,0.66); }
-        .login-btn:active { transform: translateY(1px); }
-        .sublinks { display: flex; justify-content: center; gap: 14px; margin: 16px 0 6px; }
-        .sublinks a { font-size: 12px; color: var(--text-muted); text-decoration: none; }
-        .sublinks a:hover { color: var(--text-secondary); }
-        .divider { display: flex; align-items: center; gap: 12px; margin: 18px 0 16px; color: var(--text-muted); font-size: 12px; }
-        .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
-        /* ── 소셜 버튼 ── */
-        .socials { display: flex; justify-content: center; gap: 12px; }
-        .social {
-            width: 46px; height: 46px; border-radius: 12px; border: 1px solid var(--border);
-            background: #fff; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; font-size: 20px; font-weight: 800; padding: 0;
-            transition: transform .12s, box-shadow .12s;
-        }
-        .social:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,0.13); }
-        .social.google { color: #4285F4; }
-        .social.naver  { background: #03C75A; color: #fff; border-color: #03C75A; }
-        .social-form { display: inline; }
-        .demo-note { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 16px; line-height: 1.5; }
-        .alert-error, .alert-ok { font-size: 13px; font-weight: 600; padding: 11px 13px; border-radius: 10px; margin-bottom: 14px; }
-        .alert-error { background: var(--danger-bg); color: #c0392b; border: 1px solid #f5c6cb; }
-        .alert-ok    { background: var(--success-bg); color: #1e8449; border: 1px solid #c6e6d2; }
-        @media (max-width: 760px) {
-            .login-grid { grid-template-columns: 1fr; gap: 34px; max-width: 380px; }
-            .hero .board-mark { font-size: 68px; }
-            .hero h1 { font-size: 24px; }
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 · Baduk AI</title>
+    <!-- 로그인은 앱 셸(사이드바) 밖의 독립 화면이라 common.css 를 쓰지 않는다. -->
+    <link rel="stylesheet" href="/css/login.css">
 </head>
 <body>
-<div class="login-wrap">
-    <div class="login-grid">
-        <!-- 히어로 -->
-        <div class="hero">
-            <div class="board-mark">⚫⚪</div>
-            <h1>바둑 복기 분석</h1>
-            <p>KataGo AI로 내 기보를 한 수씩 복기하고<br>구간별 실력을 진단하세요.</p>
-            <div class="tagpill">🎯 실수·악수 정밀 재분석</div>
-        </div>
 
-        <!-- 로그인 카드 -->
-        <div class="login-card">
-            <div class="brand">⚫ 바둑 분석 로그인</div>
+<div class="login-page">
+    <div class="login-container">
 
-            <div th:if="${param.error}" class="alert-error">아이디 또는 비밀번호가 올바르지 않습니다.</div>
-            <div th:if="${param.registered}" class="alert-ok">회원가입이 완료됐어요. 로그인해 주세요.</div>
-            <div th:if="${param.logout}" class="alert-ok">로그아웃되었습니다.</div>
+        <!-- ══════════ 왼쪽: 브랜드 / 서비스 소개 ══════════ -->
+        <section class="login-hero">
+            <div class="hero-glow"></div>
+            <div class="hero-circle"></div>
 
-            <form th:action="@{/login-local}" method="post">
-                <input type="hidden" name="remember-me" value="true"> <!-- 로그인 유지(항상 켬). OAuth 콜백에는 없어 그쪽은 remember-me 미적용 -->
-                <input class="field" type="text" name="username" placeholder="아이디" autocomplete="username" required>
-                <input class="field" type="password" name="password" placeholder="비밀번호" autocomplete="current-password" required>
-                <button class="login-btn" type="submit">로그인</button>
-            </form>
-
-            <div class="sublinks">
-                <a th:href="@{/register}">회원가입</a>
+            <div class="brand">
+                <div class="brand-mark">碁</div>
+                <div class="brand-text">
+                    <div class="brand-name">Baduk AI</div>
+                    <div class="brand-subtitle">AI 바둑 분석 플랫폼</div>
+                </div>
             </div>
 
-            <div class="divider" th:if="${googleEnabled or naverEnabled}">또는</div>
+            <div class="hero-content">
+                <h2 class="hero-title">
+                    AI와 함께<br>
+                    당신의 바둑 실력을<br>
+                    <span class="accent">한 단계</span> 높여보세요.
+                </h2>
 
-            <div class="socials" th:if="${googleEnabled or naverEnabled}">
-                <a th:if="${googleEnabled}" class="social google" href="/oauth2/authorization/google" title="구글로 로그인">G</a>
-                <a th:if="${naverEnabled}" class="social naver" href="/oauth2/authorization/naver" title="네이버로 로그인">N</a>
+                <p class="hero-description">
+                    KataGo AI가 당신의 기보를 수 단위로 분석하고<br>
+                    잘 둔 수와 아쉬운 수를 찾아드립니다.<br>
+                    복기부터 실력 향상까지 한 곳에서 관리하세요.
+                </p>
+
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="4 17 9 12 13 15 20 7"></polyline>
+                                <polyline points="16 7 20 7 20 11"></polyline>
+                            </svg>
+                        </div>
+                        <div class="feature-text">
+                            <div class="feature-title">수 단위 AI 기보 분석</div>
+                            <div class="feature-description">각 수마다 승률 변화와 집 손해를 분석</div>
+                        </div>
+                    </div>
+
+                    <div class="feature-item">
+                        <div class="feature-icon orange">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <circle cx="12" cy="12" r="8"></circle>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </div>
+                        <div class="feature-text">
+                            <div class="feature-title">승률 변화와 실수 구간 분석</div>
+                            <div class="feature-description">실수·악수·패착을 정확하게 짚어드립니다</div>
+                        </div>
+                    </div>
+
+                    <div class="feature-item">
+                        <div class="feature-icon green">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 3l2.4 5.2L20 9l-4 4 1 5.7-5-2.7-5 2.7 1-5.7-4-4 5.6-.8L12 3z"></path>
+                            </svg>
+                        </div>
+                        <div class="feature-text">
+                            <div class="feature-title">AI 추천수와 변화도 확인</div>
+                            <div class="feature-description">최선수와 추천 변화도를 한눈에 확인</div>
+                        </div>
+                    </div>
+
+                    <div class="feature-item">
+                        <div class="feature-icon purple">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H20v17H7.5A2.5 2.5 0 0 0 5 21.5z"></path>
+                                <path d="M5 4.5v17"></path>
+                                <path d="M8 7h8"></path>
+                                <path d="M8 11h7"></path>
+                            </svg>
+                        </div>
+                        <div class="feature-text">
+                            <div class="feature-title">나만의 실력 리포트 &amp; 오답노트</div>
+                            <div class="feature-description">반복 실수를 모아 맞춤형 학습 지원</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <p class="demo-note">
-                아이디 로그인은 <a th:href="@{/register}" style="color:#4a90d9;font-weight:700;text-decoration:none;">회원가입</a>한 계정만 가능합니다.
-                <span th:if="${googleEnabled or naverEnabled}"><br><span th:if="${googleEnabled}">구글</span><span th:if="${googleEnabled and naverEnabled}">·</span><span th:if="${naverEnabled}">네이버</span> 계정으로도 로그인할 수 있어요.</span>
-            </p>
-        </div>
+            <!-- 원근감 있는 바둑판 장식 -->
+            <div class="board-decoration">
+                <span class="stone black" style="left: 16%; top: 36%;"></span>
+                <span class="stone white" style="left: 30%; top: 52%;"></span>
+                <span class="stone black" style="left: 42%; top: 31%;"></span>
+                <span class="stone white" style="left: 53%; top: 59%;"></span>
+                <span class="stone black" style="left: 63%; top: 42%;"></span>
+                <span class="stone white" style="left: 74%; top: 64%;"></span>
+                <span class="stone black" style="left: 82%; top: 35%;"></span>
+                <span class="stone white" style="left: 91%; top: 55%;"></span>
+            </div>
+        </section>
+
+        <!-- ══════════ 오른쪽: 로그인 ══════════ -->
+        <section class="login-panel">
+            <div class="login-card">
+
+                <div class="login-heading">
+                    <h1>로그인</h1>
+                    <p>계정에 로그인하고 분석을 시작하세요.</p>
+                </div>
+
+                <!-- 상태 알림: AuthController 가 /login?error, /login?registered, /login?logout 로 리다이렉트 -->
+                <div th:if="${param.error}" class="login-error">
+                    아이디 또는 비밀번호가 올바르지 않습니다.
+                </div>
+                <div th:if="${param.registered}" class="login-success">
+                    회원가입이 완료됐어요. 로그인해 주세요.
+                </div>
+                <div th:if="${param.logout}" class="login-success">
+                    로그아웃되었습니다.
+                </div>
+
+                <!-- 로그인 POST 대상은 스프링 기본 /login 이 아니라 AuthController 의 /login-local -->
+                <form th:action="@{/login-local}" method="post">
+
+                    <div class="form-group">
+                        <label class="form-label" for="username">아이디</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                                     stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="8" r="3.5"></circle>
+                                    <path d="M5 20c.7-3.3 3.1-5 7-5s6.3 1.7 7 5"></path>
+                                </svg>
+                            </span>
+                            <input class="form-input" type="text" id="username" name="username"
+                                   placeholder="아이디를 입력하세요" autocomplete="username" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="password">비밀번호</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                                     stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                                    <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                                </svg>
+                            </span>
+                            <input class="form-input" type="password" id="password" name="password"
+                                   placeholder="비밀번호를 입력하세요" autocomplete="current-password" required>
+                            <button type="button" class="password-toggle" id="passwordToggle" aria-label="비밀번호 표시">
+                                <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"></path>
+                                    <circle cx="12" cy="12" r="2.5"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 체크 시에만 remember-me 파라미터 전송 → TokenBasedRememberMeServices 가 14일 쿠키 발급.
+                         기존 동작(항상 유지)을 지키려고 기본 checked. OAuth 콜백에는 이 필드가 없어 그쪽은 미적용. -->
+                    <div class="remember-row">
+                        <label class="remember-label">
+                            <input type="checkbox" name="remember-me" value="true" checked>
+                            <span>로그인 유지 (14일)</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="login-button">로그인</button>
+                </form>
+
+                <!-- 소셜 로그인은 app.social-login-enabled + 키 등록이 모두 켜졌을 때만 노출 -->
+                <div class="divider" th:if="${googleEnabled or naverEnabled}">또는</div>
+
+                <div class="social-buttons" th:if="${googleEnabled or naverEnabled}">
+                    <a th:if="${googleEnabled}" class="social-button google-button"
+                       href="/oauth2/authorization/google">
+                        <span class="social-icon google-icon">G</span>
+                        Google로 로그인
+                    </a>
+                    <a th:if="${naverEnabled}" class="social-button naver-button"
+                       href="/oauth2/authorization/naver">
+                        <span class="social-icon naver-icon">N</span>
+                        네이버로 로그인
+                    </a>
+                </div>
+
+                <div class="register-area">
+                    계정이 없으신가요?
+                    <a th:href="@{/register}" class="register-link">회원가입</a>
+                </div>
+
+            </div>
+        </section>
+
     </div>
 </div>
+
+<!-- 비밀번호 표시/숨김. th:inline="none" — 템플릿 리터럴을 Thymeleaf 가 건드리지 않게 한다. -->
+<script th:inline="none">
+    (function () {
+        const usernameInput = document.getElementById("username");
+        const passwordInput = document.getElementById("password");
+        const passwordToggle = document.getElementById("passwordToggle");
+        const eyeIcon = document.getElementById("eyeIcon");
+
+        passwordToggle.addEventListener("click", function () {
+            const isPassword = passwordInput.type === "password";
+            passwordInput.type = isPassword ? "text" : "password";
+            passwordToggle.setAttribute("aria-label", isPassword ? "비밀번호 숨기기" : "비밀번호 표시");
+
+            eyeIcon.innerHTML = isPassword
+                ? '<path d="M3 3l18 18"></path>' +
+                  '<path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3.1 3.8"></path>' +
+                  '<path d="M6.1 6.1C3.4 8.1 2 12 2 12s3.5 6 10 6c1.3 0 2.5-.2 3.5-.6"></path>'
+                : '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"></path>' +
+                  '<circle cx="12" cy="12" r="2.5"></circle>';
+            passwordInput.focus();
+        });
+
+        // 넓은 화면에서만 자동 포커스. 좁은 화면(세로 배치)에서 하면 브라우저가
+        // 입력창까지 스크롤해 히어로 영역이 통째로 지나가 버린다.
+        if (window.matchMedia("(min-width: 781px)").matches) {
+            usernameInput.focus();
+        }
+    })();
+</script>
+
 </body>
 </html>

@@ -22,4 +22,5 @@ public class MistakeNote {
     private final String grade;       // 실수 / 악수
     private final double scoreLoss;   // 집 손해
     private final String phase;       // 초반 / 중반 / 종반
+    private final String previewMoves; // 그 수 직전까지의 착수("BQ16,WD4,…") — 카드 바둑판 렌더용
 }

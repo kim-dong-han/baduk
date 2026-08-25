@@ -1,161 +1,240 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>실시간 분석판</title>
-    <link rel="stylesheet" href="/css/common.css">
-    <style>
-        html { height: 100%; }
-        /* 셸(body grid) + .main.fill 이 높이를 잡으므로 body 는 배경만 담당 */
-        body { margin: 0; padding: 0; height: 100%; background: var(--background); }
-
-        /* 넓을 땐 [판 | 분석패널], 좁아지면 [요약 / 판 / 버튼] 세로 스택.
-           패널은 어두운 배경 위에 뜬 둥근 카드 — 화면에 꽉 붙이지 않고 여백을 준다. */
-        .play-layout {
-            flex: 1; min-height: 0; display: grid; background: var(--sidebar-1);
-            grid-template-columns: minmax(0, 1fr) 300px;
-            grid-template-rows: minmax(0, 1fr);
-            grid-template-areas: "board side";
-            gap: 18px; padding: 18px;
-        }
-        .board-area { grid-area: board; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
-        #boardCanvas { display: block; border-radius: 10px; box-shadow: 0 18px 48px -14px rgba(0,0,0,0.8); cursor: pointer; }
-
-        .play-panel {
-            grid-area: side; background: var(--surface); border-radius: 16px; overflow-y: auto;
-            padding: 18px 16px; box-shadow: 0 14px 36px -14px rgba(0,0,0,0.6);
-            display: flex; flex-direction: column; gap: 14px;
-        }
-        .panel-head, .panel-actions { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-        .panel-title { font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; }
-        .panel-sub   { font-size: 12px; color: var(--text-muted); margin: 0; }
-
-        /* 판 아래 한 줄 안내/상태 — 목록 카드를 없앤 자리 */
-        .board-hint {
-            margin: 0; font-size: 12px; line-height: 1.6; color: var(--text-muted); text-align: center;
-            padding: 9px 11px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border);
-        }
-        .board-hint.is-busy { color: var(--primary); border-color: var(--primary); }
-        .board-hint.is-err  { color: var(--danger);  border-color: var(--danger); }
-
-        .info-card { background: var(--surface-2); border-radius: var(--radius-sm); padding: 12px 14px; border: 1px solid var(--border); }
-        .info-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-        .info-value { font-size: 15px; font-weight: 700; color: var(--text-primary); }
-
-        .turn-card { border-left: 4px solid var(--primary); display: flex; align-items: center; gap: 10px; }
-        .turn-dot { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; }
-        .turn-dot.black { background: radial-gradient(circle at 35% 32%, #666, #111); }
-        .turn-dot.white { background: radial-gradient(circle at 35% 32%, #fff, #ccc); border: 1px solid #bbb; }
-
-        .panel-btn {
-            width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700;
-            cursor: pointer; border: none; transition: filter 0.15s, background 0.15s, opacity 0.15s;
-        }
-        .panel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .btn-primary  { background: linear-gradient(135deg, var(--primary), var(--primary-blue)); color: #fff; }
-        .btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
-        .btn-secondary { background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-strong); }
-        .btn-secondary:hover:not(:disabled) { background: #e7ebf1; }
-        .btn-danger   { background: var(--danger-bg); color: #c0392b; }
-        .btn-danger:hover:not(:disabled)  { background: #f1948a; color: #fff; }
-        .btn-group { display: flex; flex-direction: column; gap: 8px; }
-        .divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
-
-        /* 좁아지면 우측 패널을 없애고 [요약 / 판 / 버튼] 으로 쌓는다.
-           행 높이를 전부 auto 로 둬야 판이 행에 눌려 잘리지 않는다(예전엔 1fr 이라 위아래가 잘렸음).
-           display:contents 로 .play-panel 을 레이아웃에서 지워 자식이 직접 그리드 아이템이 된다. */
-        @media (max-width: 1150px) {
-            body { overflow: auto; height: auto; min-height: 100%; }
-            .play-layout {
-                /* flex:1 을 풀어야 그리드가 내용 높이만큼 늘어난다.
-                   붙잡아 두면 화면 높이에 맞춰 행이 눌려 판 위아래가 잘린다. */
-                flex: none; min-height: 0;
-                grid-template-columns: minmax(0, 1fr);
-                grid-template-rows: auto auto auto;
-                grid-template-areas: "head" "board" "actions";
-                gap: 14px; padding: 14px;
-            }
-            .play-panel { display: contents; }
-            .panel-head    { grid-area: head; flex-direction: row; flex-wrap: wrap; align-items: stretch; }
-            .panel-actions { grid-area: actions; }
-            .panel-head, .panel-actions {
-                background: var(--surface); border-radius: 14px; padding: 12px;
-                box-shadow: 0 12px 28px -14px rgba(0,0,0,0.65);
-            }
-            .panel-head > * { flex: 1 1 200px; }
-            .panel-head .board-hint { flex: 1 1 100%; }
-            .panel-intro { display: none; }                    /* 설명문은 숨겨 판 공간 확보 */
-            .panel-actions .btn-group { flex-direction: row; flex-wrap: wrap; }
-            .panel-actions .panel-btn { flex: 1 1 130px; width: auto; }
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 분석 · Baduk AI</title>
+    <link rel="stylesheet" href="/css/app-header.css">
+    <link rel="stylesheet" href="/css/study.css">
 </head>
 <body>
 
-<!-- rail: 좌측 메뉴를 아이콘만 남기고 접는다(호버하면 펼쳐짐) → 그만큼 바둑판이 커진다 -->
-    <aside th:replace="~{fragments/shell :: side_rail('study')}"></aside>
-    <main class="main fill">
-        <header th:replace="~{fragments/shell :: topbar}"></header>
-<div class="play-layout">
-    <div class="board-area">
-        <canvas id="boardCanvas"></canvas>
-    </div>
+<header th:replace="~{fragments/appheader :: header('study')}"></header>
 
-    <div class="play-panel">
-      <div class="panel-head">
-        <div class="panel-intro">
-            <p class="panel-title">🔬 실시간 분석판</p>
-            <p class="panel-sub">직접 흑·백을 놓으며 AI 추천수·승률을 실시간 확인</p>
+<main class="study-page">
+
+    <section class="page-top">
+        <div class="page-title">
+            <h1>실시간 분석</h1>
+            <p>바둑판에 직접 흑·백을 놓으면 KataGo가 그 국면을 바로 분석합니다. (대국이 아닌 연구용)</p>
         </div>
 
-        <!-- 다음 차례 -->
-        <div class="info-card turn-card">
-            <div class="turn-dot black" id="turnDot"></div>
-            <div>
-                <div class="info-label" style="margin:0;">다음 차례</div>
-                <div class="info-value" id="turnText">흑</div>
+        <div class="page-actions">
+            <div class="analysis-status" id="analysisStatus">
+                <span class="status-dot"></span>
+                <span id="analysisStatusText">대기 중</span>
             </div>
         </div>
+    </section>
 
-        <!-- 현재 형세 (둘 차례 관점) -->
-        <div class="info-card" id="standCard" style="border-left:4px solid #16a085;">
-            <div class="info-label">현재 형세 · 둘 차례 승률</div>
-            <div class="info-value" id="standText" style="margin-top:2px;">-</div>
+
+    <div class="analysis-layout">
+
+        <!-- ────────── 왼쪽: 분석 도구 ────────── -->
+        <div class="left-column">
+
+            <section class="panel tool-panel">
+                <div class="tool-group">
+                    <div class="tool-group-title">분석 도구</div>
+                    <button class="panel-btn" id="btnUndo" onclick="undo()">↶ 무르기 (한 수)</button>
+                    <button class="panel-btn" id="btnPass" onclick="passTurn()">〉 차례 넘기기 (패스)</button>
+                    <button class="panel-btn btn-danger" onclick="clearAll()">▣ 전체 지우기</button>
+                </div>
+
+                <div class="tool-group">
+                    <div class="toggle-row">
+                        <span>집(영역) 예측 표시</span>
+                        <!-- id 유지: 기존 render() 가 이 버튼 상태를 갱신한다 -->
+                        <button class="toggle" id="btnTerritory" type="button" onclick="toggleTerritory()"></button>
+                    </div>
+                    <div class="toggle-row">
+                        <span>좌표 표시</span>
+                        <button class="toggle active" id="btnCoords" type="button" onclick="toggleCoords()"></button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel turn-panel">
+                <div class="panel-title"><h2>현재 차례</h2></div>
+                <div class="turn-label">다음 착수</div>
+                <div class="turn-value">
+                    <span class="turn-dot black" id="turnDot"></span>
+                    <span id="turnText">흑</span>
+                </div>
+            </section>
+
+            <section class="panel info-panel">
+                <div class="panel-title"><h2>분석 설정</h2></div>
+                <div class="info-list">
+                    <div class="info-row"><span>분석 엔진</span><strong>KataGo</strong></div>
+                    <div class="info-row"><span>분석 깊이</span>
+                        <strong th:text="${studyVisits} + ' visits'">- visits</strong></div>
+                    <div class="info-row"><span>덤</span>
+                        <strong th:text="${komi} + '집'">-</strong></div>
+                    <div class="info-row"><span>판 크기</span><strong>19 × 19</strong></div>
+                    <div class="info-row"><span>업데이트</span><strong>착수할 때마다</strong></div>
+                </div>
+            </section>
         </div>
 
-        <!-- 승률 바: 흑·백 누가 유리한지 한눈에 -->
-        <div class="info-card" id="wrBar" style="padding:12px 14px;">
-            <div class="info-label" style="margin-bottom:8px;">AI 승률 (흑 vs 백)</div>
-            <div style="position:relative;height:24px;border-radius:6px;overflow:hidden;display:flex;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.12);">
-                <div id="wrBarBlack" style="height:100%;width:50%;background:linear-gradient(90deg,#2b2b2b,#4a4a4a);transition:width .4s ease;"></div>
-                <div style="flex:1;height:100%;background:linear-gradient(90deg,#dcdcdc,#f2f2f2);"></div>
-                <span id="wrBarBlackLbl" style="position:absolute;left:8px;top:0;line-height:24px;font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);">흑 50%</span>
-                <span id="wrBarWhiteLbl" style="position:absolute;right:8px;top:0;line-height:24px;font-size:12px;font-weight:700;color:#555;">백 50%</span>
+
+        <!-- ────────── 가운데: 바둑판 ────────── -->
+        <section class="panel board-panel">
+
+            <div class="board-header">
+                <div class="board-header-title">
+                    <strong>분석 바둑판</strong>
+                    <span id="moveNumber">0수</span>
+                </div>
+                <div class="board-tools">
+                    <button class="mini-button" onclick="undo()">← 이전</button>
+                    <button class="mini-button" onclick="redo()">다음 →</button>
+                </div>
             </div>
-            <div id="wrBarScore" style="text-align:center;font-size:12px;color:#888;margin-top:6px;"></div>
-        </div>
 
-        <!-- 방금 둔 수 평가 -->
-        <div class="info-card" id="lastCard" style="display:none;border-left:4px solid #4a90d9;">
-            <div class="info-label">방금 둔 수</div>
-            <div id="lastText" style="margin-top:2px;font-size:14px;font-weight:800;">-</div>
-        </div>
+            <!-- .board-area 이름 유지: computeLayout() 이 이 요소 크기로 판을 계산 -->
+            <div class="board-area">
+                <canvas id="boardCanvas"></canvas>
+            </div>
 
-        <!-- 추천수는 판 위에서 직접 읽는다(원=추천수, 호버=참고도) → 목록 카드 없음 -->
-        <p class="board-hint" id="engineState">돌을 놓아보세요</p>
-      </div>
+            <div class="board-footer">
+                <p class="board-hint" id="engineState">돌을 놓아보세요</p>
+            </div>
+        </section>
 
-      <div class="panel-actions">
-        <div class="btn-group">
-            <button class="panel-btn btn-secondary" id="btnTerritory" onclick="toggleTerritory()">🏳️ 집 예측 표시: 끔</button>
-            <button class="panel-btn btn-secondary" id="btnUndo" onclick="undo()">‹ 무르기 (한 수)</button>
-            <button class="panel-btn btn-secondary" id="btnPass" onclick="passTurn()">차례 넘기기 (패스)</button>
-            <button class="panel-btn btn-danger" onclick="clearAll()">전체 지우기</button>
+
+        <!-- ────────── 오른쪽: 분석 대시보드 ────────── -->
+        <div class="right-column">
+
+            <!-- 1. 승률 그래프 -->
+            <section class="panel chart-panel">
+                <div class="panel-title">
+                    <h2>실시간 승률 그래프</h2>
+                    <span>이 판에서 놓은 수순별</span>
+                </div>
+
+                <div class="winrate-summary">
+                    <div>
+                        <div class="chart-legend">
+                            <span class="legend-item"><span class="legend-line"></span>흑 승률</span>
+                            <span class="legend-item"><span class="legend-line mark"></span>현재 수</span>
+                        </div>
+                        <div class="chart-area">
+                            <canvas id="wrChart"></canvas>
+                            <div class="chart-empty" id="chartEmpty">돌을 놓으면 수순별 승률이<br>여기에 쌓입니다.</div>
+                        </div>
+                    </div>
+
+                    <div class="winrate-side">
+                        <div class="rate-item">
+                            <span>흑</span>
+                            <strong id="wrBarBlackLbl">흑 50%</strong>
+                        </div>
+                        <div class="rate-item">
+                            <span>백</span>
+                            <strong id="wrBarWhiteLbl">백 50%</strong>
+                        </div>
+                        <span class="advantage-badge even" id="advantageBadge">분석 전</span>
+                    </div>
+                </div>
+
+                <div class="wr-thin"><div id="wrBarBlack" style="width:50%"></div></div>
+            </section>
+
+            <!-- 2·3. 예상 집 / 수 품질 -->
+            <div class="small-grid">
+                <section class="panel territory-panel">
+                    <div class="panel-title"><h2>예상 집 차이</h2></div>
+                    <div class="territory-value" id="wrBarScore">-</div>
+                    <div class="territory-sub">KataGo 예상 형세 (흑 기준)</div>
+                    <div class="territory-chart"><canvas id="leadChart"></canvas></div>
+                </section>
+
+                <section class="panel quality-panel">
+                    <div class="panel-title">
+                        <h2>수 품질 분포</h2>
+                        <span id="qualityCount">0수</span>
+                    </div>
+                    <div class="quality-content">
+                        <div class="donut" id="qualityDonut">
+                            <span class="donut-center" id="qualityCenter">-</span>
+                        </div>
+                        <div class="quality-list" id="qualityList"></div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- 4. 추천수 TOP 5 -->
+            <section class="panel recommend-panel">
+                <div class="panel-title">
+                    <h2>AI 추천수 TOP 5</h2>
+                    <span>현재 국면 · 클릭하면 예상 진행</span>
+                </div>
+
+                <table class="recommend-table">
+                    <thead>
+                    <tr>
+                        <th>순위</th>
+                        <th>착수</th>
+                        <th>승률</th>
+                        <th>예상 집</th>
+                    </tr>
+                    </thead>
+                    <tbody id="recommendations">
+                    <tr><td colspan="4" class="table-empty">돌을 놓으면 추천수가 표시됩니다.</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 5. 최근 승률 변화 -->
+            <section class="panel recommend-panel">
+                <div class="panel-title">
+                    <h2>최근 승률 변화 <span style="color:var(--st-text-soft);">(하락 TOP 3)</span></h2>
+                </div>
+                <div class="drop-list" id="recentDrops">
+                    <div class="table-empty">아직 승률이 크게 떨어진 수가 없습니다.</div>
+                </div>
+            </section>
         </div>
-      </div>
     </div>
-</div>
+
+
+    <!-- ────────── 하단 ────────── -->
+    <div class="bottom-grid">
+
+        <section class="panel comment-panel">
+            <div class="panel-title">
+                <h2>AI 분석 코멘트</h2>
+                <span>KataGo</span>
+            </div>
+
+            <div class="comment-content">
+                <div class="ai-icon">AI</div>
+                <div class="comment-body">
+                    <div class="info-label">현재 형세 · 둘 차례 승률</div>
+                    <div class="info-value" id="standText">돌을 놓으면 분석이 시작됩니다.</div>
+
+                    <div id="lastCard" style="display:none;">
+                        <div class="info-label">방금 둔 수</div>
+                        <div class="info-value" id="lastText">-</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel summary-panel">
+            <div class="panel-title"><h2>현재 국면 요약</h2></div>
+            <div class="summary-list">
+                <div class="summary-row"><span>전체 수</span><strong id="summaryMoves">0수</strong></div>
+                <div class="summary-row"><span>흑 승률</span><strong id="summaryWinRate">-</strong></div>
+                <div class="summary-row"><span>예상 집 차이</span><strong id="summaryScore">-</strong></div>
+                <div class="summary-row"><span>형세</span><strong id="summaryStatus">-</strong></div>
+            </div>
+        </section>
+    </div>
+
+</main>
+
 
 <script th:inline="none">
 /* ══ 바둑판 상수 ══ */
@@ -216,6 +295,8 @@ function px(gx) { return PAD + gx * CELL; }
 function py(gy) { return PAD + (18 - gy) * CELL; }
 
 /* ══ 판 그리기 ══ */
+let showCoords = true;          // 좌표 표시 토글(왼쪽 도구 패널)
+
 function drawBoard() {
     const bg = ctx.createLinearGradient(0, 0, BOARD_PX, BOARD_PX);
     bg.addColorStop(0, '#E8B86D'); bg.addColorStop(1, '#C9954A');
@@ -227,10 +308,12 @@ function drawBoard() {
     }
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     [3, 9, 15].forEach(a => [3, 9, 15].forEach(b => { ctx.beginPath(); ctx.arc(px(a), py(b), 3.5, 0, Math.PI * 2); ctx.fill(); }));
-    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    for (let i = 0; i < 19; i++) {
-        ctx.fillText(COLS[i], px(i), PAD - 14); ctx.fillText(COLS[i], px(i), BOARD_PX - PAD + 14);
-        ctx.fillText(String(i + 1), PAD - 15, py(i)); ctx.fillText(String(i + 1), BOARD_PX - PAD + 15, py(i));
+    if (showCoords) {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        for (let i = 0; i < 19; i++) {
+            ctx.fillText(COLS[i], px(i), PAD - 14); ctx.fillText(COLS[i], px(i), BOARD_PX - PAD + 14);
+            ctx.fillText(String(i + 1), PAD - 15, py(i)); ctx.fillText(String(i + 1), BOARD_PX - PAD + 15, py(i));
+        }
     }
 }
 function drawStone(gx, gy, color, isLast) {
@@ -352,14 +435,24 @@ function render() {
     document.getElementById('turnText').textContent = nextColor === 'B' ? '흑' : '백';
     const dot = document.getElementById('turnDot'); dot.className = 'turn-dot ' + (nextColor === 'B' ? 'black' : 'white');
     document.getElementById('btnUndo').disabled = stones.length === 0;
-    document.getElementById('btnTerritory').textContent = '🏳️ 집 예측 표시: ' + (showTerritory ? '켬' : '끔');
+    const bt = document.getElementById('btnTerritory');
+    if (bt) bt.classList.toggle('active', showTerritory);
 }
 /* 판 아래 한 줄 상태 문구(분석 중 / 오류 / 안내) */
 function setEngineState(msg, kind) {
     const el = document.getElementById('engineState');
-    if (!el) return;
-    el.textContent = msg;
-    el.className = 'board-hint' + (kind ? ' is-' + kind : '');
+    if (el) {
+        el.textContent = msg;
+        el.className = 'board-hint' + (kind ? ' is-' + kind : '');
+    }
+    // 우상단 상태 배지도 같은 상태로 (분석 중 / 분석 완료 / 오류)
+    const badge = document.getElementById('analysisStatus');
+    const btxt  = document.getElementById('analysisStatusText');
+    if (badge && btxt) {
+        badge.className = 'analysis-status' + (kind ? ' is-' + kind : '');
+        btxt.textContent = kind === 'busy' ? '분석 중'
+                         : kind === 'err'  ? '분석 오류' : '분석 완료';
+    }
 }
 
 function toggleTerritory() { showTerritory = !showTerritory; render(); }
@@ -435,6 +528,7 @@ function clearAll() {
     setEngineState('돌을 놓아보세요');
     render();
     analyze();
+    if (window.studyResetSeries) window.studyResetSeries();
 }
 
 /* ══ 실시간 분석 ══ */
@@ -507,6 +601,9 @@ function updateStatus(data) {
 
     // 추천수 목록
     prevBest = candidates.length ? clamp(candidates[0].winrate) : null;   // 다음 착수 평가 기준(둘 차례 최선)
+
+    // 새 대시보드(승률 그래프·집차·수 품질·추천표·하락 목록) 갱신
+    if (window.studyOnAnalysis) window.studyOnAnalysis(data);
 }
 
 /* ══ 시작 ══ */
@@ -519,6 +616,285 @@ window.matchMedia('(max-width: 1150px)').addEventListener('change', render);
 render();
 analyze();   // 빈 판 분석(흑 첫 수 추천)
 </script>
-    </main>
+
+<!-- 새 대시보드 보강: 기존 /api/analyze/top 응답만으로 그래프·품질·추천표·하락 목록을 만든다 -->
+<script th:inline="none">
+(function () {
+    const $ = id => document.getElementById(id);
+
+    /* 이 판에서 놓은 수마다 [수번, 흑 승률, 흑 기준 집차]를 쌓는다(무르기하면 뒤를 잘라낸다) */
+    const series = [];
+    const grades = [];          // 놓은 수의 등급(최선/좋음/보통/실수/악수)
+    let prevBestLead = null;    // 직전 국면에서 '둘 차례' 최선 집차
+    let activeReco = -1;
+
+    /* 프로젝트 기준(SingleGameService.calcGrade)과 동일한 임계값 */
+    function calcGrade(loss) {
+        if (loss < 0.5) return '최선';
+        if (loss < 1.5) return '좋음';
+        if (loss < 3.0) return '보통';
+        if (loss < 5.0) return '실수';
+        return '악수';
+    }
+    const GRADE_COLOR = {
+        '최선': '#3d8750', '좋음': '#72a978', '보통': '#e0b75b',
+        '실수': '#eea52d', '악수': '#dc5a49'
+    };
+
+    /* ── 캔버스 꺾은선(외부 라이브러리 없이 직접 그림) ── */
+    function fitCanvas(cv) {
+        const dpr = window.devicePixelRatio || 1;
+        const w = cv.clientWidth, h = cv.clientHeight;
+        if (!w || !h) return null;
+        cv.width = w * dpr; cv.height = h * dpr;
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        return { ctx, w, h };
+    }
+
+    function drawWrChart() {
+        const cv = $('wrChart'); if (!cv) return;
+        const empty = $('chartEmpty');
+        if (empty) empty.style.display = series.length < 2 ? '' : 'none';
+        const c = fitCanvas(cv); if (!c || series.length < 2) return;
+        const { ctx, w, h } = c;
+        const pad = 6;
+
+
+        const n = series.length;
+        /* 승률 폭이 좁아도 변화가 보이도록 최소 24%p 창을 잡는다(항상 50% 포함) */
+        const vals = series.map(s => s.black);
+        let lo = Math.min.apply(null, vals) - 6, hi = Math.max.apply(null, vals) + 6;
+        if (hi - lo < 24) { const c = (hi + lo) / 2; lo = c - 12; hi = c + 12; }
+        lo = Math.max(0, lo); hi = Math.min(100, hi);
+        const x = i => (n <= 1 ? w / 2 : w * i / (n - 1));
+        const y = v => h - pad - (h - pad * 2) * ((v - lo) / (hi - lo));
+
+        /* 50% 기준선 */
+        if (lo < 50 && hi > 50) {
+            ctx.strokeStyle = '#e7e2d9'; ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath(); ctx.moveTo(0, y(50)); ctx.lineTo(w, y(50)); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        /* 흑 우세 영역 */
+        ctx.beginPath();
+        ctx.moveTo(x(0), h);
+        series.forEach((s, i) => ctx.lineTo(x(i), y(s.black)));
+        ctx.lineTo(x(n - 1), h); ctx.closePath();
+        ctx.fillStyle = 'rgba(37,36,33,.07)'; ctx.fill();
+
+        ctx.beginPath();
+        series.forEach((s, i) => i ? ctx.lineTo(x(i), y(s.black)) : ctx.moveTo(x(i), y(s.black)));
+        ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+
+        /* 현재(마지막) 지점 */
+        ctx.beginPath();
+        ctx.arc(x(n - 1), y(series[n - 1].black), 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#4c9c59'; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; ctx.stroke();
+    }
+
+    function drawLeadChart() {
+        const cv = $('leadChart'); if (!cv) return;
+        const c = fitCanvas(cv); if (!c || series.length < 2) return;
+        const { ctx, w, h } = c;
+        const vals = series.map(s => s.lead);
+        const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+        const span = (hi - lo) < 2 ? 2 : (hi - lo);
+        const n = vals.length;
+        const x = i => (n <= 1 ? w / 2 : w * i / (n - 1));
+        const y = v => h - 4 - (h - 8) * (v - lo) / span;
+
+        ctx.beginPath();
+        ctx.moveTo(x(0), h);
+        vals.forEach((v, i) => ctx.lineTo(x(i), y(v)));
+        ctx.lineTo(x(n - 1), h); ctx.closePath();
+        ctx.fillStyle = 'rgba(113,164,119,.22)'; ctx.fill();
+
+        ctx.beginPath();
+        vals.forEach((v, i) => i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)));
+        ctx.strokeStyle = '#77a87b'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+    }
+
+    /* ── 수 품질 분포 ── */
+    function drawQuality() {
+        const order = ['최선', '좋음', '보통', '실수', '악수'];
+        const count = {}; order.forEach(g => count[g] = 0);
+        grades.forEach(g => { if (count[g] != null) count[g]++; });
+        const total = grades.length;
+
+        $('qualityCount').textContent = total + '수';
+        $('qualityCenter').textContent = total ? total + '수' : '-';
+
+        const donut = $('qualityDonut');
+        if (total === 0) {
+            donut.style.background = 'conic-gradient(#e9e6df 0 100%)';
+        } else {
+            let acc = 0;
+            const parts = order.map(g => {
+                const from = acc / total * 100;
+                acc += count[g];
+                const to = acc / total * 100;
+                return GRADE_COLOR[g] + ' ' + from.toFixed(2) + '% ' + to.toFixed(2) + '%';
+            });
+            donut.style.background = 'conic-gradient(' + parts.join(', ') + ')';
+        }
+
+        $('qualityList').innerHTML = order.map(g => {
+            const pct = total ? Math.round(count[g] / total * 100) : 0;
+            return '<div class="quality-item">'
+                + '<span class="quality-name"><span class="quality-dot" style="background:'
+                + GRADE_COLOR[g] + ';"></span>' + g + '</span>'
+                + '<strong>' + (total ? pct + '%' : '-') + '</strong></div>';
+        }).join('');
+    }
+
+    /* ── 추천수 표(클릭 → 그 수의 예상 진행을 판에 표시) ── */
+    function drawRecommendations() {
+        const tb = $('recommendations'); if (!tb) return;
+        if (!candidates || !candidates.length) {
+            tb.innerHTML = '<tr><td colspan="4" class="table-empty">돌을 놓으면 추천수가 표시됩니다.</td></tr>';
+            return;
+        }
+        tb.innerHTML = candidates.slice(0, 5).map((c, i) => {
+            const mv = (c.move || '').toLowerCase() === 'pass' ? '패스' : (c.move || '').toUpperCase();
+            const lead = (c.scoreLead == null) ? '-'
+                : (c.scoreLead >= 0 ? '+' : '') + c.scoreLead.toFixed(1);
+            const cls = (c.scoreLead >= 0) ? 'score-positive' : 'score-negative';
+            return '<tr data-idx="' + i + '"' + (i === activeReco ? ' class="active"' : '') + '>'
+                + '<td><span class="rank-number">' + (i + 1) + '</span></td>'
+                + '<td class="move-coordinate">' + mv + '</td>'
+                + '<td>' + c.winrate.toFixed(1) + '%</td>'
+                + '<td class="' + cls + '">' + lead + '</td></tr>';
+        }).join('');
+
+        tb.querySelectorAll('tr[data-idx]').forEach(tr => {
+            tr.addEventListener('click', () => {
+                const i = Number(tr.dataset.idx);
+                /* 판 위 호버와 같은 경로: 그 후보의 예상 진행(PV)을 그린다 */
+                if (activeReco === i) { activeReco = -1; hoverPv = null; hoverIdx = -1; }
+                else {
+                    activeReco = i;
+                    const r = recos.find(x => x.cand && x.cand.move === candidates[i].move);
+                    hoverPv = candidates[i].pv || null;
+                    hoverIdx = r ? recos.indexOf(r) : -1;
+                }
+                drawRecommendations();
+                render();
+            });
+        });
+    }
+
+    /* ── 최근 승률 하락 TOP 3 ── */
+    function drawDrops() {
+        const box = $('recentDrops'); if (!box) return;
+        const drops = [];
+        for (let i = 1; i < series.length; i++) {
+            const cur = series[i], prev = series[i - 1];
+            if (!cur.move) continue;
+            /* 그 수를 둔 쪽 관점에서 승률이 얼마나 떨어졌는지 */
+            const moverBlack = cur.color === 'B';
+            const before = moverBlack ? prev.black : 100 - prev.black;
+            const after  = moverBlack ? cur.black  : 100 - cur.black;
+            const diff = before - after;
+            if (diff > 0.5) drops.push({ turn: cur.turn, move: cur.move, diff: diff });
+        }
+        drops.sort((a, b) => b.diff - a.diff);
+
+        if (!drops.length) {
+            box.innerHTML = '<div class="table-empty">아직 승률이 크게 떨어진 수가 없습니다.</div>';
+            return;
+        }
+        box.innerHTML = drops.slice(0, 3).map((d, i) =>
+            '<div class="drop-item"><div class="drop-move">'
+            + '<span class="drop-rank">' + (i + 1) + '</span>'
+            + d.turn + '수 (' + d.move + ')</div>'
+            + '<span class="drop-value">-' + d.diff.toFixed(1) + '%</span></div>').join('');
+    }
+
+    /* ── 요약 · 상태 배지 ── */
+    function drawSummary(blackPct, lead) {
+        $('summaryMoves').textContent = stones.length + '수';
+        $('moveNumber').textContent = stones.length + '수';
+        $('summaryWinRate').textContent = blackPct.toFixed(1) + '%';
+        $('summaryScore').textContent = $('wrBarScore').textContent || '-';
+
+        const badge = $('advantageBadge');
+        let label, cls;
+        if (blackPct >= 55)      { label = '흑 우세'; cls = ''; }
+        else if (blackPct <= 45) { label = '백 우세'; cls = ' white-lead'; }
+        else                     { label = '팽팽';   cls = ' even'; }
+        badge.className = 'advantage-badge' + cls;
+        badge.textContent = label;
+        $('summaryStatus').textContent = label;
+    }
+
+    /* ── 매 분석 응답마다 호출(updateStatus 끝에서) ── */
+    window.studyOnAnalysis = function (data) {
+        const side = data.sideToMove;
+        const blackPct = Math.max(0, Math.min(100, side === 'B' ? data.rootWinrate : 100 - data.rootWinrate));
+        const lead = (data.rootScoreLead == null) ? 0 : data.rootScoreLead;
+        const turn = stones.length;
+
+        /* 무르기/지우기로 되돌아간 만큼 뒤 기록을 잘라낸다 */
+        while (series.length && series[series.length - 1].turn >= turn) { series.pop(); grades.pop(); }
+
+        const last = turn ? stones[turn - 1] : null;
+        const entry = {
+            turn: turn,
+            black: blackPct,
+            lead: lead,
+            move: last ? gridToGtp(last.x, last.y) : null,
+            color: last ? last.color : null
+        };
+        series.push(entry);
+
+        /* 방금 둔 수의 집손해 → 프로젝트와 같은 기준으로 등급 산출 */
+        if (last && prevBestLead != null) {
+            const moverLead = last.color === 'B' ? lead : -lead;   // 둔 쪽 관점
+            grades.push(calcGrade(Math.max(0, prevBestLead - moverLead)));
+        } else if (last) {
+            grades.push(null);
+        }
+        prevBestLead = (candidates && candidates.length && candidates[0].scoreLead != null)
+            ? candidates[0].scoreLead : null;
+
+        activeReco = -1;
+        drawWrChart(); drawLeadChart(); drawQuality();
+        drawRecommendations(); drawDrops(); drawSummary(blackPct, lead);
+    };
+
+    /* 전체 지우기 시 기록 초기화 */
+    window.studyResetSeries = function () {
+        series.length = 0; grades.length = 0;
+        prevBestLead = null; activeReco = -1;
+        drawWrChart(); drawLeadChart(); drawQuality();
+        drawRecommendations(); drawDrops();
+        $('summaryMoves').textContent = '0수';
+        $('summaryWinRate').textContent = '-';
+        $('summaryScore').textContent = '-';
+        $('summaryStatus').textContent = '-';
+    };
+
+    /* 좌표 표시 토글 */
+    window.toggleCoords = function () {
+        showCoords = !showCoords;
+        const b = $('btnCoords'); if (b) b.classList.toggle('active', showCoords);
+        render();
+    };
+
+    let rz;
+    window.addEventListener('resize', () => {
+        clearTimeout(rz);
+        rz = setTimeout(() => { drawWrChart(); drawLeadChart(); }, 150);
+    });
+
+    drawQuality();
+})();
+</script>
+
 </body>
 </html>

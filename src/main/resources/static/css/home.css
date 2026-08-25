@@ -1,0 +1,510 @@
+/* ════════════════════════════════════════════════════════════
+   홈(대시보드) 전용 스타일
+   상단 헤더형 독립 레이아웃. common.css(사이드바 셸)와 분리한다.
+   ════════════════════════════════════════════════════════════ */
+
+/* ── 1. Design System ── */
+:root {
+    --navy:    #07113f;
+    --navy-2:  #101957;
+
+    --indigo:  #4d35f2;
+    --blue:    #315cff;
+    --purple:  #704cff;
+
+    --text:    #111936;
+    --text-2:  #34405f;
+    --text-3:  #737d96;
+    --text-4:  #a1a9bb;
+
+    --border:       #e4e8f1;
+    --border-light: #edf0f6;
+
+    --bg:    #f7f8fc;
+    --white: #ffffff;
+
+    --green:  #19b96b;
+    --orange: #f39a21;
+    --red:    #e05252;
+    --cyan:   #25a8cf;
+
+    --shadow-sm: 0 4px 16px rgba(20, 32, 75, 0.05);
+    --shadow:    0 12px 35px rgba(20, 32, 75, 0.07);
+    --radius: 16px;
+}
+
+/* ── 2. Reset ── */
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0; padding: 0;
+    min-height: 100%;
+    font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+}
+body { min-width: 320px; }
+
+a { color: inherit; text-decoration: none; }
+button { font: inherit; }
+
+/* 헤더·브랜드·내비·계정 메뉴는 app-header.css 로 분리(홈/기보 복기 공용) */
+
+/* ── 7. Page ── */
+.page {
+    width: min(1460px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: 24px 0 40px;
+}
+
+/* ── 8. Hero ── */
+.hero {
+    position: relative;
+    min-height: 356px;
+    overflow: hidden;
+    display: flex;
+    border-radius: 16px;
+    background: linear-gradient(108deg, #07113f 0%, #0d1852 45%, #5640d5 100%);
+    box-shadow: 0 14px 38px rgba(17, 27, 79, 0.12);
+}
+.hero-content {
+    position: relative; z-index: 5;
+    width: 48%;
+    padding: 43px 0 42px 64px;
+}
+.hero-greeting { margin: 0 0 17px; color: rgba(255,255,255,0.86); font-size: 15px; letter-spacing: -0.3px; }
+.hero-title {
+    margin: 0; color: #fff;
+    font-size: clamp(35px, 3vw, 46px);
+    line-height: 1.2; letter-spacing: -2px; font-weight: 800;
+}
+.hero-title .accent { color: #8d75ff; }
+.hero-description {
+    margin: 21px 0 0;
+    color: rgba(255,255,255,0.70);
+    font-size: 14px; line-height: 1.75; letter-spacing: -0.2px;
+}
+
+/* ── 9. Hero CTA ── */
+.hero-actions { display: flex; align-items: center; margin-top: 25px; }
+.primary-button {
+    height: 50px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    padding: 0 20px;
+    border: none; border-radius: 9px;
+    background: linear-gradient(100deg, #6338f5, #3869ff);
+    color: #fff;
+    font-size: 13px; font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 9px 24px rgba(43,63,216,0.28);
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.primary-button:hover { transform: translateY(-1px); box-shadow: 0 13px 28px rgba(43,63,216,0.34); }
+.primary-button svg { width: 17px; height: 17px; }
+
+/* ── 10. Hero Board (장식) ── */
+.hero-board-area {
+    position: absolute; z-index: 2;
+    right: -30px; bottom: -85px;
+    width: 61%; height: 390px;
+    transform: perspective(1000px) rotateX(7deg) rotateY(-2deg) rotateZ(-2deg);
+    transform-origin: center bottom;
+    overflow: hidden;
+    background:
+        linear-gradient(rgba(86, 58, 205, 0.08), rgba(86, 58, 205, 0.02)),
+        #c9955b;
+    box-shadow: -20px -10px 70px rgba(53, 62, 190, 0.3);
+}
+.hero-board-grid {
+    position: absolute; inset: 22px;
+    background:
+        linear-gradient(rgba(70,40,15,0.62) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(70,40,15,0.62) 1px, transparent 1px);
+    background-size: 42px 42px;
+    opacity: 0.72;
+}
+.hero-board-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(105deg, rgba(20,24,80,0.32), transparent 45%);
+}
+.board-stone {
+    position: absolute;
+    width: 38px; height: 38px;
+    border-radius: 50%; z-index: 5;
+    box-shadow:
+        inset -6px -7px 10px rgba(0,0,0,0.25),
+        inset 4px 4px 8px rgba(255,255,255,0.22),
+        0 6px 12px rgba(0,0,0,0.28);
+}
+.board-stone.black { background: radial-gradient(circle at 34% 27%, #515151, #151515 56%, #050505); }
+.board-stone.white { background: radial-gradient(circle at 35% 27%, #ffffff, #e6e7eb 60%, #babdc6); }
+
+/* ── 11. Hero 요약 카드 ── */
+.hero-stat-card {
+    position: absolute; z-index: 20;
+    right: 37%; top: 31px;
+    width: 238px; padding: 20px;
+    border-radius: 14px;
+    background: rgba(48,48,117,0.55);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.16);
+    backdrop-filter: blur(15px);
+    color: #fff;
+}
+.hero-stat-label { color: rgba(255,255,255,0.72); font-size: 11px; margin-bottom: 13px; }
+.hero-stat-content { display: flex; align-items: center; gap: 17px; }
+
+.progress-ring { position: relative; width: 74px; height: 74px; flex-shrink: 0; }
+.progress-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.progress-ring-track { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 7; }
+.progress-ring-value {
+    fill: none; stroke: #7864ff; stroke-width: 7; stroke-linecap: round;
+    stroke-dasharray: 208; stroke-dashoffset: 208;
+    transition: stroke-dashoffset .6s ease;
+}
+.progress-ring-text {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800;
+}
+
+.hero-stat-info { display: flex; flex-direction: column; gap: 6px; }
+.hero-stat-main { font-size: 13px; font-weight: 700; }
+.hero-stat-change { color: #57e29a; font-size: 11px; font-weight: 700; }
+.hero-stat-change.down { color: #ff9a9a; }
+.hero-stat-compare { color: rgba(255,255,255,0.50); font-size: 10px; }
+
+/* ── 12. 성장 추이 카드 ── */
+.growth-card {
+    position: absolute; z-index: 20;
+    right: 15px; top: 31px;
+    width: 390px; padding: 18px 20px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    color: #fff;
+}
+.growth-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.growth-title { font-size: 11px; color: rgba(255,255,255,0.74); }
+.growth-value {
+    padding: 4px 7px; border-radius: 6px;
+    background: rgba(255,255,255,0.92);
+    color: #3843a0;
+    font-size: 10px; font-weight: 800;
+}
+.growth-chart { width: 100%; height: 88px; }
+.growth-chart svg { width: 100%; height: 100%; }
+
+/* ── 13. 바로가기 ── */
+.shortcut-section {
+    margin-top: 18px;
+    padding: 0 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    box-shadow: var(--shadow-sm);
+}
+.shortcut-grid { display: grid; grid-template-columns: repeat(6, 1fr); }
+.shortcut-item {
+    position: relative;
+    min-height: 105px;
+    display: flex; align-items: center;
+    padding: 16px 21px; gap: 14px;
+    transition: background 0.15s ease;
+}
+.shortcut-item:not(:last-child)::after {
+    content: "";
+    position: absolute; right: 0; top: 25px; bottom: 25px;
+    width: 1px; background: #e1e5ed;
+}
+.shortcut-item:hover { background: #fafaff; }
+.shortcut-icon {
+    width: 50px; height: 50px; flex: 0 0 50px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+}
+.shortcut-icon svg { width: 23px; height: 23px; }
+.shortcut-icon.purple { background: #f0edff; color: #6745ed; }
+.shortcut-icon.blue   { background: #edf4ff; color: #3774ef; }
+.shortcut-icon.orange { background: #fff4e6; color: #f09a25; }
+.shortcut-icon.green  { background: #eafaf1; color: #21ae67; }
+.shortcut-icon.red    { background: #fff0f2; color: #e35b69; }
+.shortcut-icon.cyan   { background: #eaf9fd; color: #2aabc9; }
+
+.shortcut-text { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.shortcut-title { font-size: 13px; font-weight: 800; white-space: nowrap; }
+.shortcut-description { color: #7d869d; font-size: 10px; line-height: 1.5; word-break: keep-all; }
+.shortcut-arrow { margin-left: auto; width: 17px; height: 17px; color: #8992a7; flex-shrink: 0; }
+
+/* ── 14. 메인 그리드 ── */
+.content-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(340px, 1fr);
+    gap: 16px;
+    margin-top: 18px;
+}
+.content-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+.card-header {
+    min-height: 58px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border-light);
+}
+.card-title { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: -0.5px; }
+.card-more {
+    display: flex; align-items: center; gap: 3px;
+    color: #7c859c; font-size: 11px; font-weight: 600;
+}
+.card-more:hover { color: var(--indigo); }
+.card-more svg { width: 14px; height: 14px; }
+
+/* ── 15. 최근 분석 결과 ── */
+.recent-games {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 12px 14px 15px;
+}
+.game-card {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid #e7eaf1;
+    border-radius: 10px;
+    background: #fcfcfe;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.game-card:hover { border-color: #cfd3f5; box-shadow: var(--shadow-sm); }
+
+.game-thumbnail {
+    position: relative;
+    width: 100%; aspect-ratio: 1.65;
+    overflow: hidden; border-radius: 7px;
+    background: linear-gradient(135deg, #c89256, #e3b779);
+}
+/* 실제 최종 국면을 그리는 캔버스 */
+.mini-board { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.latest-badge {
+    position: absolute; top: 7px; left: 7px; z-index: 5;
+    padding: 4px 6px; border-radius: 5px;
+    background: #6641e9; color: #fff;
+    font-size: 8px; font-weight: 800;
+}
+.game-name {
+    margin-top: 9px;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 11px; font-weight: 800;
+    white-space: nowrap; text-overflow: ellipsis;
+}
+.game-meta { margin-top: 4px; color: #8b94a9; font-size: 9px; }
+
+.game-stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin-top: 10px; padding-top: 9px;
+    border-top: 1px solid #edf0f4;
+}
+.game-stat { display: flex; flex-direction: column; gap: 3px; }
+.game-stat-label { color: #8992a7; font-size: 9px; }
+.game-stat-value { font-size: 13px; font-weight: 800; }
+.game-stat-value.positive { color: #1baa65; }
+.game-stat-value.negative { color: #e35b5b; }
+
+.report-button {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 31px; margin-top: 10px;
+    border: 1px solid #e2e5ec; border-radius: 6px;
+    background: #fff;
+    color: var(--indigo);
+    font-size: 9px; font-weight: 800;
+    cursor: pointer;
+}
+.report-button:hover { border-color: #c7c2f5; background: #f8f6ff; }
+
+/* ── 16. 실력 현황 ── */
+.skill-content { padding: 19px 20px 17px; }
+.skill-top { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.skill-rating {
+    min-height: 96px; padding: 16px;
+    border: 1px solid #edf0f5; border-radius: 10px;
+    background: #fbfcfe;
+}
+.skill-label { color: #69748d; font-size: 10px; }
+.rank-values { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.rank { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rank-value { font-size: 19px; font-weight: 900; letter-spacing: -1px; }
+.rank-score { color: #8d96a9; font-size: 10px; }
+.rank-arrow { width: 17px; height: 17px; color: #7e88a0; flex-shrink: 0; }
+
+.skill-chart {
+    position: relative; min-height: 96px;
+    padding: 10px 10px 6px;
+    border-left: 1px solid #edf0f5;
+}
+.chart-title { color: #69748d; font-size: 10px; }
+.skill-chart svg { width: 100%; height: 67px; margin-top: 4px; }
+
+.skill-summary {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    margin-top: 17px; padding-top: 14px;
+    border-top: 1px solid #edf0f5;
+}
+.summary-stat {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 9px;
+    border-right: 1px solid #edf0f5;
+}
+.summary-stat:last-child { border-right: none; }
+.summary-icon {
+    width: 27px; height: 27px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 7px;
+    background: #f1efff; color: #6848e9;
+}
+.summary-icon.gold  { background: #fff5df; color: #e1a321; }
+.summary-icon.blue  { background: #edf4ff; color: #3c69ee; }
+.summary-icon.green { background: #eafaf1; color: #22ae68; }
+.summary-icon svg { width: 15px; height: 15px; }
+
+.summary-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.summary-label { color: #8992a7; font-size: 8px; white-space: nowrap; }
+.summary-value { font-size: 14px; font-weight: 900; }
+
+/* ── 17. 학습 추천 ── */
+.learning-card {
+    min-height: 72px;
+    display: flex; align-items: center;
+    margin-top: 18px; padding: 0 24px;
+    border: 1px solid #e8e3ff; border-radius: 14px;
+    background: linear-gradient(100deg, #f6f3ff, #fbfaff);
+}
+.learning-icon {
+    width: 42px; height: 42px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #6445ea;
+}
+.learning-icon svg { width: 25px; height: 25px; }
+.learning-title {
+    padding-left: 12px; padding-right: 24px;
+    border-right: 1px solid #e5e0fa;
+    color: #1c2761;
+    font-size: 13px; font-weight: 900;
+    white-space: nowrap;
+}
+.learning-info { padding-left: 25px; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.difficulty {
+    padding: 4px 7px; border-radius: 5px;
+    background: #6941ea; color: #fff;
+    font-size: 8px; font-weight: 800;
+    white-space: nowrap;
+}
+.learning-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.learning-main { color: #3a4261; font-size: 11px; font-weight: 800; }
+.learning-sub  { color: #8b92a8; font-size: 9px; }
+.learning-button {
+    display: flex; align-items: center; justify-content: center;
+    width: 180px; height: 38px; margin-left: auto; flex-shrink: 0;
+    border: 1px solid #d4cbff; border-radius: 8px;
+    background: #fff;
+    color: #5b42db;
+    font-size: 10px; font-weight: 800;
+    cursor: pointer;
+}
+.learning-button:hover { background: #f8f6ff; }
+
+/* ── 18. 빈 상태 ── */
+.empty-games {
+    min-height: 220px;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    color: #929bae; gap: 10px;
+}
+.empty-games svg { width: 38px; height: 38px; color: #b2b9c8; }
+.empty-games-text { font-size: 12px; }
+.empty-inline { padding: 26px 20px; color: #929bae; font-size: 12px; line-height: 1.7; text-align: center; }
+.empty-inline a { color: var(--indigo); font-weight: 700; }
+
+/* ── 20. 태블릿 ── */
+@media (max-width: 1250px) {
+    .hero-content { padding-left: 44px; }
+    .hero-stat-card { right: 34%; }
+    .growth-card { right: 12px; width: 320px; }
+    .shortcut-item { padding-left: 12px; padding-right: 12px; }
+    .shortcut-description { display: none; }
+    .shortcut-arrow { display: none; }
+}
+
+/* ── 21. 태블릿(소) ── */
+@media (max-width: 1000px) {
+    .page { width: min(100% - 30px, 1460px); }
+    .hero { min-height: 420px; }
+    .hero-content { width: 58%; }
+    .hero-board-area { width: 60%; right: -80px; opacity: 0.85; }
+    .growth-card { display: none; }
+    .hero-stat-card { right: 18px; top: 25px; }
+    .shortcut-grid { grid-template-columns: repeat(3, 1fr); }
+    .shortcut-item:nth-child(3)::after { display: none; }
+    .shortcut-item:nth-child(-n+3)::after { top: 20px; bottom: 20px; }
+    .content-grid { grid-template-columns: 1fr; }
+    .skill-summary { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ── 22. 모바일 ── */
+@media (max-width: 700px) {
+    .page { width: calc(100% - 24px); }
+    .page { padding-top: 12px; }
+
+    .hero { min-height: 510px; display: block; border-radius: 13px; }
+    .hero-content { width: 100%; padding: 32px 25px 0; }
+    .hero-title { font-size: 33px; letter-spacing: -1.7px; }
+    .hero-description { font-size: 13px; }
+    .hero-board-area {
+        width: 120%; height: 250px;
+        right: -70px; bottom: -85px;
+        transform: perspective(800px) rotateX(8deg) rotateZ(-2deg);
+    }
+    .hero-stat-card { top: auto; right: 20px; bottom: 150px; width: 205px; padding: 14px; }
+    .hero-stat-content { gap: 10px; }
+    .progress-ring { width: 60px; height: 60px; }
+    .hero-stat-main { font-size: 11px; }
+
+    .shortcut-section { padding: 0; }
+    .shortcut-grid { grid-template-columns: repeat(2, 1fr); }
+    .shortcut-item { min-height: 82px; padding: 13px 15px; }
+    .shortcut-item:nth-child(3)::after { display: block; }
+    .shortcut-item:nth-child(even)::after { display: none; }
+    .shortcut-icon { width: 42px; height: 42px; flex-basis: 42px; }
+    .shortcut-icon svg { width: 20px; height: 20px; }
+    .shortcut-title { font-size: 11px; }
+
+    .recent-games { grid-template-columns: repeat(2, 1fr); }
+    .skill-top { grid-template-columns: 1fr; }
+    .skill-chart { border-left: none; border-top: 1px solid #edf0f5; padding-top: 14px; }
+    .skill-summary { grid-template-columns: repeat(2, 1fr); gap: 13px; }
+    .summary-stat { border-right: none; padding: 0; }
+
+    .learning-card { min-height: auto; flex-wrap: wrap; padding: 15px; }
+    .learning-title { padding-right: 0; border-right: none; }
+    .learning-info { width: 100%; padding-left: 0; margin-top: 10px; }
+    .learning-button { width: 100%; margin-top: 12px; margin-left: 0; }
+}
+
+/* ── 23. 작은 모바일 ── */
+@media (max-width: 420px) {
+    .hero-content { padding: 28px 20px 0; }
+    .hero-title { font-size: 29px; }
+    .hero-greeting { font-size: 13px; }
+    .hero-description { font-size: 12px; }
+    .primary-button { width: 100%; }
+    .hero-stat-card { right: 15px; bottom: 137px; }
+    .recent-games { grid-template-columns: 1fr; }
+    .card-header { padding: 0 17px; }
+    .skill-content { padding: 15px; }
+    .summary-stat { gap: 6px; }
+    .summary-value { font-size: 12px; }
+}

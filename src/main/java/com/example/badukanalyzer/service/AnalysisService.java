@@ -243,11 +243,26 @@ public class AnalysisService {
                         .grade(grade)
                         .scoreLoss(round1(Math.max(0, m.getScoreLoss())))
                         .phase(m.getPhase())
+                        .previewMoves(movesUpTo(g, m.getTurnNumber()))
                         .build());
             }
         }
         notes.sort(Comparator.comparingDouble(MistakeNote::getScoreLoss).reversed());
         return notes.size() > 200 ? notes.subList(0, 200) : notes;
+    }
+
+    /** 오답노트 카드용 — 그 수를 두기 직전까지의 착수를 "BQ16,WD4,…" 로 압축. */
+    private String movesUpTo(SingleGameResult g, int turnNumber) {
+        if (g.getMoves() == null) return "";
+        StringBuilder sb = new StringBuilder();
+        int n = 0;
+        for (MoveDetail d : g.getMoves()) {
+            if (d.getTurnNumber() >= turnNumber) break;
+            if (d.getMove() == null || d.getMove().isBlank() || d.getMove().equalsIgnoreCase("pass")) continue;
+            if (n++ > 0) sb.append(',');
+            sb.append(d.getColor()).append(d.getMove());
+        }
+        return sb.toString();
     }
 
     private String phaseTip(String phase) {
@@ -303,11 +318,27 @@ public class AnalysisService {
                     .endgameLoss(g.getEndgame() != null ? g.getEndgame().getAvgScoreLoss() : 0)
                     .bestPhase(bestPhase)
                     .worstPhase(worstPhase)
+                    .previewMoves(previewMoves(g))
                     .build();
             (isPro ? pro : mine).add(item);
         }
         pro.addAll(mine);   // 프로 먼저
         return pro;
+    }
+
+    /** 갤러리 카드 썸네일용 — 앞 80수를 "BQ16,WD4,…" 로 압축(따냄은 화면에서 계산). */
+    private String previewMoves(SingleGameResult g) {
+        if (g.getMoves() == null || g.getMoves().isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        int n = 0;
+        for (var m : g.getMoves()) {
+            if (m.getMove() == null || m.getMove().isBlank()) continue;
+            if (m.getMove().equalsIgnoreCase("pass")) continue;
+            if (n++ > 0) sb.append(',');
+            sb.append(m.getColor()).append(m.getMove());
+            if (n >= 80) break;
+        }
+        return sb.toString();
     }
 
     private String galleryTitle(SingleGameResult g, boolean isPro) {

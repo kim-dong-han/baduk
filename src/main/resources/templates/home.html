@@ -1,457 +1,708 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>바둑 분석 · 홈</title>
-    <link rel="stylesheet" href="/css/common.css">
-    <style>
-        /* 홈 전용 요소만. 셸·패널·그리드(.panel/.panel-hd/.panel-bd/.box/.g-*)는 common.css 것을 쓴다. */
-
-        /* 1행 히어로 */
-        .home-hero {
-            display: flex; align-items: center; justify-content: space-between; gap: 20px;
-            min-height: 92px; padding: 20px 24px; border-radius: var(--radius);
-            background: linear-gradient(105deg, var(--primary-dark) 0%, var(--primary) 55%, #6366f1 100%);
-            color: #fff;
-        }
-        .hero-hi { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; }
-        .hero-sub { font-size: 13px; color: #d3d7fb; margin-top: 6px; }
-        .hero-cta {
-            padding: 11px 20px; border-radius: 10px; background: #fff; color: var(--primary-dark);
-            font-size: 13.5px; font-weight: 800; text-decoration: none; white-space: nowrap; flex-shrink: 0;
-        }
-        .hero-cta:hover { background: #f2f3ff; }
-
-        /* 2행 바로가기 타일 */
-        .tile {
-            display: flex; align-items: center; gap: 11px; text-decoration: none; color: inherit;
-            background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 15px;
-            transition: border-color .14s;
-        }
-        .tile:hover { border-color: var(--primary); }
-        .tile-ico {
-            width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
-            display: flex; align-items: center; justify-content: center; font-size: 15px;
-        }
-        .tile-name { display: block; font-size: 13px; font-weight: 800; }
-        .tile-desc { display: block; font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
-        .ico-report  { background: #eef0fe; color: #4f46e5; }
-        .ico-replay  { background: #e8f1fe; color: #1d6ee0; }
-        .ico-notes   { background: #fdedde; color: #d97706; }
-        .ico-play    { background: #e0f5f4; color: #0e9488; }
-        .ico-study   { background: #f2e9fd; color: #7c3aed; }
-        .ico-gallery { background: #fdf3d6; color: #c08b00; }
-
-        /* 3행 좌: 최근 분석 결과 리스트 */
-        .recent-list { display: flex; flex-direction: column; padding: 6px; }
-        .recent-item { display: flex; gap: 11px; padding: 9px 10px; border-radius: 9px; color: inherit; text-decoration: none; }
-        .recent-item:hover { background: var(--surface-2); }
-        .recent-badge {
-            width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
-            background: var(--primary-light); color: var(--primary);
-            display: flex; align-items: center; justify-content: center; font-size: 15px;
-        }
-        .recent-name { display: block; font-size: 12.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .recent-line { display: flex; align-items: center; gap: 6px; margin-top: 3px; min-width: 0; }
-        .recent-meta { flex: 1; min-width: 0; font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .recent-tag { flex-shrink: 0; font-size: 10px; font-weight: 700; color: #0e8a4f; background: #e4f6ec; border-radius: 5px; padding: 2px 6px; }
-
-        /* 빈 상태 (데이터 없는 패널은 지우지 않고 이걸로 렌더) */
-        .empty-state { font-size: 12px; color: var(--text-muted); line-height: 1.6; padding: 6px 0; }
-        .empty-state a { color: var(--primary); font-weight: 700; text-decoration: none; }
-
-        /* 3행 우: 실력 리포트 패널 */
-        .rp-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-        .rp-title { font-size: 15px; font-weight: 900; }
-        .rp-file  { font-size: 12.5px; color: var(--text-secondary); }
-        #homeBoard { display: block; width: 342px; max-width: 100%; height: auto; border-radius: 8px; }
-        .rp-side { display: flex; flex-direction: column; gap: 11px; min-width: 0; }
-        .rp-verdict { font-size: 12.5px; line-height: 1.6; color: var(--text-secondary); }
-        .rp-verdict b { color: var(--text-primary); }
-        #homeFlow { display: block; width: 100%; height: 84px; }
-        /* 예상 기력 190px + 구간별 분석 3열 = 한 행 */
-        .rank-phase-row { display: grid; grid-template-columns: 190px repeat(3, minmax(0,1fr)); gap: var(--gap); }
-        @media (max-width: 1400px) { .rank-phase-row { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-        .rank-band { font-size: 15px; font-weight: 800; }
-        .rank-sub  { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
-        .rank-note { font-size: 10.5px; color: var(--text-muted); margin-top: 7px; line-height: 1.5; }
-
-        /* 구간별 분석 3열 */
-        .ph-name { font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
-        .ph-val  { font-size: 19px; font-weight: 800; letter-spacing: -0.5px; margin-top: 5px; }
-        .ph-track { background: var(--surface-2); border-radius: 99px; height: 6px; margin-top: 7px; overflow: hidden; }
-        .ph-fill  { display: block; height: 100%; border-radius: 99px; }
-        .ph-note { font-size: 10.5px; color: var(--text-muted); margin-top: 6px; }
-
-        /* 4행 지표 패널 */
-        .stat-row { display: grid; grid-template-columns: 22px 1fr auto; gap: 9px; align-items: center; padding: 6px 0; }
-        .stat-side { font-size: 11.5px; font-weight: 700; color: var(--text-secondary); }
-        .stat-bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: var(--surface-2); }
-        .stat-pct { font-size: 11px; color: var(--text-muted); }
-        .q-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; }
-        .q-legend span { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text-secondary); }
-        .q-dot { width: 6px; height: 6px; border-radius: 50%; }
-
-        .mv-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
-        .mv-item:last-child { border-bottom: none; }
-        .mv-no { font-size: 12px; font-weight: 800; color: var(--text-primary); white-space: nowrap; }
-        .mv-loss { font-size: 11.5px; font-weight: 800; margin-left: auto; white-space: nowrap; }
-        .mv-loss.bad  { color: var(--danger); }
-        .mv-loss.good { color: var(--success); }
-        .mv-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
-        @media (max-width: 1280px) { .g-6 { grid-template-columns: repeat(3, minmax(0,1fr)); } }
-        @media (max-width: 1080px) { #homeBoard { width: 100%; } }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>홈 · Baduk AI</title>
+    <!-- 상단 헤더형 독립 레이아웃(common.css=사이드바 셸 미사용). 헤더는 공용, 나머지는 홈 전용. -->
+    <link rel="stylesheet" href="/css/app-header.css">
+    <link rel="stylesheet" href="/css/home.css">
 </head>
 <body>
-    <aside th:replace="~{fragments/shell :: side('home')}"></aside>
-    <main class="main">
-        <header th:replace="~{fragments/shell :: topbar}"></header>
 
-        <!-- latest = 가장 최근 분석 결과. 없으면 각 패널이 빈 상태로 렌더된다(패널 자체는 유지). -->
-        <div class="page" th:with="latest=${#lists.isEmpty(recent)} ? null : ${recent[0]}">
+<header th:replace="~{fragments/appheader :: header('home')}"></header>
 
-            <!-- ══ 1행: 히어로 ══ -->
-            <section class="home-hero">
-                <div>
-                    <div class="hero-hi"><span th:text="${currentUserName}">사용자</span>님, 오늘도 좋은 수 읽기!</div>
-                    <div class="hero-sub">내 기보를 한 수씩 복기하고, 구간별 실력과 반복되는 약점을 진단하세요.</div>
-                </div>
-                <a class="hero-cta" href="/game">기보 복기 시작</a>
-            </section>
 
-            <!-- ══ 2행: 바로가기 6열 ══ -->
-            <section class="g-6">
-                <a class="tile" href="/analysis/batch">
-                    <span class="tile-ico ico-report">📊</span>
-                    <span><span class="tile-name">실력 리포트</span><span class="tile-desc">AI 분석 리포트 보기</span></span>
+<!-- ═══════════════════════ MAIN ═══════════════════════ -->
+<main class="page" th:with="latest=${#lists.isEmpty(recent)} ? null : ${recent[0]}">
+
+    <!-- ══════════ HERO ══════════ -->
+    <section class="hero">
+
+        <div class="hero-content">
+            <p class="hero-greeting">
+                <span th:text="${currentUserName}">사용자</span>님, 반갑습니다! 👋
+            </p>
+
+            <h1 class="hero-title">
+                AI와 함께 바둑 실력을<br>
+                <span class="accent">한 단계</span> 더 성장시켜보세요.
+            </h1>
+
+            <p class="hero-description">
+                KataGo AI가 당신의 기보를 수 단위로 분석하고<br>
+                맞춤형 리포트로 실력 향상을 도와드립니다.
+            </p>
+
+            <div class="hero-actions">
+                <a href="/game" class="primary-button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 5v14l11-7z"></path>
+                    </svg>
+                    새 기보 분석 시작
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14"></path>
+                        <path d="M13 6l6 6-6 6"></path>
+                    </svg>
                 </a>
-                <a class="tile" href="/game">
-                    <span class="tile-ico ico-replay">📖</span>
-                    <span><span class="tile-name">기보 복기</span><span class="tile-desc">저장된 기보 관리</span></span>
-                </a>
-                <a class="tile" href="/notes">
-                    <span class="tile-ico ico-notes">📝</span>
-                    <span><span class="tile-name">오답노트</span><span class="tile-desc">실수 패턴 분석</span></span>
-                </a>
-                <a class="tile" href="/play">
-                    <span class="tile-ico ico-play">🤖</span>
-                    <span><span class="tile-name">AI 대국</span><span class="tile-desc">KataGo와 대국하기</span></span>
-                </a>
-                <a class="tile" href="/study">
-                    <span class="tile-ico ico-study">🔬</span>
-                    <span><span class="tile-name">실시간 분석판</span><span class="tile-desc">연구하고 분석하기</span></span>
-                </a>
-                <a class="tile" href="/gallery">
-                    <span class="tile-ico ico-gallery">🖼</span>
-                    <span><span class="tile-name">갤러리</span><span class="tile-desc">분석 기보 모아보기</span></span>
-                </a>
-            </section>
-
-            <!-- ══ 3행: [좌 266px 리스트 | 우 1fr 실력 리포트] ══ -->
-            <section class="g-2/1">
-
-                <div style="display:flex; flex-direction:column; gap:var(--gap); min-width:0;">
-                    <section class="panel">
-                        <div class="panel-hd">
-                            <h3>최근 분석 결과</h3>
-                            <a class="hd-note" href="/gallery">더보기 ›</a>
-                        </div>
-                        <div class="recent-list">
-                            <p th:if="${#lists.isEmpty(recent)}" class="empty-state" style="padding:10px 10px 14px;">
-                                아직 분석한 기보가 없습니다.<br><a href="/game">기보 복기</a>에서 첫 분석을 시작해 보세요.
-                            </p>
-                            <a th:each="r : ${recent}" class="recent-item" th:href="@{'/game/result/' + ${r.id}}">
-                                <span class="recent-badge">♟</span>
-                                <span style="min-width:0;">
-                                    <span class="recent-name" th:text="${r.fileName}">기보 파일</span>
-                                    <span class="recent-line">
-                                        <span class="recent-meta">
-                                            <span th:if="${r.blackPlayer != null and r.whitePlayer != null}"
-                                                  th:text="${r.blackPlayer} + ' vs ' + ${r.whitePlayer} + ' · '"></span>
-                                            <span th:text="${r.totalMoves} + '수'"></span>
-                                            <span th:if="${r.analyzedAt != null}" th:text="' · ' + ${r.analyzedAt.substring(0,10)}"></span>
-                                        </span>
-                                        <span class="recent-tag">분석 완료</span>
-                                    </span>
-                                </span>
-                            </a>
-                        </div>
-                    </section>
-
-                    <!-- 진행 중인 분석: 홈 모델에 진행 상태가 없으므로 항상 빈 상태로 렌더 -->
-                    <section class="panel">
-                        <div class="panel-hd"><h3>진행 중인 분석</h3></div>
-                        <div class="panel-bd">
-                            <p class="empty-state" style="padding:0;">진행 중인 분석이 없습니다.<br><a href="/game">기보 복기</a>에서 새 분석을 시작하세요.</p>
-                        </div>
-                    </section>
-                </div>
-
-                <section class="panel">
-                    <div class="panel-hd">
-                        <span class="rp-head">
-                            <span class="rp-title">실력 리포트</span>
-                            <span class="rp-file" th:text="${latest != null} ? ${latest.fileName} : '분석 결과 없음'">-</span>
-                        </span>
-                        <a class="hd-note" th:if="${latest != null}" th:href="@{'/game/result/' + ${latest.id}}">전체 복기 ›</a>
-                    </div>
-
-                    <div class="panel-bd">
-                        <p th:if="${latest == null}" class="empty-state">
-                            표시할 분석 결과가 없습니다. <a href="/game">기보 복기</a>에서 기보를 분석하면 이 자리에 최근 한 판의 리포트가 나타납니다.
-                        </p>
-
-                        <div th:if="${latest != null}" class="g-board">
-                            <canvas id="homeBoard" width="342" height="342"></canvas>
-
-                            <div class="rp-side">
-                                <div class="box rp-verdict" id="homeVerdict">-</div>
-
-                                <div class="box">
-                                    <div class="ph-name" style="margin-bottom:8px;">승부 흐름 <span style="font-weight:400;">— 흑 승률</span></div>
-                                    <canvas id="homeFlow"></canvas>
-                                </div>
-
-                                <div class="rank-phase-row">
-                                    <div class="box rank-box">
-                                        <div class="ph-name">예상 기력</div>
-                                        <div class="rank-band" id="rankBand">-</div>
-                                        <div class="rank-sub" id="rankSub"></div>
-                                        <div class="rank-note">※ 이 한 판 기준 근사치예요.</div>
-                                    </div>
-                                    <div class="box" th:each="ps : ${ {latest.opening, latest.middle, latest.endgame} }"
-                                         th:if="${ps != null and ps.moveCount > 0}">
-                                        <div class="ph-name" th:text="${ps.phase}">구간</div>
-                                        <div class="ph-val" th:text="${#numbers.formatDecimal(ps.matchRate,1,1)} + '%'">-</div>
-                                        <div class="ph-track">
-                                            <span class="ph-fill"
-                                                  th:style="'width:' + ${ps.matchRate} + '%; background:' + (${ps.matchRate} >= 60 ? 'var(--success)' : (${ps.matchRate} >= 40 ? 'var(--warning)' : 'var(--danger)'))"></span>
-                                        </div>
-                                        <div class="ph-note" th:text="${ps.moveCount} + '수 · 악수 ' + ${ps.blunderCount} + '개'">-</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </section>
-
-            <!-- ══ 4행: 지표 패널 4열 ══ -->
-            <section class="g-4">
-
-                <section class="panel">
-                    <div class="panel-hd"><h3>AI 착수 통계</h3><span class="hd-note">최선 대비 정밀도</span></div>
-                    <div class="panel-bd">
-                        <p th:if="${latest == null}" class="empty-state">데이터 없음</p>
-                        <div th:if="${latest != null}" id="aiStat">
-                            <div class="stat-row"><span class="stat-side">흑</span><span class="stat-bar" id="statBarB"></span><span class="stat-pct" id="statPctB"></span></div>
-                            <div class="stat-row"><span class="stat-side">백</span><span class="stat-bar" id="statBarW"></span><span class="stat-pct" id="statPctW"></span></div>
-                            <div class="q-legend">
-                                <span><i class="q-dot" style="background:var(--ai)"></i>최선</span>
-                                <span><i class="q-dot" style="background:var(--success)"></i>좋음</span>
-                                <span><i class="q-dot" style="background:var(--warning)"></i>보통</span>
-                                <span><i class="q-dot" style="background:#e67e22"></i>실수</span>
-                                <span><i class="q-dot" style="background:var(--danger)"></i>악수</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="panel">
-                    <div class="panel-hd"><h3>패착</h3><span class="hd-note">승부의 분기점</span></div>
-                    <div class="panel-bd">
-                        <p th:if="${latest == null or #lists.isEmpty(latest.top3Mistakes)}" class="empty-state">데이터 없음</p>
-                        <div th:if="${latest != null and not #lists.isEmpty(latest.top3Mistakes)}"
-                             th:with="m=${latest.top3Mistakes[0]}">
-                            <div class="mv-no" style="font-size:15px;"
-                                 th:text="${m.turnNumber} + '수 (' + (${m.color} == 'B' ? '흑' : '백') + ')'">-</div>
-                            <div class="mv-sub" style="font-size:12px; margin-top:5px;"
-                                 th:text="'둔 수 ' + ${m.move} + ' · AI 최선수 ' + ${m.bestMove}">-</div>
-                            <div class="mv-loss bad" style="font-size:20px; margin:9px 0 0;"
-                                 th:text="'집 손해 ' + ${#numbers.formatDecimal(m.scoreLoss,1,1)}">-</div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="panel">
-                    <div class="panel-hd"><h3>핵심 실수 TOP 3</h3></div>
-                    <div class="panel-bd">
-                        <p th:if="${latest == null or #lists.isEmpty(latest.top3Mistakes)}" class="empty-state">데이터 없음</p>
-                        <div th:each="m : ${latest != null ? latest.top3Mistakes : null}" class="mv-item">
-                            <span>
-                                <span class="mv-no" th:text="${m.turnNumber} + '수 ' + ${m.move}">-</span>
-                                <span class="mv-sub" th:text="'최선 ' + ${m.bestMove} + ' · ' + ${m.phase}">-</span>
-                            </span>
-                            <span class="mv-loss bad" th:text="'−' + ${#numbers.formatDecimal(m.scoreLoss,1,1)} + '집'">-</span>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="panel">
-                    <div class="panel-hd"><h3>이 판의 호수</h3></div>
-                    <div class="panel-bd">
-                        <p th:if="${latest == null or #lists.isEmpty(latest.top3GoodMoves)}" class="empty-state">데이터 없음</p>
-                        <div th:each="m : ${latest != null ? latest.top3GoodMoves : null}" class="mv-item">
-                            <span>
-                                <span class="mv-no" th:text="${m.turnNumber} + '수 ' + ${m.move}">-</span>
-                                <span class="mv-sub" th:text="${m.phase} + ' · ' + (${m.matchesBest} ? 'AI 최선수 일치' : 'AI와 다른 좋은 수')">-</span>
-                            </span>
-                            <span class="mv-loss good" th:text="'+' + ${#numbers.formatDecimal(-m.scoreLoss,1,1)} + '집'">-</span>
-                        </div>
-                    </div>
-                </section>
-            </section>
+            </div>
         </div>
-    </main>
 
-    <script th:inline="javascript" th:if="${!#lists.isEmpty(recent)}">
-        /* 최근 한 판의 착수·승률만 뽑아 전달(컨트롤러·DTO 변경 없음, 기존 바인딩 그대로 사용) */
-        const HOME_MOVES = /*[[${recent[0].moves.![color + move]}]]*/ [];
-        const HOME_WR    = /*[[${recent[0].moves.![winrateAfter]}]]*/ [];
-        const HOME_LOSS  = /*[[${recent[0].moves.![scoreLoss]}]]*/ [];
-        const HOME_SIDE  = /*[[${recent[0].moves.![color]}]]*/ [];
+        <!-- 장식용 바둑판 -->
+        <div class="hero-board-area">
+            <div class="hero-board-grid"></div>
+            <div class="hero-board-overlay"></div>
+
+            <span class="board-stone black" style="left:18%; top:31%;"></span>
+            <span class="board-stone white" style="left:25%; top:45%;"></span>
+            <span class="board-stone black" style="left:34%; top:37%;"></span>
+            <span class="board-stone white" style="left:42%; top:51%;"></span>
+            <span class="board-stone black" style="left:51%; top:30%;"></span>
+            <span class="board-stone white" style="left:59%; top:42%;"></span>
+            <span class="board-stone black" style="left:66%; top:35%;"></span>
+            <span class="board-stone white" style="left:73%; top:54%;"></span>
+            <span class="board-stone black" style="left:81%; top:29%;"></span>
+            <span class="board-stone white" style="left:87%; top:43%;"></span>
+        </div>
+
+        <!-- 최근 분석 요약 — 값은 최신 기보에서 계산 -->
+        <div class="hero-stat-card" th:if="${latest != null}">
+            <div class="hero-stat-label">최근 분석 요약</div>
+
+            <div class="hero-stat-content">
+                <div class="progress-ring">
+                    <svg viewBox="0 0 80 80">
+                        <circle class="progress-ring-track" cx="40" cy="40" r="33"></circle>
+                        <circle class="progress-ring-value" id="accRing" cx="40" cy="40" r="33"></circle>
+                    </svg>
+                    <span class="progress-ring-text" id="accText">-</span>
+                </div>
+
+                <div class="hero-stat-info">
+                    <div class="hero-stat-main">AI 최선수 일치율</div>
+                    <div class="hero-stat-change" id="accChange"></div>
+                    <div class="hero-stat-compare" id="accCompare">이 한 판 기준</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 정확도 추이 — 최근 분석한 기보들 -->
+        <div class="growth-card" th:if="${latest != null}">
+            <div class="growth-header">
+                <span class="growth-title" id="growthTitle">정확도 추이</span>
+                <span class="growth-value" id="growthValue">-</span>
+            </div>
+
+            <div class="growth-chart">
+                <svg viewBox="0 0 360 90" preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="growthFill" x1="0" x2="0" y1="0" y2="1">
+                            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.20"></stop>
+                            <stop offset="100%" stop-color="#ffffff" stop-opacity="0"></stop>
+                        </linearGradient>
+                    </defs>
+                    <path id="growthArea" fill="url(#growthFill)"></path>
+                    <path id="growthLine" fill="none" stroke="#ffffff" stroke-width="1.6"
+                          stroke-linecap="round" stroke-linejoin="round"></path>
+                    <circle id="growthDot" r="4" fill="#ffffff" style="display:none"></circle>
+                </svg>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ══════════ 바로가기 ══════════ -->
+    <section class="shortcut-section">
+        <div class="shortcut-grid">
+
+            <a href="/analysis/batch" class="shortcut-item">
+                <div class="shortcut-icon purple">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 20V10"></path><path d="M12 20V4"></path>
+                        <path d="M19 20v-7"></path><path d="M3 20h18"></path>
+                    </svg>
+                </div>
+                <div class="shortcut-text">
+                    <span class="shortcut-title">실력 리포트</span>
+                    <span class="shortcut-description">상세 분석 리포트와<br>실력 지표 확인</span>
+                </div>
+                <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18l6-6-6-6"></path>
+                </svg>
+            </a>
+
+            <a href="/game" class="shortcut-item">
+                <div class="shortcut-icon blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path>
+                        <path d="M8 7h8"></path><path d="M8 11h6"></path><path d="M8 15h4"></path>
+                    </svg>
+                </div>
+                <div class="shortcut-text">
+                    <span class="shortcut-title">기보 복기</span>
+                    <span class="shortcut-description">저장된 기보를<br>분석하고 복기하기</span>
+                </div>
+                <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                    <path d="M9 18l6-6-6-6"></path>
+                </svg>
+            </a>
+
+            <a href="/notes" class="shortcut-item">
+                <div class="shortcut-icon orange">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 4h14v16H5z"></path>
+                        <path d="M8 8h8"></path><path d="M8 12h6"></path><path d="M8 16h4"></path>
+                    </svg>
+                </div>
+                <div class="shortcut-text">
+                    <span class="shortcut-title">오답노트</span>
+                    <span class="shortcut-description">반복 실수 패턴을 모아<br>맞춤 학습하기</span>
+                </div>
+                <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                    <path d="M9 18l6-6-6-6"></path>
+                </svg>
+            </a>
+
+            <a href="/gallery" class="shortcut-item">
+                <div class="shortcut-icon green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                        <circle cx="8" cy="9" r="1.5"></circle>
+                        <path d="M4 17l5-5 4 4 3-3 4 4"></path>
+                    </svg>
+                </div>
+                <div class="shortcut-text">
+                    <span class="shortcut-title">갤러리</span>
+                    <span class="shortcut-description">분석한 기보들을<br>카드로 모아보기</span>
+                </div>
+                <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                    <path d="M9 18l6-6-6-6"></path>
+                </svg>
+            </a>
+
+            <a href="/play" class="shortcut-item">
+                <div class="shortcut-icon red">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="5" width="18" height="14" rx="3"></rect>
+                        <path d="M8 9v6"></path><path d="M5 12h6"></path>
+                        <circle cx="16" cy="10" r="1"></circle>
+                        <circle cx="18" cy="14" r="1"></circle>
+                    </svg>
+                </div>
+                <div class="shortcut-text">
+                    <span class="shortcut-title">AI 대국</span>
+                    <span class="shortcut-description">KataGo AI와<br>바둑 한 판 두기</span>
+                </div>
+                <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                    <path d="M9 18l6-6-6-6"></path>
+                </svg>
+            </a>
+
+            <a href="/study" class="shortcut-item">
+                <div class="shortcut-icon cyan">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3v18"></path>
+                        <path d="M7 6c-2 1-3 3-3 6s1 5 3 6"></path>
+                        <path d="M17 6c2 1 3 3 3 6s-1 5-3 6"></path>
+                        <path d="M9 9c-.8.7-1.2 1.7-1.2 3s.4 2.3 1.2 3"></path>
+                        <path d="M15 9c.8.7 1.2 1.7 1.2 3s-.4 2.3-1.2 3"></path>
+                    </svg>
+                </div>
+                <div class="shortcut-text">
+                    <span class="shortcut-title">실시간 분석판</span>
+                    <span class="shortcut-description">빈 판에서 실시간으로<br>AI 분석하기</span>
+                </div>
+                <svg class="shortcut-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                    <path d="M9 18l6-6-6-6"></path>
+                </svg>
+            </a>
+
+        </div>
+    </section>
+
+
+    <!-- ══════════ 콘텐츠 그리드 ══════════ -->
+    <div class="content-grid">
+
+        <!-- ── 최근 분석 결과 ── -->
+        <section class="content-card">
+            <div class="card-header">
+                <h2 class="card-title">최근 분석 결과</h2>
+                <a href="/gallery" class="card-more">
+                    전체 보기
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 18l6-6-6-6"></path>
+                    </svg>
+                </a>
+            </div>
+
+            <div class="recent-games" th:if="${not #lists.isEmpty(recent)}">
+                <article class="game-card" th:each="r, stat : ${recent}">
+
+                    <div class="game-thumbnail">
+                        <!-- 실제 최종 국면을 그린다(장식 아님) -->
+                        <canvas class="mini-board" th:attr="data-idx=${stat.index}"></canvas>
+                        <span th:if="${stat.index == 0}" class="latest-badge">최신</span>
+                    </div>
+
+                    <div class="game-name" th:text="${r.fileName}" th:title="${r.fileName}">기보</div>
+
+                    <div class="game-meta">
+                        <span th:if="${r.analyzedAt != null}" th:text="${r.analyzedAt.substring(0,10)} + ' · '">-</span>
+                        <span th:text="'총 ' + ${r.totalMoves} + '수'">-</span>
+                    </div>
+
+                    <div class="game-stats">
+                        <div class="game-stat">
+                            <span class="game-stat-label">AI 일치율</span>
+                            <span class="game-stat-value" th:attr="data-acc=${stat.index}">-</span>
+                        </div>
+                        <div class="game-stat">
+                            <span class="game-stat-label">평균 집손해</span>
+                            <span class="game-stat-value" th:attr="data-loss=${stat.index}">-</span>
+                        </div>
+                    </div>
+
+                    <a class="report-button" th:href="@{'/game/result/' + ${r.id}}">리포트 보기 →</a>
+                </article>
+            </div>
+
+            <div class="empty-games" th:if="${#lists.isEmpty(recent)}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                    <path d="M8 8h8"></path><path d="M8 12h5"></path><path d="M8 16h3"></path>
+                </svg>
+                <span class="empty-games-text">아직 분석한 기보가 없습니다.</span>
+                <a href="/game" class="report-button" style="width:150px;">첫 기보 분석하기</a>
+            </div>
+        </section>
+
+
+        <!-- ── 나의 실력 현황 ── -->
+        <section class="content-card">
+            <div class="card-header">
+                <h2 class="card-title">나의 실력 현황</h2>
+                <a href="/analysis/batch" class="card-more">
+                    상세 보기
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 18l6-6-6-6"></path>
+                    </svg>
+                </a>
+            </div>
+
+            <p class="empty-inline" th:if="${latest == null}">
+                표시할 분석 결과가 없습니다.<br>
+                <a href="/game">기보 복기</a>에서 기보를 분석하면 예상 기력과 정확도 추이가 나타납니다.
+            </p>
+
+            <div class="skill-content" th:if="${latest != null}">
+
+                <div class="skill-top">
+                    <div class="skill-rating">
+                        <div class="skill-label" id="rankLabel">예상 기력 (최근 분석 기준)</div>
+                        <div class="rank-values">
+                            <div class="rank" id="rankPrevBox" style="display:none">
+                                <span class="rank-value" id="rankPrev">-</span>
+                                <span class="rank-score" id="rankPrevSub">이전</span>
+                            </div>
+                            <svg class="rank-arrow" id="rankArrow" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="1.7" style="display:none">
+                                <path d="M5 12h14"></path>
+                                <path d="M13 6l6 6-6 6"></path>
+                            </svg>
+                            <div class="rank">
+                                <span class="rank-value" id="rankNow">-</span>
+                                <span class="rank-score" id="rankNowSub">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="skill-chart">
+                        <div class="chart-title" id="skillChartTitle">정확도 추이</div>
+                        <svg viewBox="0 0 250 65" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="skillFill" x1="0" x2="0" y1="0" y2="1">
+                                    <stop offset="0%" stop-color="#7358ef" stop-opacity="0.14"></stop>
+                                    <stop offset="100%" stop-color="#7358ef" stop-opacity="0"></stop>
+                                </linearGradient>
+                            </defs>
+                            <path id="skillArea" fill="url(#skillFill)"></path>
+                            <path id="skillLine" fill="none" stroke="#6747ec" stroke-width="2"
+                                  stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="skill-summary">
+                    <div class="summary-stat">
+                        <div class="summary-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 4h14v16H5z"></path><path d="M8 8h8"></path><path d="M8 12h6"></path>
+                            </svg>
+                        </div>
+                        <div class="summary-text">
+                            <span class="summary-label">분석한 기보</span>
+                            <span class="summary-value" th:text="${(totalGames ?: 0)} + '개'">0개</span>
+                        </div>
+                    </div>
+
+                    <div class="summary-stat">
+                        <div class="summary-icon gold">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M8 21h8"></path><path d="M12 17v4"></path>
+                                <path d="M7 4h10v5a5 5 0 0 1-10 0z"></path>
+                                <path d="M7 6H4a4 4 0 0 0 4 4"></path>
+                                <path d="M17 6h3a4 4 0 0 1-4 4"></path>
+                            </svg>
+                        </div>
+                        <div class="summary-text">
+                            <span class="summary-label">최고 일치율</span>
+                            <span class="summary-value" id="statBest">-</span>
+                        </div>
+                    </div>
+
+                    <div class="summary-stat">
+                        <div class="summary-icon blue">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="8"></circle>
+                                <path d="M12 8v4l3 2"></path>
+                            </svg>
+                        </div>
+                        <div class="summary-text">
+                            <span class="summary-label">평균 일치율</span>
+                            <span class="summary-value" id="statAvg">-</span>
+                        </div>
+                    </div>
+
+                    <div class="summary-stat">
+                        <div class="summary-icon green">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 3l2.4 5.2L20 9l-4 4 1 5.7-5-2.7-5 2.7 1-5.7-4-4 5.6-.8L12 3z"></path>
+                            </svg>
+                        </div>
+                        <div class="summary-text">
+                            <span class="summary-label">평균 집손해</span>
+                            <span class="summary-value" id="statLoss">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+
+    <!-- ══════════ 학습 추천 (최신 기보의 최대 실수에서 도출) ══════════ -->
+    <section class="learning-card">
+        <div class="learning-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path>
+                <path d="M8 7h8"></path><path d="M8 11h6"></path><path d="M8 15h4"></path>
+            </svg>
+        </div>
+
+        <div class="learning-title">오늘의 학습 추천</div>
+
+        <!-- 실수 데이터가 있을 때: 가장 크게 흔들린 수를 짚어준다 -->
+        <div class="learning-info"
+             th:if="${latest != null and not #lists.isEmpty(latest.top3Mistakes)}"
+             th:with="m=${latest.top3Mistakes[0]}">
+            <span class="difficulty" th:text="${m.phase}">구간</span>
+            <div class="learning-copy">
+                <span class="learning-main"
+                      th:text="${m.turnNumber} + '수(' + (${m.color} == 'B' ? '흑' : '백') + ') ' + ${m.move}
+                               + ' — 이 한 수에서 ' + ${#numbers.formatDecimal(m.scoreLoss,1,1)} + '집을 잃었어요.'">-</span>
+                <span class="learning-sub"
+                      th:text="'AI 최선수는 ' + ${m.bestMove} + '. 같은 자리에서 다시 두어 보며 감각을 교정해 보세요.'">-</span>
+            </div>
+        </div>
+
+        <!-- 데이터가 없을 때 -->
+        <div class="learning-info" th:if="${latest == null or #lists.isEmpty(latest.top3Mistakes)}">
+            <span class="difficulty">시작</span>
+            <div class="learning-copy">
+                <span class="learning-main">기보를 한 판 분석하면 오늘의 학습 추천이 만들어집니다.</span>
+                <span class="learning-sub">SGF·GIB 파일을 올리면 KataGo가 한 수씩 되짚어 줍니다.</span>
+            </div>
+        </div>
+
+        <a th:if="${latest != null and not #lists.isEmpty(latest.top3Mistakes)}"
+           class="learning-button" th:href="@{'/game/result/' + ${latest.id}}">그 수부터 다시 두기 →</a>
+        <a th:if="${latest == null or #lists.isEmpty(latest.top3Mistakes)}"
+           class="learning-button" href="/game">기보 분석하러 가기 →</a>
+    </section>
+
+</main>
+
+
+<!-- 최근 기보 데이터: 컨트롤러·DTO 변경 없이 기존 recent 바인딩만 투영해서 전달 -->
+<script th:inline="javascript">
+    const GAMES = [];
+</script>
+<th:block th:each="r : ${recent}">
+    <script th:inline="javascript">
+        GAMES.push({
+            seq:  /*[[${r.moves != null} ? ${r.moves.![color + move]} : null]]*/ [],
+            loss: /*[[${r.moves != null} ? ${r.moves.![scoreLoss]} : null]]*/ [],
+            best: /*[[${r.moves != null} ? ${r.moves.![matchesBest]} : null]]*/ []
+        });
     </script>
-    <!-- th:inline="none" 필수: 아래 JS 의 중첩 배열 리터럴을 Thymeleaf 가 인라인 표현식으로 해석해 버린다 -->
-    <script th:inline="none">
-    (function () {
-        if (typeof HOME_MOVES === 'undefined' || !HOME_MOVES.length) return;
+</th:block>
 
-        /* ── 최종 국면 바둑판 (342px, 따냄 반영) ── */
-        const COLS = 'ABCDEFGHJKLMNOPQRST';
-        function toGrid(gtp) {
-            if (!gtp || gtp.toLowerCase() === 'pass') return null;
-            const x = COLS.indexOf(gtp[0].toUpperCase());
-            const y = parseInt(gtp.substring(1), 10) - 1;
-            return (x < 0 || isNaN(y) || y < 0 || y > 18) ? null : { x, y };
-        }
-        function adj(x, y) { const a=[]; if(x>0)a.push([x-1,y]); if(x<18)a.push([x+1,y]); if(y>0)a.push([x,y-1]); if(y<18)a.push([x,y+1]); return a; }
-        function group(b, x, y) {
-            const c=b[x][y], st=[[x,y]], seen=new Set([x+','+y]), out=[];
-            while (st.length) { const [cx,cy]=st.pop(); out.push([cx,cy]);
-                for (const [nx,ny] of adj(cx,cy)) { const k=nx+','+ny; if(!seen.has(k)&&b[nx][ny]===c){seen.add(k);st.push([nx,ny]);} } }
-            return out;
-        }
-        function hasLib(b, g) { for (const [x,y] of g) for (const [nx,ny] of adj(x,y)) if (b[nx][ny]===null) return true; return false; }
+<!-- th:inline="none" 필수: 아래 JS 의 배열 리터럴을 Thymeleaf 가 인라인 표현식으로 해석하지 않도록 -->
+<script th:inline="none">
+(function () {
 
-        function buildBoard() {
-            const b = Array.from({length:19}, () => Array(19).fill(null));
-            let last = null;
-            for (const item of HOME_MOVES) {
-                const color = item[0], g = toGrid(item.substring(1));
-                if (!g || b[g.x][g.y]) continue;
-                b[g.x][g.y] = color; last = g;
-                const opp = color === 'B' ? 'W' : 'B';
-                for (const [nx,ny] of adj(g.x,g.y)) {
-                    if (b[nx][ny] === opp) { const grp = group(b,nx,ny); if (!hasLib(b,grp)) grp.forEach(([cx,cy]) => b[cx][cy]=null); }
+    /* 헤더 동작(모바일 토글·계정 메뉴)은 fragments/appheader.html 이 담당 */
+    if (typeof GAMES === 'undefined' || !GAMES.length) return;
+
+    /* ══ 기보 계산: 최종 국면 · 일치율 · 평균 집손해 ══ */
+    const COLS = 'ABCDEFGHJKLMNOPQRST';
+    function toGrid(gtp) {
+        if (!gtp || gtp.toLowerCase() === 'pass') return null;
+        const x = COLS.indexOf(gtp[0].toUpperCase());
+        const y = parseInt(gtp.substring(1), 10) - 1;
+        return (x < 0 || isNaN(y) || y < 0 || y > 18) ? null : { x: x, y: y };
+    }
+    function adj(x, y) {
+        const a = [];
+        if (x > 0) a.push([x-1, y]);
+        if (x < 18) a.push([x+1, y]);
+        if (y > 0) a.push([x, y-1]);
+        if (y < 18) a.push([x, y+1]);
+        return a;
+    }
+    function group(b, x, y) {
+        const c = b[x][y], st = [[x,y]], seen = new Set([x+','+y]), out = [];
+        while (st.length) {
+            const cur = st.pop(), cx = cur[0], cy = cur[1];
+            out.push([cx, cy]);
+            for (const nb of adj(cx, cy)) {
+                const k = nb[0]+','+nb[1];
+                if (!seen.has(k) && b[nb[0]][nb[1]] === c) { seen.add(k); st.push(nb); }
+            }
+        }
+        return out;
+    }
+    function hasLib(b, g) {
+        for (const p of g) for (const nb of adj(p[0], p[1])) if (b[nb[0]][nb[1]] === null) return true;
+        return false;
+    }
+    function buildBoard(seq) {
+        const b = Array.from({ length: 19 }, () => Array(19).fill(null));
+        let last = null;
+        for (const item of (seq || [])) {
+            if (!item) continue;
+            const color = item[0], g = toGrid(item.substring(1));
+            if (!g || b[g.x][g.y]) continue;
+            b[g.x][g.y] = color; last = g;
+            const opp = color === 'B' ? 'W' : 'B';
+            for (const nb of adj(g.x, g.y)) {
+                if (b[nb[0]][nb[1]] === opp) {
+                    const grp = group(b, nb[0], nb[1]);
+                    if (!hasLib(b, grp)) grp.forEach(p => b[p[0]][p[1]] = null);
                 }
-                if (!hasLib(b, group(b,g.x,g.y))) b[g.x][g.y] = null;
             }
-            return { board: b, last };
+            if (!hasLib(b, group(b, g.x, g.y))) b[g.x][g.y] = null;
+        }
+        return { board: b, last: last };
+    }
+
+    /* 카드 썸네일: 실제 최종 국면 */
+    function drawMini(cv, seq) {
+        const box = cv.parentElement;
+        const w = box.clientWidth, h = box.clientHeight;
+        if (!w || !h) return;
+        const dpr = window.devicePixelRatio || 1;
+        cv.width = w * dpr; cv.height = h * dpr;
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+
+        const S = Math.min(w, h) - 6;            /* 판은 정사각, 가로는 여백 */
+        const ox = (w - S) / 2, oy = (h - S) / 2;
+        const PAD = S * 0.05, CELL = (S - PAD * 2) / 18;
+
+        ctx.strokeStyle = 'rgba(80,45,15,0.55)';
+        ctx.lineWidth = 0.6;
+        for (let i = 0; i < 19; i++) {
+            const v = oy + PAD + i * CELL, u = ox + PAD + i * CELL;
+            ctx.beginPath(); ctx.moveTo(ox + PAD, v); ctx.lineTo(ox + S - PAD, v); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(u, oy + PAD); ctx.lineTo(u, oy + S - PAD); ctx.stroke();
         }
 
-        function drawBoard() {
-            const cv = document.getElementById('homeBoard'); if (!cv) return;
-            const S = 342, PAD = 17, CELL = (S - PAD*2) / 18, dpr = window.devicePixelRatio || 1;
-            cv.width = S*dpr; cv.height = S*dpr; cv.style.height = 'auto';
-            const ctx = cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
-            ctx.fillStyle = '#e8c88b'; ctx.fillRect(0,0,S,S);
-            ctx.strokeStyle = '#8a6a3a'; ctx.lineWidth = 1;
-            for (let i = 0; i < 19; i++) {
-                const v = PAD + i*CELL;
-                ctx.beginPath(); ctx.moveTo(PAD, v); ctx.lineTo(S-PAD, v); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(v, PAD); ctx.lineTo(v, S-PAD); ctx.stroke();
-            }
-            ctx.fillStyle = '#8a6a3a';
-            [3,9,15].forEach(a => [3,9,15].forEach(b => {
-                ctx.beginPath(); ctx.arc(PAD+a*CELL, PAD+(18-b)*CELL, 2.2, 0, Math.PI*2); ctx.fill();
-            }));
-            const { board, last } = buildBoard();
-            const r = CELL * 0.46;
-            for (let x = 0; x < 19; x++) for (let y = 0; y < 19; y++) {
-                if (!board[x][y]) continue;
-                const cx = PAD + x*CELL, cy = PAD + (18-y)*CELL;
-                const g = ctx.createRadialGradient(cx-r*0.3, cy-r*0.35, r*0.15, cx, cy, r);
-                if (board[x][y] === 'B') { g.addColorStop(0,'#6a6a6a'); g.addColorStop(1,'#111'); }
-                else { g.addColorStop(0,'#fff'); g.addColorStop(1,'#cfcfcf'); }
-                ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
-                if (board[x][y] === 'W') { ctx.strokeStyle = '#b3b3b3'; ctx.lineWidth = 1; ctx.stroke(); }
-            }
-            if (last && board[last.x][last.y]) {
-                ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.arc(PAD+last.x*CELL, PAD+(18-last.y)*CELL, r*0.55, 0, Math.PI*2); ctx.stroke();
-            }
+        const res = buildBoard(seq), board = res.board;
+        const r = CELL * 0.47;
+        for (let x = 0; x < 19; x++) for (let y = 0; y < 19; y++) {
+            if (!board[x][y]) continue;
+            const cx = ox + PAD + x * CELL, cy = oy + PAD + (18 - y) * CELL;
+            ctx.fillStyle = board[x][y] === 'B' ? '#181818' : '#f0f0f0';
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
         }
-
-        /* ── 승부 흐름(흑 승률) ── */
-        function drawFlow() {
-            const cv = document.getElementById('homeFlow'); if (!cv || !HOME_WR.length) return;
-            const W = cv.clientWidth || 320, H = 84, dpr = window.devicePixelRatio || 1;
-            cv.width = W*dpr; cv.height = H*dpr; cv.style.height = H + 'px';
-            const ctx = cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-            const n = HOME_WR.length;
-            const x = i => n <= 1 ? 0 : W*i/(n-1);
-            const y = v => H - H*Math.min(1, Math.max(0, v));
-            ctx.fillStyle = '#eef1f4'; ctx.fillRect(0, 0, W, H/2);
-            ctx.fillStyle = '#faf7f2'; ctx.fillRect(0, H/2, W, H/2);
-            ctx.strokeStyle = '#d6dce3'; ctx.setLineDash([3,3]);
-            ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke(); ctx.setLineDash([]);
-            ctx.strokeStyle = '#4f46e5'; ctx.lineWidth = 1.8; ctx.beginPath();
-            HOME_WR.forEach((v,i) => i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)));
+        if (res.last && board[res.last.x][res.last.y]) {
+            ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.arc(ox + PAD + res.last.x * CELL, oy + PAD + (18 - res.last.y) * CELL, r * 0.8, 0, Math.PI * 2);
             ctx.stroke();
         }
+    }
 
-        /* ── 한 줄 총평 + 예상 기력 (result.html 과 같은 기준) ── */
-        function rankBand(avgLoss) {
-            if (avgLoss < 0.6) return { label:'아마 최상위 · 프로급', sub:'약 5단 이상',  color:'#8e44ad' };
-            if (avgLoss < 1.0) return { label:'아마 고단자',          sub:'약 1~4단',    color:'#2980b9' };
-            if (avgLoss < 1.8) return { label:'아마 상급',            sub:'약 1~5급',    color:'#16a085' };
-            if (avgLoss < 3.0) return { label:'아마 중급',            sub:'약 6~12급',   color:'#27ae60' };
-            if (avgLoss < 5.0) return { label:'아마 초·중급',         sub:'약 13~18급',  color:'#e67e22' };
-            return { label:'입문 · 초급', sub:'약 19급 이하', color:'#e74c3c' };
+    function accuracyOf(g) {
+        const b = g.best || [];
+        if (!b.length) return null;
+        let hit = 0;
+        for (const v of b) if (v) hit++;
+        return hit / b.length * 100;
+    }
+    function avgLossOf(g) {
+        const l = (g.loss || []).map(v => Math.max(0, v || 0));
+        if (!l.length) return null;
+        return l.reduce((s, v) => s + v, 0) / l.length;
+    }
+
+    /* 예상 기력 — result.html 과 같은 기준 */
+    function rankBand(avgLoss) {
+        if (avgLoss < 0.6) return { label: '아마 최상위', sub: '약 5단 이상' };
+        if (avgLoss < 1.0) return { label: '아마 고단자', sub: '약 1~4단' };
+        if (avgLoss < 1.8) return { label: '아마 상급',   sub: '약 1~5급' };
+        if (avgLoss < 3.0) return { label: '아마 중급',   sub: '약 6~12급' };
+        if (avgLoss < 5.0) return { label: '아마 초·중급', sub: '약 13~18급' };
+        return { label: '입문 · 초급', sub: '약 19급 이하' };
+    }
+
+    const acc = GAMES.map(accuracyOf);
+    const loss = GAMES.map(avgLossOf);
+
+    /* ══ 카드 썸네일 · 지표 ══ */
+    document.querySelectorAll('canvas.mini-board').forEach(cv => {
+        const i = Number(cv.dataset.idx);
+        if (GAMES[i]) drawMini(cv, GAMES[i].seq);
+    });
+    document.querySelectorAll('[data-acc]').forEach(el => {
+        const v = acc[Number(el.dataset.acc)];
+        el.textContent = v == null ? '-' : v.toFixed(1) + '%';
+    });
+    document.querySelectorAll('[data-loss]').forEach(el => {
+        const v = loss[Number(el.dataset.loss)];
+        if (v == null) { el.textContent = '-'; return; }
+        el.textContent = v.toFixed(2) + '집';
+        el.classList.add(v < 1.8 ? 'positive' : 'negative');
+    });
+
+    /* ══ 히어로: 최신 기보 일치율 링 ══ */
+    const ring = document.getElementById('accRing');
+    if (ring && acc[0] != null) {
+        const p = Math.max(0, Math.min(100, acc[0]));
+        ring.style.strokeDashoffset = String(208 - 208 * p / 100);
+        document.getElementById('accText').textContent = Math.round(p) + '%';
+
+        const chg = document.getElementById('accChange');
+        const cmp = document.getElementById('accCompare');
+        const prev = acc.slice(1).filter(v => v != null);
+        if (prev.length) {
+            const prevAvg = prev.reduce((s, v) => s + v, 0) / prev.length;
+            const d = p - prevAvg;
+            chg.textContent = (d >= 0 ? '▲ ' : '▼ ') + Math.abs(d).toFixed(1) + '%';
+            chg.classList.toggle('down', d < 0);
+            cmp.textContent = '이전 ' + prev.length + '판 평균 대비';
+        } else {
+            chg.textContent = '';
+            cmp.textContent = '이 한 판 기준';
         }
-        function fillSummary() {
-            const losses = HOME_LOSS.map(v => Math.max(0, v || 0));
-            const avg = losses.reduce((s,v) => s+v, 0) / (losses.length || 1);
-            const band = rankBand(avg);
-            const bandEl = document.getElementById('rankBand');
-            if (bandEl) { bandEl.textContent = band.label; bandEl.style.color = band.color; }
-            const subEl = document.getElementById('rankSub');
-            if (subEl) subEl.textContent = band.sub;
+    }
 
-            const lastWr = HOME_WR.length ? HOME_WR[HOME_WR.length-1] : 0.5;
-            const lead = lastWr >= 0.5 ? '흑' : '백';
-            const pct  = Math.round((lastWr >= 0.5 ? lastWr : 1-lastWr) * 100);
-            const worst = losses.reduce((mi,v,i) => v > losses[mi] ? i : mi, 0);
-            const v = document.getElementById('homeVerdict');
-            if (v) v.innerHTML = `이 판은 <b>${lead}</b>이 <b>${pct}%</b>로 마무리됐고, `
-                + `수당 평균 집 손해는 <b>${avg.toFixed(2)}집</b>이었어요. `
-                + `가장 크게 흔들린 수는 <b>${worst+1}수</b>입니다.`;
+    /* ══ 꺾은선 그리기(히어로 성장 카드 · 실력 현황 카드 공용) ══ */
+    function polyline(values, W, H, pad) {
+        const n = values.length;
+        const lo = Math.min.apply(null, values), hi = Math.max.apply(null, values);
+        const span = (hi - lo) < 1 ? 1 : (hi - lo);
+        const x = i => n <= 1 ? W / 2 : (W * i / (n - 1));
+        const y = v => H - pad - (H - pad * 2) * (v - lo) / span;
+        let d = '';
+        values.forEach((v, i) => { d += (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1) + ' '; });
+        return { d: d.trim(), lastX: x(n - 1), lastY: y(values[n - 1]) };
+    }
+
+    /* 오래된 기보 → 최신 기보 순서로 보여준다 */
+    const trend = acc.filter(v => v != null).slice().reverse();
+
+    const gLine = document.getElementById('growthLine');
+    if (gLine && trend.length) {
+        const p = polyline(trend, 360, 90, 14);
+        gLine.setAttribute('d', p.d);
+        document.getElementById('growthArea').setAttribute('d', p.d + ' L360,90 L0,90 Z');
+        const dot = document.getElementById('growthDot');
+        dot.setAttribute('cx', p.lastX); dot.setAttribute('cy', p.lastY);
+        dot.style.display = trend.length > 1 ? '' : 'none';
+        document.getElementById('growthTitle').textContent = '정확도 추이 (최근 ' + trend.length + '판)';
+        document.getElementById('growthValue').textContent = Math.round(trend[trend.length - 1]) + '%';
+    }
+
+    const sLine = document.getElementById('skillLine');
+    if (sLine && trend.length) {
+        const p = polyline(trend, 250, 65, 10);
+        sLine.setAttribute('d', p.d);
+        document.getElementById('skillArea').setAttribute('d', p.d + ' L250,65 L0,65 Z');
+        document.getElementById('skillChartTitle').textContent = 'AI 일치율 추이 (최근 ' + trend.length + '판)';
+    }
+
+    /* ══ 실력 현황: 기력 · 요약 지표 ══ */
+    if (loss[0] != null) {
+        const now = rankBand(loss[0]);
+        document.getElementById('rankNow').textContent = now.label;
+        document.getElementById('rankNowSub').textContent = now.sub;
+
+        if (loss[1] != null) {
+            const prevBand = rankBand(loss[1]);
+            if (prevBand.label !== now.label) {
+                document.getElementById('rankPrev').textContent = prevBand.label;
+                document.getElementById('rankPrevSub').textContent = '이전 판';
+                document.getElementById('rankPrevBox').style.display = '';
+                document.getElementById('rankArrow').style.display = '';
+            }
         }
+    }
+    const validAcc = acc.filter(v => v != null);
+    const validLoss = loss.filter(v => v != null);
+    if (validAcc.length) {
+        document.getElementById('statBest').textContent = Math.max.apply(null, validAcc).toFixed(1) + '%';
+        document.getElementById('statAvg').textContent =
+            (validAcc.reduce((s, v) => s + v, 0) / validAcc.length).toFixed(1) + '%';
+    }
+    if (validLoss.length) {
+        document.getElementById('statLoss').textContent =
+            (validLoss.reduce((s, v) => s + v, 0) / validLoss.length).toFixed(2) + '집';
+    }
 
-        /* ── AI 착수 통계: 색깔별 집손해 분포 ── */
-        function fillStats() {
-            const bar = { B: document.getElementById('statBarB'), W: document.getElementById('statBarW') };
-            const pct = { B: document.getElementById('statPctB'), W: document.getElementById('statPctW') };
-            if (!bar.B || !bar.W) return;
-            const colors = ['var(--ai)', 'var(--success)', 'var(--warning)', '#e67e22', 'var(--danger)'];
-            ['B','W'].forEach(side => {
-                const ls = HOME_LOSS.filter((_,i) => HOME_SIDE[i] === side).map(v => Math.max(0, v || 0));
-                if (!ls.length) { bar[side].innerHTML = ''; pct[side].textContent = '-'; return; }
-                const buckets = [0,0,0,0,0];
-                ls.forEach(v => buckets[v < 0.3 ? 0 : v < 1 ? 1 : v < 3 ? 2 : v < 5 ? 3 : 4]++);
-                bar[side].innerHTML = buckets
-                    .map((c,i) => `<i style="display:block;height:100%;width:${(c/ls.length*100).toFixed(1)}%;background:${colors[i]}"></i>`)
-                    .join('');
-                pct[side].textContent = (buckets[0]/ls.length*100).toFixed(1) + '% 최선';
+    /* 폭이 바뀌면 썸네일만 다시 그린다 */
+    let rz;
+    window.addEventListener('resize', () => {
+        clearTimeout(rz);
+        rz = setTimeout(() => {
+            document.querySelectorAll('canvas.mini-board').forEach(cv => {
+                const i = Number(cv.dataset.idx);
+                if (GAMES[i]) drawMini(cv, GAMES[i].seq);
             });
-        }
+        }, 160);
+    });
+})();
+</script>
 
-        drawBoard(); drawFlow(); fillSummary(); fillStats();
-        let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(drawFlow, 150); });
-    })();
-    </script>
 </body>
 </html>

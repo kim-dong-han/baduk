@@ -48,6 +48,9 @@ public class TsumegoService {
 
     public int count() { return problems.size(); }
 
+    /** 번들된 사활 문제 전체(갤러리 목록용). 로드된 순서 그대로. */
+    public List<TsumegoProblem> all() { return problems; }
+
     public TsumegoProblem random() {
         return random(null, null);
     }

@@ -1,142 +1,563 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>오답노트</title>
-    <link rel="stylesheet" href="/css/common.css">
-    <style>
-        .notes-head { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; margin-bottom:16px; }
-        .notes-stat { font-size:13px; color:var(--text-secondary); }
-        .notes-stat b { color:var(--text-primary); }
-        .note-filters { display:flex; gap:8px; }
-        .nf-btn { border:1px solid var(--border-strong); background:var(--surface); color:var(--text-secondary); font-size:13px; padding:6px 14px; border-radius:var(--radius-pill); cursor:pointer; font-weight:600; transition:all .14s; }
-        .nf-btn:hover { background:var(--surface-2); }
-        .nf-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
-
-        .note-grid { display:flex; flex-direction:column; gap:8px; }
-        .note-card { background:var(--surface); border-radius:12px; padding:12px 16px; border:1px solid var(--border); display:flex; align-items:center; gap:14px; border-left:3px solid var(--warning); }
-        .note-card.g-악수 { border-left-color:var(--danger); }
-        .note-loss { text-align:center; min-width:70px; }
-        .note-loss-num { font-size:21px; font-weight:800; color:var(--danger); line-height:1; }
-        .note-loss-lbl { font-size:11px; color:var(--text-muted); margin-top:3px; }
-        .note-body { flex:1; min-width:0; }
-        .note-line1 { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
-        .note-badge { font-size:11px; font-weight:700; padding:3px 9px; border-radius:var(--radius-pill); }
-        .note-badge.실수 { background:var(--warning-bg); color:#b5770a; }
-        .note-badge.악수 { background:var(--danger-bg); color:#c62828; }
-        .note-move { font-size:14px; font-weight:700; color:var(--text-primary); }
-        .note-move .arrow { color:var(--text-muted); font-weight:400; margin:0 4px; }
-        .note-move .best { color:var(--primary-blue); }
-        .note-phase { font-size:11px; color:var(--text-secondary); background:var(--surface-2); padding:2px 8px; border-radius:var(--radius-pill); }
-        .note-stone { display:inline-block; width:12px; height:12px; border-radius:50%; vertical-align:middle; }
-        .note-stone.B { background:#222; }
-        .note-stone.W { background:#fff; border:1px solid #bbb; }
-        .note-game { font-size:12px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .note-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; }
-        .note-bookmark { font-size:20px; cursor:pointer; color:#d6dce3; user-select:none; background:none; border:none; padding:2px; line-height:1; }
-        .note-bookmark.on { color:#f1c40f; }
-        .note-open { font-size:13px; font-weight:700; color:#fff; background:linear-gradient(135deg,var(--primary),var(--primary-blue)); padding:8px 13px; border-radius:var(--radius-sm); text-decoration:none; white-space:nowrap; box-shadow:0 6px 14px -8px rgba(79,70,229,0.6); }
-        .note-open:hover { filter:brightness(1.05); }
-        .empty { color:var(--text-muted); text-align:center; padding:50px; background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); border:1px solid var(--border); }
-        @media (max-width:640px){ .note-card{ flex-wrap:wrap; } .note-actions{ width:100%; justify-content:flex-end; } }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오답노트 · Baduk AI</title>
+    <link rel="stylesheet" href="/css/app-header.css">
+    <link rel="stylesheet" th:href="@{/css/notes.css}">
 </head>
 <body>
-    <aside th:replace="~{fragments/shell :: side('notes')}"></aside>
-    <main class="main">
-        <header th:replace="~{fragments/shell :: topbar}"></header>
-<div class="page">
-    <h1>오답노트</h1>
-    <p class="subtitle">내 기보에서 실수·악수로 분류된 수를 모았어요. ⭐를 눌러 다시 볼 수를 북마크하세요.</p>
 
-    <script th:inline="javascript">
-        const notesData = /*[[${notes}]]*/ [];
-    </script>
+<header th:replace="~{fragments/appheader :: header('notes')}"></header>
 
-    <div id="notes-root"></div>
+<main class="notes-page">
 
-    <script>
-    (function() {
-        const BM_KEY = 'badukNoteBookmarks';
-        function loadBookmarks() {
-            try { return new Set(JSON.parse(localStorage.getItem(BM_KEY) || '[]')); }
-            catch(e) { return new Set(); }
-        }
-        function saveBookmarks(set) { localStorage.setItem(BM_KEY, JSON.stringify([...set])); }
-        let bookmarks = loadBookmarks();
-        let filter = 'all';   // all | bookmark | blunder
+    <section class="page-header">
+        <h1>오답노트</h1>
+        <p>분석에서 실수·악수로 잡힌 장면을 모았습니다. 복습하고 같은 실수를 줄여 보세요.</p>
+    </section>
 
-        const root = document.getElementById('notes-root');
-        function noteKey(n) { return n.gameId + ':' + n.turnNumber; }
+    <section class="notes-layout">
 
-        function visible(n) {
-            if (filter === 'bookmark') return bookmarks.has(noteKey(n));
-            if (filter === 'blunder')  return n.grade === '악수';
-            return true;
-        }
+        <!-- ────────── 사이드바 ────────── -->
+        <aside class="notes-sidebar">
 
-        function render() {
-            if (!notesData || notesData.length === 0) {
-                root.innerHTML = '<div class="empty">아직 오답이 없어요.<br>기보를 복기하면 실수·악수가 여기에 모입니다.</div>';
-                return;
+            <section class="summary-card">
+                <h2>전체 현황</h2>
+
+                <div class="donut-wrapper">
+                    <div class="donut-chart" id="statusDonut">
+                        <div class="donut-center">
+                            <strong th:text="${#lists.size(notes)}">0</strong>
+                            <span>전체 오답</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="summary-legend">
+                    <div class="legend-row">
+                        <span class="legend-dot unreviewed"></span><span>미복습</span>
+                        <strong id="cntUnreviewed">0</strong><small id="pctUnreviewed">0%</small>
+                    </div>
+                    <div class="legend-row">
+                        <span class="legend-dot reviewing"></span><span>복습 중</span>
+                        <strong id="cntReviewing">0</strong><small id="pctReviewing">0%</small>
+                    </div>
+                    <div class="legend-row">
+                        <span class="legend-dot completed"></span><span>완료</span>
+                        <strong id="cntCompleted">0</strong><small id="pctCompleted">0%</small>
+                    </div>
+                </div>
+                <p class="filter-note">복습 횟수는 이 브라우저에만 저장됩니다(3회 이상이면 완료).</p>
+            </section>
+
+            <section class="filter-card">
+                <h2>복습 상태</h2>
+                <button class="status-filter active" data-status="all">
+                    <span class="status-radio"></span><span>전체</span>
+                    <strong th:text="${#lists.size(notes)}">0</strong>
+                </button>
+                <button class="status-filter" data-status="unreviewed">
+                    <span class="status-radio"></span><span>미복습</span>
+                    <strong id="sideUnreviewed">0</strong>
+                </button>
+                <button class="status-filter" data-status="reviewing">
+                    <span class="status-radio"></span><span>복습 중</span>
+                    <strong class="count-yellow" id="sideReviewing">0</strong>
+                </button>
+                <button class="status-filter" data-status="completed">
+                    <span class="status-radio"></span><span>완료</span>
+                    <strong class="count-green" id="sideCompleted">0</strong>
+                </button>
+            </section>
+
+            <section class="filter-card">
+                <h2>구간</h2>
+                <button class="category-filter active" data-category="all">
+                    <span class="category-symbol">▦</span><span>전체</span>
+                    <strong th:text="${#lists.size(notes)}">0</strong>
+                </button>
+                <button class="category-filter" data-category="초반">
+                    <span class="category-symbol">◇</span><span>초반 (1~50수)</span>
+                    <strong th:text="${#lists.size(notes.?[phase == '초반'])}">0</strong>
+                </button>
+                <button class="category-filter" data-category="중반">
+                    <span class="category-symbol">◫</span><span>중반 (51~150수)</span>
+                    <strong th:text="${#lists.size(notes.?[phase == '중반'])}">0</strong>
+                </button>
+                <button class="category-filter" data-category="종반">
+                    <span class="category-symbol">♙</span><span>종반 (151수~)</span>
+                    <strong th:text="${#lists.size(notes.?[phase == '종반'])}">0</strong>
+                </button>
+            </section>
+
+            <section class="filter-card">
+                <h2>심각도</h2>
+                <div class="difficulty-grid">
+                    <button class="difficulty-filter active" data-severity="all">전체</button>
+                    <button class="difficulty-filter" data-severity="실수">실수</button>
+                    <button class="difficulty-filter" data-severity="악수">악수</button>
+                    <button class="difficulty-filter" data-severity="big">10집+</button>
+                </div>
+                <p class="filter-note">집손해 3~5집은 실수, 5집 이상은 악수로 분류됩니다(분석 기준 그대로).</p>
+            </section>
+        </aside>
+
+
+        <!-- ────────── 목록 ────────── -->
+        <section class="notes-content">
+
+            <div class="notes-toolbar">
+                <div class="status-tabs">
+                    <button class="status-tab active" data-status="all">
+                        전체 <span th:text="${#lists.size(notes)}">0</span>
+                    </button>
+                    <button class="status-tab" data-status="unreviewed">
+                        미복습 <span id="tabUnreviewed">0</span>
+                    </button>
+                    <button class="status-tab" data-status="reviewing">
+                        복습 중 <span id="tabReviewing">0</span>
+                    </button>
+                    <button class="status-tab" data-status="completed">
+                        완료 <span id="tabCompleted">0</span>
+                    </button>
+                </div>
+
+                <div class="toolbar-actions">
+                    <div class="search-box">
+                        <input type="text" id="notesSearch" placeholder="기보명, 좌표, 구간 검색..." autocomplete="off">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20L16 16"></path>
+                        </svg>
+                    </div>
+
+                    <button class="review-start-button" type="button" id="startReviewButton">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="9"></circle>
+                            <path d="M10 8l6 4-6 4z"></path>
+                        </svg>
+                        복습 시작
+                    </button>
+                </div>
+            </div>
+
+            <div class="sort-row">
+                <span>총 <strong id="resultCount">0</strong>개의 오답</span>
+                <select id="sortSelect">
+                    <option value="loss">집손해 큰순</option>
+                    <option value="latest">최신 분석순</option>
+                    <option value="turn">수순 빠른순</option>
+                </select>
+            </div>
+
+            <div class="note-list" id="noteList">
+
+                <article class="note-card" th:each="n : ${notes}"
+                         th:data-id="${n.gameId + '-' + n.turnNumber}"
+                         th:data-game="${n.gameId}"
+                         th:data-turn="${n.turnNumber}"
+                         th:data-phase="${n.phase}"
+                         th:data-grade="${n.grade}"
+                         th:data-loss="${n.scoreLoss}"
+                         th:data-date="${n.analyzedAt}"
+                         th:data-moves="${n.previewMoves}"
+                         th:data-mymove="${n.move}"
+                         th:data-color="${n.color}"
+                         th:data-search="${n.fileName + ' ' + n.move + ' ' + n.bestMove + ' ' + n.phase + ' ' + n.grade}">
+
+                    <div class="note-board">
+                        <canvas class="go-board"></canvas>
+                        <span class="move-number" th:text="${n.turnNumber} + '수'">-</span>
+                    </div>
+
+                    <div class="note-info">
+                        <div class="note-title-row">
+                            <span class="difficulty-badge"
+                                  th:classappend="${n.grade == '악수' ? 'blunder' : 'mistake'}"
+                                  th:text="${n.grade}">등급</span>
+                            <span class="note-category" th:text="${n.phase} + ' · ' + (${n.color} == 'B' ? '흑' : '백')">구간</span>
+                        </div>
+
+                        <h3 th:text="${n.turnNumber} + '수 ' + ${n.move} + ' → 최선수 ' + ${n.bestMove}">-</h3>
+
+                        <p class="note-description"
+                           th:text="'AI는 ' + ${n.bestMove} + ' 자리를 최선으로 봤습니다. 실제로 둔 ' + ${n.move}
+                                    + ' 로 약 ' + ${#numbers.formatDecimal(n.scoreLoss,1,1)} + '집을 잃었습니다.'">-</p>
+
+                        <div class="note-meta">
+                            <span th:text="${n.fileName}">기보</span>
+                            <span th:if="${n.analyzedAt != null}" th:text="'분석 ' + ${n.analyzedAt.substring(0,10)}">-</span>
+                        </div>
+                    </div>
+
+                    <div class="mistake-reason">
+                        <strong>틀린 이유</strong>
+                        <p th:text="${n.phase} + '에서 ' + (${n.grade} == '악수' ? '큰 실착이 나왔습니다.' : '방향 선택이 어긋났습니다.')
+                                    + ' 집손해 ' + ${#numbers.formatDecimal(n.scoreLoss,1,1)} + '집.'">-</p>
+                        <span class="review-status unreviewed">미복습</span>
+                    </div>
+
+                    <div class="note-actions">
+                        <a class="primary-action review-button"
+                           th:href="@{'/game/result/' + ${n.gameId} + '?move=' + ${n.turnNumber}}">
+                            복습하기 <span>›</span>
+                        </a>
+                        <button class="secondary-action explanation-button" type="button">해설 보기</button>
+                        <button class="secondary-action bookmark-button" type="button">♡ 북마크</button>
+                    </div>
+
+                    <div class="note-explain" style="display:none;"
+                         th:text="'이 국면은 ' + ${n.phase} + '이고, 둔 수는 ' + ${n.move} + '(' + (${n.color} == 'B' ? '흑' : '백') + ')입니다. '
+                                  + 'AI 최선수는 ' + ${n.bestMove} + ', 집손해는 ' + ${#numbers.formatDecimal(n.scoreLoss,1,1)} + '집으로 '
+                                  + ${n.grade} + '로 분류됐습니다. 복습하기를 누르면 그 수의 국면으로 바로 이동합니다.'">-</div>
+                </article>
+
+                <div class="list-empty" th:if="${#lists.isEmpty(notes)}">
+                    아직 모인 오답이 없습니다.<br>
+                    기보 복기에서 내 기보를 분석하면 실수·악수 장면이 여기에 쌓입니다.
+                </div>
+                <div class="list-empty" id="noMatch" style="display:none;">
+                    조건에 맞는 오답이 없습니다.<br>검색어나 필터를 바꿔 보세요.
+                </div>
+            </div>
+
+            <div class="pagination" id="pagination"></div>
+        </section>
+    </section>
+</main>
+
+
+<!-- th:inline="none" — 아래 JS 의 배열 리터럴을 Thymeleaf 가 해석하지 않도록 -->
+<script th:inline="none">
+(function () {
+    const COLS = 'ABCDEFGHJKLMNOPQRST';
+    const $ = id => document.getElementById(id);
+
+    /* ════════ 바둑판 렌더 (SGF/분석 결과 → 캔버스) ════════ */
+    function gtpToGrid(g) {
+        if (!g) return null;
+        const x = COLS.indexOf(g[0].toUpperCase());
+        const y = parseInt(g.slice(1), 10) - 1;
+        return (x < 0 || isNaN(y) || y < 0 || y > 18) ? null : { x, y };
+    }
+    function adj(x, y) {
+        const a = [];
+        if (x > 0) a.push([x - 1, y]);
+        if (x < 18) a.push([x + 1, y]);
+        if (y > 0) a.push([x, y - 1]);
+        if (y < 18) a.push([x, y + 1]);
+        return a;
+    }
+    function group(b, x, y) {
+        const c = b[x][y], st = [[x, y]], seen = new Set([x + ',' + y]), out = [];
+        while (st.length) {
+            const p = st.pop(); out.push(p);
+            for (const nb of adj(p[0], p[1])) {
+                const k = nb[0] + ',' + nb[1];
+                if (!seen.has(k) && b[nb[0]][nb[1]] === c) { seen.add(k); st.push(nb); }
             }
-            const shown = notesData.filter(visible);
-            const bmCount = notesData.filter(n => bookmarks.has(noteKey(n))).length;
-
-            let html = '<div class="notes-head">'
-                + '<div class="notes-stat">총 <b>' + notesData.length + '</b>개 · 북마크 <b>' + bmCount + '</b>개'
-                + (filter !== 'all' ? ' · 표시 <b>' + shown.length + '</b>개' : '') + '</div>'
-                + '<div class="note-filters">'
-                + '<button class="nf-btn ' + (filter==='all'?'active':'') + '" data-f="all">전체</button>'
-                + '<button class="nf-btn ' + (filter==='blunder'?'active':'') + '" data-f="blunder">악수만</button>'
-                + '<button class="nf-btn ' + (filter==='bookmark'?'active':'') + '" data-f="bookmark">⭐ 북마크</button>'
-                + '</div></div>';
-
-            if (shown.length === 0) {
-                html += '<div class="empty">' + (filter==='bookmark' ? '북마크한 수가 없어요. ⭐로 표시해 보세요.' : '해당하는 수가 없어요.') + '</div>';
-            } else {
-                html += '<div class="note-grid">' + shown.map(function(n) {
-                    const key = noteKey(n);
-                    const on = bookmarks.has(key);
-                    const gameName = (n.fileName || '기보').replace(/\.(gib|sgf)$/i, '');
-                    const best = n.bestMove && n.bestMove !== n.move
-                        ? '<span class="arrow">→</span><span class="best">' + n.bestMove + '</span>' : '';
-                    return '<div class="note-card g-' + n.grade + '">'
-                        + '<div class="note-loss"><div class="note-loss-num">-' + n.scoreLoss + '</div><div class="note-loss-lbl">집 손해</div></div>'
-                        + '<div class="note-body">'
-                        + '<div class="note-line1">'
-                        + '<span class="note-badge ' + n.grade + '">' + n.grade + '</span>'
-                        + '<span class="note-stone ' + n.color + '"></span>'
-                        + '<span class="note-move">' + n.turnNumber + '수 · ' + n.move + best + '</span>'
-                        + '<span class="note-phase">' + (n.phase || '') + '</span>'
-                        + '</div>'
-                        + '<div class="note-game">' + gameName + '</div>'
-                        + '</div>'
-                        + '<div class="note-actions">'
-                        + '<button class="note-bookmark ' + (on?'on':'') + '" data-key="' + key + '" title="북마크">' + (on?'★':'☆') + '</button>'
-                        + '<a class="note-open" href="/game/result/' + n.gameId + '?move=' + n.turnNumber + '">복기에서 보기</a>'
-                        + '</div></div>';
-                }).join('') + '</div>';
-            }
-            root.innerHTML = html;
-
-            root.querySelectorAll('.nf-btn').forEach(function(b) {
-                b.addEventListener('click', function() { filter = b.dataset.f; render(); });
-            });
-            root.querySelectorAll('.note-bookmark').forEach(function(b) {
-                b.addEventListener('click', function() {
-                    const k = b.dataset.key;
-                    if (bookmarks.has(k)) bookmarks.delete(k); else bookmarks.add(k);
-                    saveBookmarks(bookmarks);
-                    render();
-                });
-            });
         }
-        render();
-    })();
-    </script>
-    </div>
-    </main>
+        return out;
+    }
+    function hasLib(b, g) {
+        for (const p of g) for (const nb of adj(p[0], p[1])) if (b[nb[0]][nb[1]] === null) return true;
+        return false;
+    }
+    function buildBoard(seq) {
+        const b = Array.from({ length: 19 }, () => Array(19).fill(null));
+        (seq || '').split(',').filter(Boolean).forEach(item => {
+            const color = item[0], g = gtpToGrid(item.slice(1));
+            if (!g || b[g.x][g.y]) return;
+            b[g.x][g.y] = color;
+            const opp = color === 'B' ? 'W' : 'B';
+            for (const nb of adj(g.x, g.y)) {
+                if (b[nb[0]][nb[1]] === opp) {
+                    const grp = group(b, nb[0], nb[1]);
+                    if (!hasLib(b, grp)) grp.forEach(p => b[p[0]][p[1]] = null);
+                }
+            }
+            if (!hasLib(b, group(b, g.x, g.y))) b[g.x][g.y] = null;
+        });
+        return b;
+    }
+    function drawStone(ctx, cx, cy, r, color) {
+        const g = ctx.createRadialGradient(cx - r * .32, cy - r * .38, r * .08, cx, cy, r);
+        if (color === 'B') { g.addColorStop(0, '#555'); g.addColorStop(.45, '#222'); g.addColorStop(1, '#050505'); }
+        else { g.addColorStop(0, '#fff'); g.addColorStop(.65, '#ededed'); g.addColorStop(1, '#c9c9c9'); }
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = color === 'B' ? 'rgba(0,0,0,.4)' : 'rgba(0,0,0,.15)';
+        ctx.lineWidth = .8; ctx.stroke();
+    }
+
+    /** 실수 지점 주변만 잘라서 보여준다(그 수가 어디였는지 바로 보이도록) */
+    function drawNoteBoard(cv, moves, myMove, color) {
+        const box = cv.parentElement;
+        const w = box.clientWidth, h = box.clientHeight;
+        if (!w || !h) return;
+        const dpr = window.devicePixelRatio || 1;
+        cv.width = w * dpr; cv.height = h * dpr;
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const bg = ctx.createLinearGradient(0, 0, w, h);
+        bg.addColorStop(0, '#e9c98b'); bg.addColorStop(1, '#dcb97a');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+        ctx.globalAlpha = .07; ctx.strokeStyle = '#704c25'; ctx.lineWidth = 1;
+        for (let y = 0; y < h; y += 8) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(w, y + .5); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+
+        const board = buildBoard(moves);
+        const mv = gtpToGrid(myMove);
+
+        /* 실수 자리를 중심으로 11x11 잘라내기 */
+        const span = 5;
+        let cx0 = mv ? Math.min(18 - span * 2, Math.max(0, mv.x - span)) : 4;
+        let cy0 = mv ? Math.min(18 - span * 2, Math.max(0, mv.y - span)) : 4;
+        const cols = span * 2 + 1;
+
+        const size = Math.min(w, h);
+        const pad = size * .07;
+        const cell = (size - pad * 2) / (cols - 1);
+        const ox = (w - cell * (cols - 1)) / 2;
+        const oy = (h - cell * (cols - 1)) / 2;
+        const px = x => ox + (x - cx0) * cell;
+        const py = y => oy + (cy0 + cols - 1 - y) * cell;
+
+        ctx.strokeStyle = 'rgba(45,32,19,.72)'; ctx.lineWidth = 1;
+        for (let i = 0; i < cols; i++) {
+            const x = px(cx0 + i), y = py(cy0 + i);
+            ctx.beginPath(); ctx.moveTo(px(cx0), y); ctx.lineTo(px(cx0 + cols - 1), y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, py(cy0)); ctx.lineTo(x, py(cy0 + cols - 1)); ctx.stroke();
+        }
+        ctx.fillStyle = '#3c2b19';
+        [3, 9, 15].forEach(a => [3, 9, 15].forEach(b => {
+            if (a < cx0 || a > cx0 + cols - 1 || b < cy0 || b > cy0 + cols - 1) return;
+            ctx.beginPath(); ctx.arc(px(a), py(b), 2.2, 0, Math.PI * 2); ctx.fill();
+        }));
+
+        const r = cell * .44;
+        for (let x = cx0; x < cx0 + cols; x++) for (let y = cy0; y < cy0 + cols; y++) {
+            if (board[x][y]) drawStone(ctx, px(x), py(y), r, board[x][y]);
+        }
+        /* 실제로 둔 실수 자리 = 반투명 돌 + 빨간 테두리 */
+        if (mv) {
+            ctx.globalAlpha = .75;
+            drawStone(ctx, px(mv.x), py(mv.y), r, color || 'B');
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = '#d94b3a'; ctx.lineWidth = Math.max(1.6, cell * .1);
+            ctx.beginPath(); ctx.arc(px(mv.x), py(mv.y), r * 1.05, 0, Math.PI * 2); ctx.stroke();
+        }
+    }
+
+    /* ════════ 상태(복습 횟수·북마크) — 브라우저 저장 ════════ */
+    let reviews = {}, marks = [];
+    try { reviews = JSON.parse(localStorage.getItem('noteReviews') || '{}'); } catch (e) { reviews = {}; }
+    try { marks = JSON.parse(localStorage.getItem('noteBookmarks') || '[]'); } catch (e) { marks = []; }
+    const saveState = () => {
+        try {
+            localStorage.setItem('noteReviews', JSON.stringify(reviews));
+            localStorage.setItem('noteBookmarks', JSON.stringify(marks));
+        } catch (e) {}
+    };
+    const statusOf = id => {
+        const n = reviews[id] || 0;
+        return n >= 3 ? 'completed' : (n >= 1 ? 'reviewing' : 'unreviewed');
+    };
+
+    /* ════════ 목록 ════════ */
+    const list = $('noteList');
+    const cards = Array.from(list.querySelectorAll('.note-card'));
+    let status = 'all', category = 'all', severity = 'all', page = 1;
+    const PAGE_SIZE = 10;
+
+    function applyStatusUi(card) {
+        const id = card.dataset.id;
+        const st = statusOf(id);
+        const n = reviews[id] || 0;
+        const box = card.querySelector('.mistake-reason');
+        const tag = card.querySelector('.review-status');
+        box.classList.remove('reviewing-box', 'completed-box');
+        if (st === 'reviewing') box.classList.add('reviewing-box');
+        if (st === 'completed') box.classList.add('completed-box');
+        tag.className = 'review-status ' + st;
+        tag.textContent = st === 'unreviewed' ? '미복습'
+            : (st === 'reviewing' ? '복습 중 (' + n + '회)' : '완료 (' + n + '회)');
+
+        const bm = card.querySelector('.bookmark-button');
+        const on = marks.includes(id);
+        bm.classList.toggle('saved', on);
+        bm.textContent = (on ? '♥' : '♡') + ' 북마크';
+    }
+
+    function updateCounts() {
+        const c = { unreviewed: 0, reviewing: 0, completed: 0 };
+        cards.forEach(card => { c[statusOf(card.dataset.id)]++; });
+        const total = cards.length || 1;
+        const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+        set('cntUnreviewed', c.unreviewed); set('cntReviewing', c.reviewing); set('cntCompleted', c.completed);
+        set('sideUnreviewed', c.unreviewed); set('sideReviewing', c.reviewing); set('sideCompleted', c.completed);
+        set('tabUnreviewed', c.unreviewed); set('tabReviewing', c.reviewing); set('tabCompleted', c.completed);
+        set('pctUnreviewed', Math.round(c.unreviewed / total * 100) + '%');
+        set('pctReviewing', Math.round(c.reviewing / total * 100) + '%');
+        set('pctCompleted', Math.round(c.completed / total * 100) + '%');
+
+        /* 도넛(conic-gradient — 외부 라이브러리 없이) */
+        const d = $('statusDonut');
+        if (d) {
+            const a = c.unreviewed / total * 360, b = a + c.reviewing / total * 360;
+            d.style.background = 'conic-gradient(#3c7448 0deg ' + a.toFixed(1) + 'deg, '
+                + '#e4b847 ' + a.toFixed(1) + 'deg ' + b.toFixed(1) + 'deg, '
+                + '#9fbd72 ' + b.toFixed(1) + 'deg 360deg)';
+        }
+    }
+
+    function matches(card) {
+        const kw = $('notesSearch').value.trim().toLowerCase();
+        if (kw && !(card.dataset.search || '').toLowerCase().includes(kw)) return false;
+        if (status !== 'all' && statusOf(card.dataset.id) !== status) return false;
+        if (category !== 'all' && card.dataset.phase !== category) return false;
+        if (severity !== 'all') {
+            const loss = Number(card.dataset.loss) || 0;
+            if (severity === 'big') { if (loss < 10) return false; }
+            else if (card.dataset.grade !== severity) return false;
+        }
+        return true;
+    }
+
+    function sortCards(arr) {
+        const mode = $('sortSelect').value;
+        if (mode === 'latest') return arr.sort((a, b) => (b.dataset.date || '').localeCompare(a.dataset.date || ''));
+        if (mode === 'turn') return arr.sort((a, b) => Number(a.dataset.turn) - Number(b.dataset.turn));
+        return arr.sort((a, b) => Number(b.dataset.loss) - Number(a.dataset.loss));
+    }
+
+    function render() {
+        const visible = sortCards(cards.filter(matches));
+        cards.forEach(c => { c.style.display = 'none'; });
+
+        const pages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+        if (page > pages) page = pages;
+
+        visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).forEach(c => {
+            c.style.display = '';
+            list.appendChild(c);
+            applyStatusUi(c);
+            drawNoteBoard(c.querySelector('canvas.go-board'), c.dataset.moves, c.dataset.mymove, c.dataset.color);
+        });
+
+        $('noMatch').style.display = (visible.length === 0 && cards.length > 0) ? '' : 'none';
+        $('resultCount').textContent = visible.length;
+        renderPagination(pages);
+    }
+
+    function pageBtn(label, target, opts) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'page-button' + ((opts && opts.arrow) ? ' arrow' : '') + ((opts && opts.active) ? ' active' : '');
+        b.textContent = label;
+        if (opts && opts.disabled) b.disabled = true;
+        else b.addEventListener('click', () => { page = target; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+        return b;
+    }
+    function renderPagination(pages) {
+        const box = $('pagination');
+        box.textContent = '';
+        if (pages <= 1) return;
+        box.appendChild(pageBtn('‹', page - 1, { arrow: true, disabled: page === 1 }));
+        const nums = new Set([1, pages, page, page - 1, page + 1]);
+        const arr = Array.from(nums).filter(n => n >= 1 && n <= pages).sort((a, b) => a - b);
+        let prev = 0;
+        arr.forEach(n => {
+            if (prev && n - prev > 1) {
+                const s = document.createElement('span');
+                s.className = 'pagination-dots'; s.textContent = '...';
+                box.appendChild(s);
+            }
+            box.appendChild(pageBtn(String(n), n, { active: n === page }));
+            prev = n;
+        });
+        box.appendChild(pageBtn('›', page + 1, { arrow: true, disabled: page === pages }));
+    }
+
+    /* ════════ 이벤트 ════════ */
+    $('notesSearch').addEventListener('input', () => { page = 1; render(); });
+    $('sortSelect').addEventListener('change', () => { page = 1; render(); });
+
+    function bindGroup(selector, apply) {
+        document.querySelectorAll(selector).forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll(selector).forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                apply(btn);
+                page = 1; render();
+            });
+        });
+    }
+    /* 상태 탭과 사이드바 상태는 서로 동기화 */
+    function syncStatus(value) {
+        status = value;
+        document.querySelectorAll('.status-tab').forEach(b => b.classList.toggle('active', b.dataset.status === value));
+        document.querySelectorAll('.status-filter').forEach(b => b.classList.toggle('active', b.dataset.status === value));
+    }
+    document.querySelectorAll('.status-tab, .status-filter').forEach(btn => {
+        btn.addEventListener('click', () => { syncStatus(btn.dataset.status); page = 1; render(); });
+    });
+    bindGroup('.category-filter', btn => { category = btn.dataset.category; });
+    bindGroup('.difficulty-filter', btn => { severity = btn.dataset.severity; });
+
+    /* 복습하기 → 결과 화면의 그 수로 이동(횟수 +1) */
+    cards.forEach(card => {
+        const id = card.dataset.id;
+
+        card.querySelector('.review-button').addEventListener('click', () => {
+            reviews[id] = (reviews[id] || 0) + 1;
+            saveState();
+        });
+
+        card.querySelector('.explanation-button').addEventListener('click', e => {
+            e.stopPropagation();
+            const box = card.querySelector('.note-explain');
+            const open = box.style.display === 'none';
+            box.style.display = open ? '' : 'none';
+            e.currentTarget.textContent = open ? '해설 닫기' : '해설 보기';
+        });
+
+        card.querySelector('.bookmark-button').addEventListener('click', e => {
+            e.stopPropagation();
+            const on = !marks.includes(id);
+            marks = on ? marks.concat([id]) : marks.filter(x => x !== id);
+            saveState();
+            applyStatusUi(card);
+        });
+    });
+
+    /* 복습 시작 = 현재 목록의 첫 오답으로 이동 */
+    $('startReviewButton').addEventListener('click', () => {
+        const first = cards.find(c => c.style.display !== 'none');
+        if (!first) { alert('복습할 오답이 없습니다.'); return; }
+        first.querySelector('.review-button').click();
+        location.href = first.querySelector('.review-button').getAttribute('href');
+    });
+
+    let rz;
+    window.addEventListener('resize', () => {
+        clearTimeout(rz);
+        rz = setTimeout(() => {
+            cards.forEach(c => {
+                if (c.style.display !== 'none') {
+                    drawNoteBoard(c.querySelector('canvas.go-board'), c.dataset.moves, c.dataset.mymove, c.dataset.color);
+                }
+            });
+        }, 180);
+    });
+
+    updateCounts();
+    render();
+})();
+</script>
+
 </body>
 </html>

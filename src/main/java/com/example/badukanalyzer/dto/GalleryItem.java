@@ -21,4 +21,5 @@ public class GalleryItem {
     private final double endgameLoss;
     private final String bestPhase;   // 유사도 최고 구간
     private final String worstPhase;  // 유사도 최저 구간
+    private final String previewMoves; // 썸네일용 착수 수순("BQ16,WD4,…", 앞 80수) — 카드에서 최종 국면을 그린다
 }
