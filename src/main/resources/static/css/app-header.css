@@ -91,6 +91,50 @@ button { font: inherit; }
 }
 .nav-icon svg { width: 100%; height: 100%; }
 
+/* ── 내비 하위 메뉴 (AI 대국 ▸ 실시간 분석) ── */
+.nav-group { position: relative; height: 100%; display: flex; align-items: center; }
+.nav-caret {
+    width: 12px; height: 12px; margin-left: -3px;
+    opacity: .5; transition: transform .18s ease;
+}
+.nav-group:hover .nav-caret,
+.nav-group:focus-within .nav-caret { opacity: 1; transform: rotate(180deg); }
+
+.nav-submenu {
+    position: absolute; top: 100%; left: 50%; z-index: 20;
+    min-width: 218px; padding: 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    box-shadow: var(--shadow);
+    opacity: 0; visibility: hidden;
+    transform: translateX(-50%) translateY(6px);
+    transition: opacity .16s ease, transform .16s ease, visibility .16s;
+}
+.nav-group:hover .nav-submenu,
+.nav-group:focus-within .nav-submenu {
+    opacity: 1; visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+.nav-submenu a {
+    display: block;
+    padding: 9px 12px;
+    border-radius: 9px;
+}
+.nav-submenu a:hover { background: #f5f6fb; }
+.nav-submenu a.current { background: #f2f0ff; }
+.nav-submenu strong {
+    display: block;
+    color: var(--text);
+    font-size: 13px; font-weight: 700;
+}
+.nav-submenu a.current strong { color: var(--indigo); }
+.nav-submenu span {
+    display: block; margin-top: 2px;
+    color: #8a93ab;
+    font-size: 11px; font-weight: 500;
+}
+
 /* ── 계정 영역 ── */
 .header-actions { display: flex; align-items: center; gap: 18px; flex-shrink: 0; }
 
@@ -174,6 +218,12 @@ button { font: inherit; }
 }
 .mobile-nav a:hover { background: #f5f6fb; }
 .mobile-nav a.active { color: var(--indigo); background: #f2f0ff; }
+.mobile-nav a.sub { padding-left: 30px; font-size: 13px; }
+.mobile-nav a.sub::before {
+    content: ""; flex: 0 0 auto;
+    width: 11px; height: 1px; margin-right: 9px;
+    background: #c3c9d8;
+}
 
 /* ── 반응형 ── */
 @media (max-width: 1250px) {
