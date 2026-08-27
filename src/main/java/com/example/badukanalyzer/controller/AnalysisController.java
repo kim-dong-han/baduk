@@ -33,6 +33,21 @@ public class AnalysisController {
         model.addAttribute("userWinrateTrend", analysisService.getUserWinrateTrend());
         model.addAttribute("error", analysisService.getErrorMessage());
         model.addAttribute("running", analysisService.isRunning());
+
+        // 판 단위 요약 — 실력 변화 추이 그래프 + "최근 분석 기보" 표
+        model.addAttribute("userGames", analysisService.getUserGameRows());
+
+        // 구간 카드의 "프로 기보 대비" 한 줄 — proResults 를 구간→일치율 로 색인만 한다
+        Map<String, Double> proMatchByPhase = new java.util.LinkedHashMap<>();
+        for (AnalysisResponse r : analysisService.getProResults()) {
+            proMatchByPhase.put(r.getPhase(), r.getMatchRate());
+        }
+        model.addAttribute("proMatchByPhase", proMatchByPhase);
+
+        // 히어로 바둑판에 띄울 실제 국면: 집손해가 가장 컸던 내 실수(오답노트 1위)
+        List<com.example.badukanalyzer.dto.MistakeNote> notes = analysisService.getUserMistakeNotes();
+        model.addAttribute("focusNote", notes.isEmpty() ? null : notes.get(0));
+        model.addAttribute("mistakeTotal", notes.size());
         return "analysis/batch";
     }
 

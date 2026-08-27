@@ -1,6 +1,7 @@
 package com.example.badukanalyzer.service;
 
 import com.example.badukanalyzer.dto.AnalysisResponse;
+import com.example.badukanalyzer.dto.BatchGameRow;
 import com.example.badukanalyzer.dto.GalleryItem;
 import com.example.badukanalyzer.dto.MistakeNote;
 import com.example.badukanalyzer.dto.MoveDetail;
@@ -356,6 +357,54 @@ public class AnalysisService {
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    /**
+     * 실력 변화 추이·최근 기보 표에 쓰는 판 단위 요약(내 기보만, 분석 오래된 순).
+     * 저장된 결과만 읽어 계산하고 KataGo는 다시 돌리지 않는다.
+     */
+    public List<BatchGameRow> getUserGameRows() {
+        List<SingleGameResult> games;
+        try {
+            games = singleGameService.listResultSummaries();
+        } catch (Exception e) {
+            return List.of();
+        }
+
+        List<BatchGameRow> rows = new ArrayList<>();
+        for (SingleGameResult g : games) {
+            boolean isPro = g.getFileName() != null && g.getFileName().contains(PRO_MARKER);
+            if (isPro) continue;
+
+            double mSum = 0, lossSum = 0;
+            int moveSum = 0, mistake = 0, blunder = 0;
+            SingleGameResult.PhaseStats[] ps = { g.getOpening(), g.getMiddle(), g.getEndgame() };
+            for (SingleGameResult.PhaseStats p : ps) {
+                if (p == null || p.getMoveCount() == 0) continue;
+                mSum    += p.getMatchRate()    * p.getMoveCount();
+                lossSum += p.getAvgScoreLoss() * p.getMoveCount();
+                moveSum += p.getMoveCount();
+                mistake += p.getMistakeCount();
+                blunder += p.getBlunderCount();
+            }
+            if (moveSum == 0) continue;   // 구간 통계가 없는 구 JSON은 건너뜀
+
+            String at = g.getAnalyzedAt() == null ? "" : g.getAnalyzedAt();
+            rows.add(BatchGameRow.builder()
+                    .id(g.getId())
+                    .title(galleryTitle(g, false))
+                    .dateText(at.length() >= 10 ? at.substring(0, 10) : "")
+                    .shortDate(at.length() >= 10 ? at.substring(5, 7) + "." + at.substring(8, 10) : "")
+                    .totalMoves(g.getTotalMoves())
+                    .matchRate(round1(mSum / moveSum))
+                    .avgScoreLoss(round1(lossSum / moveSum))
+                    .mistakeCount(mistake)
+                    .blunderCount(blunder)
+                    .build());
+        }
+        // listResultSummaries 는 최신순 — 추이 그래프가 왼쪽부터 과거가 되도록 뒤집는다.
+        java.util.Collections.reverse(rows);
+        return rows;
     }
 
     private double round1(double v) { return Math.round(v * 10)   / 10.0; }
