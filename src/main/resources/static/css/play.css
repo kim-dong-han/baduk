@@ -92,19 +92,28 @@ button { cursor: pointer; }
 .player-info span { display: block; margin-top: 3px; color: var(--pl-muted); font-size: 11px; }
 .vs { color: var(--pl-muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 
-/* 판 — .board-area 이름은 computeLayout() 이 참조하므로 유지 */
+/* 판 — .board-area 이름은 computeLayout() 이 참조하므로 유지.
+   나무 바탕·격자는 canvas 가 직접 그린다. 여기서 배경을 또 칠하면
+   색이 다른 판이 두 겹으로 보인다(#setupSection 오버레이 기준이라 position 은 유지). */
 .board-area {
     position: relative;
     width: min(100%, 720px);
     margin: 0 auto;
     aspect-ratio: 1;
-    padding: 13px;
     border-radius: 6px;
     display: grid; place-items: center;
-    background: linear-gradient(135deg, #e7c887 0%, #d8b36d 100%);
-    box-shadow: 0 15px 35px rgba(71,53,25,.14), inset 0 0 0 1px rgba(91,67,28,.12);
 }
-#boardCanvas { display: block; border-radius: 3px; cursor: pointer; }
+/* 판이 .board-area 정사각형을 정확히 채우게 한다.
+   JS 는 canvas 를 BOARD_PX 픽셀로 잡는데(내부 해상도), 그 값이 영역보다 몇 px
+   작으면 테두리처럼 빈 띠가 남아 판이 두 겹처럼 보인다. 인라인 style 을 이겨야
+   하므로 !important. 클릭 좌표는 getBoundingClientRect().width 기준이라 그대로 맞는다. */
+/* 테두리(border)는 주지 않는다 — getBoundingClientRect 기준 클릭 좌표가 어긋난다. */
+#boardCanvas {
+    display: block; cursor: pointer;
+    width: 100% !important; height: 100% !important;
+    border-radius: 6px;
+    box-shadow: 0 15px 35px rgba(71,53,25,.16), 0 0 0 1px rgba(91,67,28,.16);
+}
 #boardCanvas.waiting { cursor: progress; opacity: .82; }
 
 /* 시작 전 색 선택 오버레이 */
