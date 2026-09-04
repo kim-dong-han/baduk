@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기력 인증서 · Baduk AI</title>
+    <link rel="stylesheet" href="/css/app-header.css">
+    <link rel="stylesheet" th:href="@{/css/rating.css}">
+</head>
+<body>
+
+<header th:replace="~{fragments/appheader :: header('rating')}"></header>
+
+<main class="rt-page">
+
+    <section class="rt-head">
+        <div>
+            <h1>AI 기력 인증서</h1>
+            <p>저장된 복기 결과를 대국자별로 누적해 기력을 산출합니다. 한 판이 아니라 여러 판을 근거로 삼고,
+               표본이 얼마나 되는지도 값과 함께 표시합니다.</p>
+        </div>
+        <div class="rt-picker" th:if="${subject != null}">
+            <label for="playerSelect">대국자</label>
+            <select id="playerSelect">
+                <option th:each="p : ${players}"
+                        th:value="${p.name}"
+                        th:text="${p.name} + ' (' + ${p.games} + '판)'"
+                        th:selected="${p.name == subject.name}">이름</option>
+            </select>
+        </div>
+    </section>
+
+    <div class="rt-empty" th:if="${subject == null}">
+        아직 집계할 복기 결과가 없습니다.<br>
+        <a href="/game">기보 복기</a>에서 기보를 분석하면 대국자별 기력이 여기에 쌓입니다.
+    </div>
+
+    <th:block th:if="${subject != null}">
+
+        <!-- ── 인증서 본체 ── -->
+        <section class="cert">
+            <div class="cert-main">
+                <p class="cert-eyebrow">VERIFIED BY KATAGO</p>
+                <p class="cert-name" th:text="${subject.name}">대국자</p>
+                <p class="cert-scope">
+                    <span th:text="${subject.games}">0</span>판 ·
+                    <span th:text="${subject.moves}">0</span>수 누적 집계
+                </p>
+
+                <p class="cert-band" th:style="'color:' + ${subject.bandColor}" th:text="${subject.band}">기력</p>
+                <p class="cert-band-sub" th:text="${subject.bandSub}">구간</p>
+
+                <span class="cert-conf"
+                      th:classappend="${subject.confidence == '확정'} ? 'settled' : (${subject.confidence == '잠정'} ? 'interim' : 'thin')"
+                      th:text="'표본 ' + ${subject.confidence}">표본</span>
+                <p class="cert-conf-note" th:text="${subject.confidenceNote}">근거</p>
+
+                <dl class="cert-basis">
+                    <div>
+                        <dt>한 수당 평균 집손해</dt>
+                        <dd th:text="${subject.avgScoreLoss}">0</dd>
+                    </div>
+                    <div>
+                        <dt>AI 최선수 일치율</dt>
+                        <dd><span th:text="${subject.matchRate}">0</span><small>%</small></dd>
+                    </div>
+                </dl>
+            </div>
+
+            <div class="cert-detail">
+                <h2>구간별 기력</h2>
+                <p>한 줄 등급이 가리는 약점을 드러냅니다. 같은 사람이라도 초반과 종반의 기력은 다릅니다.</p>
+
+                <!-- 막대 길이(barPct)와 부호 분리는 서비스에서 끝내 둔다.
+                     Thymeleaf 3.1 에서 T(java.lang.Math).min/abs 는 오버로드가 모호해 터진다. -->
+                <div class="phase-rows">
+                    <th:block th:each="ph : ${phases}">
+                        <div class="phase-row" th:if="${ph != null}">
+                            <span class="phase-name" th:text="${ph.phase}">구간</span>
+                            <div class="phase-bar">
+                                <span th:style="'width:' + ${ph.barPct} + '%; background:' + ${ph.bandColor}"></span>
+                            </div>
+                            <div class="phase-meta">
+                                <b th:text="${ph.band}">기력</b>
+                                <span th:text="${ph.avgScoreLoss} + '집 · ' + ${ph.matchRate} + '% · ' + ${ph.moves} + '수'">지표</span>
+                            </div>
+                        </div>
+                    </th:block>
+                </div>
+
+                <div class="cert-tags">
+                    <span class="cert-tag" th:if="${subject.strongPhase != null}">
+                        가장 강한 구간 <b th:text="${subject.strongPhase}">-</b>
+                    </span>
+                    <span class="cert-tag" th:if="${subject.weakPhase != null}">
+                        보완할 구간 <b th:text="${subject.weakPhase}">-</b>
+                    </span>
+                    <span class="cert-tag">
+                        판별 기복 <b th:text="${subject.steadiness}">-</b>
+                        <span th:text="'(편차 ' + ${subject.volatility} + '집)'">-</span>
+                    </span>
+                    <span class="cert-tag" th:if="${subject.pro}">프로 기보에서만 집계됨</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── 성장 추이 ── -->
+        <section class="growth-card">
+            <h2>성장 추이</h2>
+            <p>이 대국자의 판을 분석 순서대로 늘어놓고, 앞쪽 절반과 뒤쪽 절반의 평균 집손해를 견줍니다.</p>
+
+            <div class="growth-row" th:if="${subject.growthReady}">
+                <div>
+                    <span class="growth-big" th:classappend="${subject.improved} ? 'up' : 'down'"
+                          th:text="${subject.improved ? '−' : '+'} + ${subject.growthAbs}">0</span><!--
+                    --><span class="growth-big" style="font-size:15px;font-weight:600;color:var(--app-text-3)">집/수</span>
+                </div>
+                <p class="growth-note">
+                    앞 <span th:text="${subject.earlyGames}">0</span>판 평균 <b th:text="${subject.earlyLoss}">0</b>집 →
+                    최근 <span th:text="${subject.recentGames}">0</span>판 평균 <b th:text="${subject.recentLoss}">0</b>집.
+                    <span th:if="${subject.improved}">한 수당 손해가 줄었습니다.</span>
+                    <span th:unless="${subject.improved}">한 수당 손해가 늘었습니다.</span>
+                </p>
+            </div>
+            <p class="growth-note" th:unless="${subject.growthReady}">
+                성장 추이를 내려면 최소 4판이 필요합니다. 지금은 <b th:text="${subject.games}">0</b>판이라
+                앞·뒤를 갈라 비교하면 한 판의 운이 그대로 결론이 됩니다.
+            </p>
+
+            <canvas class="spark" id="lossSpark"
+                    th:attr="data-loss=${#strings.listJoin(subject.lossTrend, ',')},data-labels=${#strings.listJoin(subject.gameLabels, ',')}"></canvas>
+        </section>
+
+        <p class="foot-note">
+            기력은 <b>KataGo가 매긴 한 수당 평균 집손해</b>로 산출합니다(복기 화면과 같은 경계값).
+            승패나 상대 급수는 쓰지 않습니다 — 진 판에서도 잘 뒀다면 기력은 올라가야 하기 때문입니다.
+            표본이 <b>4판 240수</b>를 넘어야 ‘확정’으로 표시하고, 그전에는 ‘잠정’으로 둡니다.
+        </p>
+    </th:block>
+</main>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+(function () {
+    /* 대국자 전환 */
+    var sel = document.getElementById('playerSelect');
+    if (sel) sel.addEventListener('change', function () {
+        location.href = '/rating?player=' + encodeURIComponent(sel.value);
+    });
+
+    /* 판별 평균 집손해 추이 — 값이 낮을수록 잘 둔 판이라 위로 올라오게 뒤집어 그린다 */
+    var cv = document.getElementById('lossSpark');
+    if (!cv) return;
+    var raw = (cv.dataset.loss || '').split(',').filter(Boolean).map(Number);
+    if (raw.length < 2) { cv.style.display = 'none'; return; }
+    var labels = (cv.dataset.labels || '').split(',');
+
+    function draw() {
+        var w = cv.clientWidth, h = cv.clientHeight;
+        if (!w || !h) return;
+        var dpr = window.devicePixelRatio || 1;
+        cv.width = w * dpr; cv.height = h * dpr;
+        var ctx = cv.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+
+        var css = getComputedStyle(document.body);
+        var line = css.getPropertyValue('--app-indigo').trim() || '#4f46e5';
+        var soft = css.getPropertyValue('--app-line').trim() || '#e5e8f0';
+        var muted = css.getPropertyValue('--app-text-4').trim() || '#9aa2b1';
+
+        var padL = 6, padR = 6, padT = 10, padB = 18;
+        var max = Math.max.apply(null, raw), min = Math.min.apply(null, raw);
+        if (max === min) { max = min + 1; }
+        var x = function (i) { return padL + (w - padL - padR) * (raw.length === 1 ? 0 : i / (raw.length - 1)); };
+        var y = function (v) { return padT + (h - padT - padB) * ((v - min) / (max - min)); };
+
+        ctx.strokeStyle = soft; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(padL, h - padB + .5); ctx.lineTo(w - padR, h - padB + .5); ctx.stroke();
+
+        ctx.strokeStyle = line; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+        ctx.beginPath();
+        raw.forEach(function (v, i) { i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)); });
+        ctx.stroke();
+
+        ctx.fillStyle = line;
+        raw.forEach(function (v, i) {
+            ctx.beginPath(); ctx.arc(x(i), y(v), i === raw.length - 1 ? 3.4 : 2, 0, Math.PI * 2); ctx.fill();
+        });
+
+        ctx.fillStyle = muted; ctx.font = '10px system-ui, sans-serif';
+        ctx.textAlign = 'left';  ctx.fillText((labels[0] || '') + ' · ' + raw[0].toFixed(2) + '집', padL, h - 5);
+        ctx.textAlign = 'right'; ctx.fillText((labels[raw.length - 1] || '') + ' · ' + raw[raw.length - 1].toFixed(2) + '집', w - padR, h - 5);
+    }
+    draw();
+    var t; window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(draw, 150); });
+})();
+/*]]>*/
+</script>
+
+</body>
+</html>

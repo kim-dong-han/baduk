@@ -102,17 +102,40 @@
                 </div>
             </div>
 
-            <a href="/analysis/batch" class="nav-link" th:classappend="${active == 'batch'} ? ' active'">
-                <span class="nav-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-                         stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 19V5"></path>
-                        <path d="M4 19h16"></path>
-                        <path d="M7 15l3-4 3 2 5-7"></path>
+            <!-- 실력 리포트 + 기력 인증 + 성장률 리그: 내 실력을 재고 겨루는 일끼리 한 묶음 -->
+            <div class="nav-group">
+                <a href="/analysis/batch" class="nav-link"
+                   th:classappend="${active == 'batch' or active == 'rating' or active == 'league'} ? ' active'">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 19V5"></path>
+                            <path d="M4 19h16"></path>
+                            <path d="M7 15l3-4 3 2 5-7"></path>
+                        </svg>
+                    </span>
+                    <span>실력 리포트</span>
+                    <svg class="nav-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 9l6 6 6-6"></path>
                     </svg>
-                </span>
-                <span>실력 리포트</span>
-            </a>
+                </a>
+
+                <div class="nav-submenu">
+                    <a href="/analysis/batch" th:classappend="${active == 'batch'} ? ' current'">
+                        <strong>실력 리포트</strong>
+                        <span>내 기보 전체를 한눈에</span>
+                    </a>
+                    <a href="/rating" th:classappend="${active == 'rating'} ? ' current'">
+                        <strong>기력 인증서</strong>
+                        <span>여러 판 누적 기력과 구간별 약점</span>
+                    </a>
+                    <a href="/league" th:classappend="${active == 'league'} ? ' current'">
+                        <strong>성장률 리그</strong>
+                        <span>승패 아닌 개선폭으로 매기는 순위</span>
+                    </a>
+                </div>
+            </div>
 
             <a href="/about" class="nav-link" th:classappend="${active == 'about'} ? ' active'">
                 <span class="nav-icon">

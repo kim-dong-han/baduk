@@ -23,6 +23,7 @@ controller/   요청 매핑만. 로직 없음.
   SingleGameViewController  /game/**        (화면, 비동기 분석)
   SingleGameController      /api/game/**    (REST)
   AnalysisController        /analysis/batch (배치 화면)
+  RatingController          /rating(기력 인증서)·/league(성장률 리그)
   AuthController            /login·/register·/login-local  (로그인 게이트·회원가입, remember-me 쿠키 발급)
   PlayController            /play(AI 대국)·/study(실시간 분석판)·/api/play/** + /api/analyze/top (무상태 국면 분석: 놓아보기·분석판 추천수)
   UploadController          /upload/gib     (업로드)
@@ -32,6 +33,11 @@ service/      비즈니스 로직.
   SingleGameService    단일 기보 분석 파이프라인 (등급/구간/저장)
   KataGoService        subprocess 통신, 쿼리 생성, 진행률 콜백. getTopMoves(상위후보)·analyzeTop(root 승률+후보, 놓아보기용) — 모두 '둘 차례' 관점 winrate
   PlayService          AI 대국 상태(history)·힌트(getHints)·무상태 분석 패스(analyzeTop)
+  RatingService        기력 인증(A)·성장률 리그(B) — 저장된 결과를 **대국자 이름**으로 다시 묶는다.
+                       AnalysisService 가 "내 기보 / 프로" 두 덩어리로 집계한다면, 여기서는 한 판을
+                       흑·백 두 사람의 기록으로 쪼개 사람 단위로 누적(엔진 재실행 없음).
+                       기력 = 한 수당 평균 집손해(복기 화면과 같은 경계값), 표본 4판 240수 이상이면 '확정'.
+                       성장 = 판을 분석 순서로 늘어놓고 앞/뒤 절반 평균 집손해 비교(각 2판 이상일 때만).
   AnalysisService      실력 리포트 집계 — 저장된 복기 결과(GameResults/*.json)를 내기보/프로(신진서 vs)·구간별로 합산(재분석 안 함)
   AnalysisJobStore     ConcurrentHashMap 기반 비동기 Job/진행률 (Job.fileName, getRunningJobs)
   TsumegoService       사활 문제 로드(@PostConstruct)·랜덤 제공, 인메모리 List

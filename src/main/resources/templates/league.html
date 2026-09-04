@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>성장률 리그 · Baduk AI</title>
+    <link rel="stylesheet" href="/css/app-header.css">
+    <link rel="stylesheet" th:href="@{/css/rating.css}">
+</head>
+<body>
+
+<header th:replace="~{fragments/appheader :: header('league')}"></header>
+
+<main class="rt-page">
+
+    <section class="rt-head">
+        <div>
+            <h1>성장률 리그</h1>
+            <p>승패나 절대 기력이 아니라 <strong>얼마나 나아졌는지</strong>로 줄을 세웁니다.
+               이미 잘 두는 사람은 줄일 집손해가 없어 위로 올라가지 못합니다.</p>
+        </div>
+    </section>
+
+    <div class="rt-empty" th:if="${totalPlayers == 0}">
+        아직 집계할 복기 결과가 없습니다.<br>
+        <a href="/game">기보 복기</a>에서 기보를 분석하면 대국자별 순위가 여기에 쌓입니다.
+    </div>
+
+    <div class="league-grid" th:if="${totalPlayers > 0}">
+
+        <!-- ── 성장률 순위 ── -->
+        <section class="panel">
+            <div class="panel-hd">
+                <h2>개선폭 순위</h2>
+                <p>각 대국자의 판을 분석 순서로 늘어놓고 앞쪽 절반과 뒤쪽 절반의 한 수당 평균 집손해를 견줍니다.
+                   앞뒤 각각 2판 이상 있는 대국자만 오릅니다.</p>
+            </div>
+
+            <div class="rt-empty" th:if="${#lists.isEmpty(growthLeague)}" style="border:0;border-radius:0;padding:44px 24px">
+                아직 순위에 오를 대국자가 없습니다.<br>
+                한 사람의 기보가 4판 이상 쌓이면 앞·뒤를 갈라 비교할 수 있습니다.
+            </div>
+
+            <div class="tbl-scroll" th:unless="${#lists.isEmpty(growthLeague)}">
+                <table class="lg">
+                    <thead>
+                    <tr>
+                        <th style="width:52px">순위</th>
+                        <th>대국자</th>
+                        <th class="num">개선폭</th>
+                        <th class="num">이전 → 최근</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="p, s : ${growthLeague}">
+                        <td><span class="rank" th:classappend="${s.index == 0} ? 'top'" th:text="${s.count}">1</span></td>
+                        <td>
+                            <a class="pname" th:href="@{/rating(player=${p.name})}" th:text="${p.name}">이름</a>
+                            <span class="pro-chip" th:if="${p.pro}">프로</span>
+                            <span class="pmeta" th:text="${p.games} + '판 · ' + ${p.band}">메타</span>
+                        </td>
+                        <td class="num">
+                            <span class="delta" th:classappend="${p.improved} ? 'up' : 'down'">
+                                <span th:text="${p.improved ? '−' : '+'} + ${p.growthAbs} + '집'">0</span>
+                                <small th:text="${p.growthPctAbs} + '% ' + ${p.improved ? '감소' : '증가'}">-</small>
+                            </span>
+                        </td>
+                        <td class="num" style="color:var(--app-text-3);font-size:12.5px">
+                            <span th:text="${p.earlyLoss}">0</span> → <span th:text="${p.recentLoss}">0</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ── 절대 기력 순위(대조군) ── -->
+        <section class="panel">
+            <div class="panel-hd">
+                <h2>절대 기력 순위</h2>
+                <p>비교를 위해 같이 둡니다. 이 축으로 줄을 세우면 순위가 거의 고정되고, 그게 바로
+                   취미로 시작한 사람이 대회에서 이탈하는 이유입니다.</p>
+            </div>
+            <div class="tbl-scroll">
+                <table class="lg">
+                    <thead>
+                    <tr>
+                        <th style="width:52px">순위</th>
+                        <th>대국자</th>
+                        <th class="num">집손해</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="p, s : ${strengthLeague}">
+                        <td><span class="rank" th:classappend="${s.index == 0} ? 'top'" th:text="${s.count}">1</span></td>
+                        <td>
+                            <a class="pname" th:href="@{/rating(player=${p.name})}" th:text="${p.name}">이름</a>
+                            <span class="pro-chip" th:if="${p.pro}">프로</span>
+                            <span class="pmeta">
+                                <span class="band-pill"
+                                      th:style="'color:' + ${p.bandColor}"
+                                      th:text="${p.band}">기력</span>
+                                <span th:text="' · ' + ${p.games} + '판 · 표본 ' + ${p.confidence}">메타</span>
+                            </span>
+                        </td>
+                        <td class="num" style="font-weight:700" th:text="${p.avgScoreLoss}">0</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <p class="foot-note" th:if="${totalPlayers > 0}">
+        <b>왜 개선폭인가.</b> 실력 차이는 없앨 수 없지만 줄 세우는 축은 바꿀 수 있습니다.
+        승패로 매기면 도장 출신이 이기는 게 당연하고, 그 구조가 성인 아마추어를 대회에서 밀어냅니다.
+        개선폭으로 매기면 입문자도 1위를 할 수 있고 — 이미 고수인 사람이 위로 가려면 진짜로 더 강해지는 수밖에 없어
+        공정성도 유지됩니다.
+        <br><b>한계.</b> 일부러 못 두다가 올리는 조작이 가능합니다. 지금은 앞·뒤 각 2판이라는 최소 표본만 걸어 두었고,
+        실제 운영에서는 시작 기력 하한과 이상치 제거가 함께 가야 합니다.
+    </p>
+</main>
+
+</body>
+</html>
