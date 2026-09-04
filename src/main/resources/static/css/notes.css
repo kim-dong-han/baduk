@@ -89,7 +89,7 @@ button { cursor: pointer; }
 }
 .difficulty-filter:hover { background: #f7f7f4; }
 .difficulty-filter.active { background: var(--nt-green); border-color: var(--nt-green); color: #fff; font-weight: 700; }
-.filter-note { margin: 10px 0 0; color: var(--nt-muted); font-size: 11px; line-height: 1.5; }
+.filter-note { margin: 10px 0 0; color: var(--nt-muted); font-size: 12px; line-height: 1.5; }
 
 /* ── 콘텐츠 ── */
 .notes-content { min-width: 0; }
@@ -122,7 +122,7 @@ button { cursor: pointer; }
     padding: 0 11px;
     border: 1px solid #dedbd3; border-radius: 7px; background: #fff;
 }
-.search-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 12px; }
+.search-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 13px; }
 .search-box input::placeholder { color: #aaa69e; }
 .search-box svg { width: 19px; height: 19px; flex-shrink: 0; fill: none; stroke: #777; stroke-width: 1.7; }
 
@@ -131,7 +131,7 @@ button { cursor: pointer; }
     display: inline-flex; align-items: center; gap: 7px;
     border: 1px solid var(--nt-green); border-radius: 7px;
     background: var(--nt-green); color: #fff;
-    font-size: 12px; font-weight: 700; text-decoration: none;
+    font-size: 13px; font-weight: 700; text-decoration: none;
 }
 .review-start-button:hover { background: var(--nt-green-dark); }
 .review-start-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; }
@@ -139,7 +139,7 @@ button { cursor: pointer; }
 .sort-row {
     min-height: 50px;
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    color: #79776f; font-size: 12px;
+    color: #79776f; font-size: 13px;
 }
 .sort-row strong { color: var(--nt-green); font-size: 14px; }
 .sort-row select {
@@ -175,17 +175,17 @@ button { cursor: pointer; }
 
 .note-info { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
 .note-title-row { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; flex-wrap: wrap; }
-.difficulty-badge { padding: 3px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; border: 1px solid currentColor; }
+.difficulty-badge { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; border: 1px solid currentColor; }
 .difficulty-badge.mistake { color: #df7752; }
 .difficulty-badge.blunder { color: #d95353; }
-.note-category { color: var(--nt-muted); font-size: 11px; }
+.note-category { color: var(--nt-muted); font-size: 12px; }
 
 .note-info h3 { margin: 0 0 8px; color: #252620; font-size: 16px; letter-spacing: -.4px; }
-.note-description { margin: 0; color: var(--nt-text-soft); font-size: 11px; line-height: 1.6; }
+.note-description { margin: 0; color: var(--nt-text-soft); font-size: 13px; line-height: 1.65; }
 .note-meta {
     display: flex; align-items: center; gap: 13px; flex-wrap: wrap;
     margin-top: auto; padding-top: 8px;
-    color: #8d8a83; font-size: 10px;
+    color: #8d8a83; font-size: 12px;
 }
 
 /* 틀린 이유 */
@@ -195,12 +195,12 @@ button { cursor: pointer; }
 }
 .mistake-reason.reviewing-box { background: #fff8e9; }
 .mistake-reason.completed-box { background: #f1f7ed; }
-.mistake-reason strong { display: block; margin-bottom: 7px; color: var(--nt-red); font-size: 12px; }
+.mistake-reason strong { display: block; margin-bottom: 7px; color: var(--nt-red); font-size: 13px; }
 .reviewing-box strong { color: var(--nt-yellow); }
 .completed-box strong { color: #4b8252; }
-.mistake-reason p { margin: 0 0 9px; color: #777; font-size: 10px; line-height: 1.55; }
+.mistake-reason p { margin: 0 0 9px; color: #777; font-size: 12px; line-height: 1.65; }
 
-.review-status { display: inline-flex; padding: 4px 8px; border-radius: 5px; font-size: 10px; font-weight: 700; background: #fff; }
+.review-status { display: inline-flex; padding: 4px 9px; border-radius: 5px; font-size: 11px; font-weight: 700; background: #fff; }
 .review-status.unreviewed { border: 1px solid #edb5ac; color: #d45746; }
 .review-status.reviewing  { border: 1px solid #ebd08b; color: #c48c1e; }
 .review-status.completed  { border: 1px solid #b5d1ae; color: #4e8655; }
@@ -208,9 +208,9 @@ button { cursor: pointer; }
 /* 액션 */
 .note-actions { display: flex; flex-direction: column; justify-content: center; gap: 7px; }
 .note-actions button, .note-actions a {
-    width: 100%; height: 34px;
+    width: 100%; height: 36px;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 6px; font-size: 11px; text-decoration: none;
+    border-radius: 6px; font-size: 12px; text-decoration: none;
 }
 .primary-action { border: 1px solid var(--nt-green); background: var(--nt-green); color: #fff; font-weight: 700; }
 .primary-action:hover { background: var(--nt-green-dark); }
@@ -224,7 +224,7 @@ button { cursor: pointer; }
     grid-column: 1 / -1;
     margin-top: 4px; padding: 13px 15px;
     border-radius: 7px; background: #f7f8f4; border: 1px solid #e8eae3;
-    color: #5c5f58; font-size: 11px; line-height: 1.75;
+    color: #5c5f58; font-size: 13px; line-height: 1.75;
 }
 .note-explain b { color: #2f3a31; }
 

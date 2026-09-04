@@ -70,10 +70,10 @@
 }
 .batch-intro-label {
     margin: 0 0 6px; color: var(--bt-green);
-    font-size: 11px; font-weight: 700; letter-spacing: .14em;
+    font-size: 12px; font-weight: 700; letter-spacing: .14em;
 }
 .batch-intro h1 { margin: 0; font-size: 34px; line-height: 1.25; letter-spacing: -.045em; }
-.batch-intro > div > p { margin: 10px 0 0; color: var(--bt-g500); font-size: 13px; }
+.batch-intro > div > p { margin: 10px 0 0; color: var(--bt-g500); font-size: 14px; }
 
 .batch-period { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .period-button {
@@ -99,22 +99,22 @@
     color: rgba(53,107,74,.045);
     font-family: "Noto Serif KR", serif; font-size: 250px; line-height: 1;
 }
-.summary-eyebrow { margin-bottom: 7px; color: var(--bt-g500); font-size: 11px; font-weight: 600; }
+.summary-eyebrow { margin-bottom: 7px; color: var(--bt-g500); font-size: 12px; font-weight: 600; }
 .summary-main h2 { position: relative; z-index: 1; margin: 0; font-size: 26px; letter-spacing: -.045em; line-height: 1.4; }
 .summary-main h2 strong { color: var(--bt-green); }
 .summary-description {
     position: relative; z-index: 1;
     max-width: 610px; margin: 13px 0 25px;
-    color: var(--bt-g700); font-size: 13px; line-height: 1.8;
+    color: var(--bt-g700); font-size: 14px; line-height: 1.8;
 }
 .summary-score-row { position: relative; z-index: 1; display: flex; align-items: center; gap: 35px; flex-wrap: wrap; }
 .big-score { display: flex; align-items: baseline; gap: 5px; }
 .big-score strong { color: var(--bt-green); font-size: 54px; line-height: 1; letter-spacing: -.06em; }
-.big-score span { color: var(--bt-g500); font-size: 12px; }
+.big-score span { color: var(--bt-g500); font-size: 13px; }
 .score-change { padding-left: 25px; border-left: 1px solid var(--bt-g200); }
 .score-change strong { display: block; color: var(--bt-green); font-size: 18px; }
 .score-change strong.down { color: var(--bt-red); }
-.score-change span { color: var(--bt-g500); font-size: 10px; }
+.score-change span { color: var(--bt-g500); font-size: 12px; }
 
 /* 히어로 바둑판 — 실제 국면을 Canvas 로 그린다 */
 .summary-board-area {
@@ -141,7 +141,7 @@
     max-width: calc(100% - 36px);
     padding: 6px 9px; background: rgba(255,255,255,.9);
     border: 1px solid #dfe5df; border-radius: 5px;
-    color: var(--bt-g700); font-size: 9px; line-height: 1.5;
+    color: var(--bt-g700); font-size: 11px; line-height: 1.5;
 }
 .board-caption b { color: var(--bt-red); }
 
@@ -149,15 +149,15 @@
 .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
 .metric-card { padding: 21px 22px; background: #fff; border: 1px solid var(--bt-g200); border-radius: 8px; }
 .metric-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.metric-label { color: var(--bt-g500); font-size: 11px; }
+.metric-label { color: var(--bt-g500); font-size: 12px; }
 .metric-icon {
     width: 30px; height: 30px; flex: 0 0 auto;
     display: flex; align-items: center; justify-content: center;
     border-radius: 50%; background: var(--bt-green-soft); color: var(--bt-green); font-size: 13px;
 }
 .metric-number { margin: 13px 0 5px; font-size: 27px; font-weight: 700; letter-spacing: -.045em; }
-.metric-number small { margin-left: 2px; color: var(--bt-g500); font-size: 11px; font-weight: 400; }
-.metric-foot { display: flex; align-items: center; gap: 5px; font-size: 10px; }
+.metric-number small { margin-left: 2px; color: var(--bt-g500); font-size: 12px; font-weight: 400; }
+.metric-foot { display: flex; align-items: center; gap: 5px; font-size: 12px; }
 .metric-up { color: var(--bt-green); font-weight: 600; }
 .metric-down { color: var(--bt-red); font-weight: 600; }
 .metric-muted { color: var(--bt-g500); }
@@ -167,10 +167,10 @@
 .batch-card { background: #fff; border: 1px solid var(--bt-g200); border-radius: 9px; overflow: hidden; }
 .card-header { padding: 22px 24px 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .card-title { margin: 0; font-size: 16px; letter-spacing: -.025em; }
-.card-description { margin: 5px 0 0; color: var(--bt-g500); font-size: 10px; line-height: 1.6; }
+.card-description { margin: 5px 0 0; color: var(--bt-g500); font-size: 12px; line-height: 1.6; }
 .card-badge {
     flex: 0 0 auto; padding: 5px 8px; border-radius: 4px;
-    background: var(--bt-g100); color: var(--bt-g500); font-size: 9px; white-space: nowrap;
+    background: var(--bt-g100); color: var(--bt-g500); font-size: 11px; white-space: nowrap;
 }
 a.card-badge:hover { background: var(--bt-green-soft); color: var(--bt-green); }
 
@@ -178,12 +178,12 @@ a.card-badge:hover { background: var(--bt-green-soft); color: var(--bt-green); }
 .trend-body { padding: 0 24px 22px; }
 .trend-summary { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
 .trend-summary strong { font-size: 30px; letter-spacing: -.05em; }
-.trend-summary small { color: var(--bt-g500); font-size: 10px; }
-.trend-summary span { color: var(--bt-green); font-size: 11px; font-weight: 600; }
+.trend-summary small { color: var(--bt-g500); font-size: 12px; }
+.trend-summary span { color: var(--bt-green); font-size: 12px; font-weight: 600; }
 .trend-summary span.down { color: var(--bt-red); }
 .trend-chart-wrap { position: relative; height: 230px; }
 #batchTrendCanvas { width: 100%; height: 100%; display: block; }
-.trend-labels { display: flex; justify-content: space-between; padding: 5px 3px 0; color: var(--bt-g500); font-size: 9px; }
+.trend-labels { display: flex; justify-content: space-between; padding: 5px 3px 0; color: var(--bt-g500); font-size: 11px; }
 
 /* ── 레이더 ── */
 .radar-body {
@@ -198,7 +198,7 @@ a.card-badge:hover { background: var(--bt-green-soft); color: var(--bt-green); }
     text-align: center; pointer-events: none;
 }
 .radar-center strong { display: block; font-size: 24px; letter-spacing: -.05em; }
-.radar-center span { color: var(--bt-g500); font-size: 9px; }
+.radar-center span { color: var(--bt-g500); font-size: 11px; }
 
 /* ── 구간 분석 ── */
 .segment-card { margin-bottom: 22px; }
@@ -206,35 +206,35 @@ a.card-badge:hover { background: var(--bt-green-soft); color: var(--bt-green); }
 .segment { padding: 18px; border: 1px solid var(--bt-g200); border-radius: 7px; background: #fcfcfa; }
 .segment-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .segment-name { font-size: 13px; font-weight: 600; }
-.segment-count { color: var(--bt-g500); font-size: 9px; }
+.segment-count { color: var(--bt-g500); font-size: 11px; }
 .segment-score { display: flex; align-items: baseline; gap: 5px; margin-bottom: 10px; }
 .segment-score strong { font-size: 27px; letter-spacing: -.05em; }
-.segment-score span { color: var(--bt-g500); font-size: 10px; }
+.segment-score span { color: var(--bt-g500); font-size: 12px; }
 .segment-bar { position: relative; height: 5px; border-radius: 99px; background: var(--bt-g200); overflow: hidden; }
 .segment-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--bt-green); }
-.segment-info { display: flex; justify-content: space-between; gap: 10px; margin-top: 9px; color: var(--bt-g500); font-size: 9px; }
+.segment-info { display: flex; justify-content: space-between; gap: 10px; margin-top: 9px; color: var(--bt-g500); font-size: 11px; }
 .segment-good { color: var(--bt-green); }
 .segment-warning { color: var(--bt-orange); }
 .segment-pro {
     margin-top: 11px; padding-top: 9px; border-top: 1px dashed var(--bt-g300);
     display: flex; justify-content: space-between; gap: 10px;
-    color: var(--bt-g500); font-size: 9px;
+    color: var(--bt-g500); font-size: 11px;
 }
 .segment-pro b { color: var(--bt-g700); }
 
 /* ── AI 인사이트 ── */
 .insight-section { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 22px; }
 .insight-box { padding: 25px; background: #fff; border: 1px solid var(--bt-g200); border-radius: 9px; }
-.insight-label { margin-bottom: 7px; color: var(--bt-green); font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.insight-label { margin-bottom: 7px; color: var(--bt-green); font-size: 12px; font-weight: 700; letter-spacing: .10em; }
 .insight-box.attention .insight-label { color: var(--bt-orange); }
 .insight-box h3 { margin: 0; font-size: 19px; letter-spacing: -.035em; }
-.insight-box > p { margin: 11px 0 20px; color: var(--bt-g700); font-size: 12px; line-height: 1.8; }
+.insight-box > p { margin: 11px 0 20px; color: var(--bt-g700); font-size: 13px; line-height: 1.8; }
 .insight-list { display: flex; flex-direction: column; gap: 9px; }
 .insight-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-radius: 6px; background: var(--bt-g100); }
 .insight-dot { width: 7px; height: 7px; margin-top: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--bt-green); }
 .insight-item .insight-text { flex: 1; min-width: 0; }
-.insight-item strong { display: block; margin-bottom: 3px; color: var(--bt-g900); font-size: 11px; }
-.insight-item p { margin: 0; color: var(--bt-g700); font-size: 10px; line-height: 1.7; }
+.insight-item strong { display: block; margin-bottom: 3px; color: var(--bt-g900); font-size: 12px; }
+.insight-item p { margin: 0; color: var(--bt-g700); font-size: 12px; line-height: 1.7; }
 .insight-item p b { color: var(--bt-g900); }
 .mistake-item .insight-dot { background: var(--bt-orange); }
 .high-item .insight-dot { background: var(--bt-red); }
@@ -246,14 +246,14 @@ a.card-badge:hover { background: var(--bt-green-soft); color: var(--bt-green); }
 .game-table { width: 100%; border-collapse: collapse; font-size: 11px; }
 .game-table th {
     padding: 10px 24px; background: var(--bt-g100); color: var(--bt-g500);
-    text-align: left; font-size: 9px; font-weight: 500; white-space: nowrap;
+    text-align: left; font-size: 11px; font-weight: 500; white-space: nowrap;
 }
-.game-table td { padding: 14px 24px; border-top: 1px solid var(--bt-g200); color: var(--bt-g700); white-space: nowrap; }
+.game-table td { padding: 14px 24px; border-top: 1px solid var(--bt-g200); color: var(--bt-g700); font-size: 12px; white-space: nowrap; }
 .game-table tbody tr:hover { background: #fbfcfa; }
 .game-title { color: var(--bt-g900); font-weight: 600; }
 .game-table a.game-title:hover { color: var(--bt-green); }
 .accuracy { font-weight: 600; }
-.chip { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 4px; font-size: 9px; }
+.chip { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 4px; font-size: 11px; }
 .chip.good { background: #eaf4ed; color: #3d7954; }
 .chip.warn { background: #fbf2e6; color: #a2681f; }
 .chip.bad  { background: #faeeec; color: #b45248; }
@@ -264,15 +264,15 @@ a.card-badge:hover { background: var(--bt-green-soft); color: var(--bt-green); }
     display: flex; align-items: center; justify-content: space-between; gap: 30px;
 }
 .recommendation-copy { max-width: 720px; }
-.recommendation-label { margin-bottom: 7px; color: #9fc3aa; font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+.recommendation-label { margin-bottom: 7px; color: #9fc3aa; font-size: 11px; font-weight: 700; letter-spacing: .12em; }
 .recommendation h2 { margin: 0; font-size: 20px; letter-spacing: -.035em; line-height: 1.45; }
-.recommendation p { margin: 9px 0 0; color: #b8c7be; font-size: 11px; line-height: 1.7; }
+.recommendation p { margin: 9px 0 0; color: #b8c7be; font-size: 13px; line-height: 1.7; }
 .recommendation-actions { flex: 0 0 auto; display: flex; gap: 9px; flex-wrap: wrap; }
 .recommendation-button {
     height: 40px; padding: 0 18px;
     display: inline-flex; align-items: center;
     border: 1px solid #688475; border-radius: 5px; background: transparent;
-    color: #fff; font-size: 11px; font-weight: 600; cursor: pointer;
+    color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .recommendation-button:hover { background: rgba(255,255,255,.08); }
 .recommendation-button.solid { background: #3d6b51; border-color: #3d6b51; }
@@ -284,9 +284,9 @@ a.card-badge:hover { background: var(--bt-green-soft); color: var(--bt-green); }
     max-width: 1480px; margin: 0 auto; padding: 27px 28px;
     display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;
 }
-.footer-copy { color: #858f89; font-size: 9px; }
+.footer-copy { color: #858f89; font-size: 11px; }
 .footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
-.footer-links a { color: #9ca5a0; font-size: 9px; }
+.footer-links a { color: #9ca5a0; font-size: 11px; }
 .footer-links a:hover { color: #fff; }
 
 /* ── 반응형 ── */

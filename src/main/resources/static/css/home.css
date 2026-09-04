@@ -152,7 +152,7 @@ button { font: inherit; }
     backdrop-filter: blur(15px);
     color: #fff;
 }
-.hero-stat-label { color: rgba(255,255,255,0.72); font-size: 11px; margin-bottom: 13px; }
+.hero-stat-label { color: rgba(255,255,255,0.72); font-size: 12px; margin-bottom: 13px; }
 .hero-stat-content { display: flex; align-items: center; gap: 17px; }
 
 .progress-ring { position: relative; width: 74px; height: 74px; flex-shrink: 0; }
@@ -170,10 +170,10 @@ button { font: inherit; }
 }
 
 .hero-stat-info { display: flex; flex-direction: column; gap: 6px; }
-.hero-stat-main { font-size: 13px; font-weight: 700; }
-.hero-stat-change { color: #57e29a; font-size: 11px; font-weight: 700; }
+.hero-stat-main { font-size: 14px; font-weight: 700; }
+.hero-stat-change { color: #57e29a; font-size: 12px; font-weight: 700; }
 .hero-stat-change.down { color: #ff9a9a; }
-.hero-stat-compare { color: rgba(255,255,255,0.50); font-size: 10px; }
+.hero-stat-compare { color: rgba(255,255,255,0.50); font-size: 12px; }
 
 /* ── 12. 성장 추이 카드 ── */
 .growth-card {
@@ -187,12 +187,12 @@ button { font: inherit; }
     color: #fff;
 }
 .growth-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.growth-title { font-size: 11px; color: rgba(255,255,255,0.74); }
+.growth-title { font-size: 12px; color: rgba(255,255,255,0.74); }
 .growth-value {
     padding: 4px 7px; border-radius: 6px;
     background: rgba(255,255,255,0.92);
     color: #3843a0;
-    font-size: 10px; font-weight: 800;
+    font-size: 11px; font-weight: 800;
 }
 .growth-chart { width: 100%; height: 88px; }
 .growth-chart svg { width: 100%; height: 100%; }
@@ -234,8 +234,8 @@ button { font: inherit; }
 .shortcut-icon.cyan   { background: #eaf9fd; color: #2aabc9; }
 
 .shortcut-text { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.shortcut-title { font-size: 13px; font-weight: 800; white-space: nowrap; }
-.shortcut-description { color: #7d869d; font-size: 10px; line-height: 1.5; word-break: keep-all; }
+.shortcut-title { font-size: 14px; font-weight: 800; white-space: nowrap; }
+.shortcut-description { color: #7d869d; font-size: 12px; line-height: 1.5; word-break: keep-all; }
 .shortcut-arrow { margin-left: auto; width: 17px; height: 17px; color: #8992a7; flex-shrink: 0; }
 
 /* ── 14. 메인 그리드 ── */
@@ -261,7 +261,7 @@ button { font: inherit; }
 .card-title { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: -0.5px; }
 .card-more {
     display: flex; align-items: center; gap: 3px;
-    color: #7c859c; font-size: 11px; font-weight: 600;
+    color: #7c859c; font-size: 12px; font-weight: 600;
 }
 .card-more:hover { color: var(--indigo); }
 .card-more svg { width: 14px; height: 14px; }
@@ -294,16 +294,16 @@ button { font: inherit; }
     position: absolute; top: 7px; left: 7px; z-index: 5;
     padding: 4px 6px; border-radius: 5px;
     background: #6641e9; color: #fff;
-    font-size: 8px; font-weight: 800;
+    font-size: 10px; font-weight: 800;
 }
 .game-name {
     margin-top: 9px;
     overflow: hidden;
     color: var(--text);
-    font-size: 11px; font-weight: 800;
+    font-size: 13px; font-weight: 800;
     white-space: nowrap; text-overflow: ellipsis;
 }
-.game-meta { margin-top: 4px; color: #8b94a9; font-size: 9px; }
+.game-meta { margin-top: 4px; color: #8b94a9; font-size: 11px; }
 
 .game-stats {
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
@@ -311,18 +311,18 @@ button { font: inherit; }
     border-top: 1px solid #edf0f4;
 }
 .game-stat { display: flex; flex-direction: column; gap: 3px; }
-.game-stat-label { color: #8992a7; font-size: 9px; }
+.game-stat-label { color: #8992a7; font-size: 11px; }
 .game-stat-value { font-size: 13px; font-weight: 800; }
 .game-stat-value.positive { color: #1baa65; }
 .game-stat-value.negative { color: #e35b5b; }
 
 .report-button {
     display: flex; align-items: center; justify-content: center;
-    width: 100%; height: 31px; margin-top: 10px;
+    width: 100%; height: 32px; margin-top: 10px;
     border: 1px solid #e2e5ec; border-radius: 6px;
     background: #fff;
     color: var(--indigo);
-    font-size: 9px; font-weight: 800;
+    font-size: 11px; font-weight: 800;
     cursor: pointer;
 }
 .report-button:hover { border-color: #c7c2f5; background: #f8f6ff; }
@@ -335,11 +335,11 @@ button { font: inherit; }
     border: 1px solid #edf0f5; border-radius: 10px;
     background: #fbfcfe;
 }
-.skill-label { color: #69748d; font-size: 10px; }
+.skill-label { color: #69748d; font-size: 12px; }
 .rank-values { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .rank { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rank-value { font-size: 19px; font-weight: 900; letter-spacing: -1px; }
-.rank-score { color: #8d96a9; font-size: 10px; }
+.rank-score { color: #8d96a9; font-size: 12px; }
 .rank-arrow { width: 17px; height: 17px; color: #7e88a0; flex-shrink: 0; }
 
 .skill-chart {
@@ -347,7 +347,7 @@ button { font: inherit; }
     padding: 10px 10px 6px;
     border-left: 1px solid #edf0f5;
 }
-.chart-title { color: #69748d; font-size: 10px; }
+.chart-title { color: #69748d; font-size: 12px; }
 .skill-chart svg { width: 100%; height: 67px; margin-top: 4px; }
 
 .skill-summary {
@@ -373,7 +373,7 @@ button { font: inherit; }
 .summary-icon svg { width: 15px; height: 15px; }
 
 .summary-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.summary-label { color: #8992a7; font-size: 8px; white-space: nowrap; }
+.summary-label { color: #8992a7; font-size: 11px; white-space: nowrap; }
 .summary-value { font-size: 14px; font-weight: 900; }
 
 /* ── 17. 학습 추천 ── */
@@ -394,26 +394,26 @@ button { font: inherit; }
     padding-left: 12px; padding-right: 24px;
     border-right: 1px solid #e5e0fa;
     color: #1c2761;
-    font-size: 13px; font-weight: 900;
+    font-size: 14px; font-weight: 900;
     white-space: nowrap;
 }
 .learning-info { padding-left: 25px; display: flex; align-items: center; gap: 12px; min-width: 0; }
 .difficulty {
     padding: 4px 7px; border-radius: 5px;
     background: #6941ea; color: #fff;
-    font-size: 8px; font-weight: 800;
+    font-size: 10px; font-weight: 800;
     white-space: nowrap;
 }
 .learning-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.learning-main { color: #3a4261; font-size: 11px; font-weight: 800; }
-.learning-sub  { color: #8b92a8; font-size: 9px; }
+.learning-main { color: #3a4261; font-size: 13px; font-weight: 800; }
+.learning-sub  { color: #8b92a8; font-size: 11px; }
 .learning-button {
     display: flex; align-items: center; justify-content: center;
     width: 180px; height: 38px; margin-left: auto; flex-shrink: 0;
     border: 1px solid #d4cbff; border-radius: 8px;
     background: #fff;
     color: #5b42db;
-    font-size: 10px; font-weight: 800;
+    font-size: 12px; font-weight: 800;
     cursor: pointer;
 }
 .learning-button:hover { background: #f8f6ff; }
@@ -480,7 +480,7 @@ button { font: inherit; }
     .shortcut-item:nth-child(even)::after { display: none; }
     .shortcut-icon { width: 42px; height: 42px; flex-basis: 42px; }
     .shortcut-icon svg { width: 20px; height: 20px; }
-    .shortcut-title { font-size: 11px; }
+    .shortcut-title { font-size: 13px; }
 
     .recent-games { grid-template-columns: repeat(2, 1fr); }
     .skill-top { grid-template-columns: 1fr; }

@@ -77,7 +77,7 @@ button { font: inherit; cursor: pointer; }
 .hero-stat-label { font-size: 12px; color: rgba(255,255,255,0.65); margin-bottom: 7px; }
 .hero-stat-value { display: flex; align-items: baseline; gap: 4px; font-size: 24px; font-weight: 800; }
 .hero-stat-value small { font-size: 13px; font-weight: 500; }
-.hero-stat-sub { margin-top: 6px; font-size: 11px; color: rgba(255,255,255,0.55); }
+.hero-stat-sub { margin-top: 6px; font-size: 12px; color: rgba(255,255,255,0.55); }
 
 /* ── 패널 ── */
 .game-panel {
@@ -189,10 +189,10 @@ button { font: inherit; cursor: pointer; }
     border-bottom: 1px solid #e5e8f0;
 }
 .game-table td {
-    height: 90px;
-    padding: 8px 12px;
+    height: 92px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--gl-line-soft);
-    color: #4c5870; font-size: 12px;
+    color: #4c5870; font-size: 13px;
     vertical-align: middle;
 }
 .game-table tbody tr:last-child td { border-bottom: none; }
@@ -233,24 +233,24 @@ button { font: inherit; cursor: pointer; }
 .game-title-area { min-width: 0; }
 .game-title {
     margin-bottom: 5px;
-    color: #202840; font-size: 14px; font-weight: 700; line-height: 1.4;
+    color: #202840; font-size: 15px; font-weight: 700; line-height: 1.4;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.game-meta { color: #8a93a6; font-size: 11px; line-height: 1.5; word-break: keep-all; }
+.game-meta { color: #8a93a6; font-size: 12px; line-height: 1.5; word-break: keep-all; }
 
 /* 상태 */
 .status-badge {
     display: inline-flex; align-items: center; justify-content: center;
-    min-width: 62px; padding: 5px 10px;
+    min-width: 64px; padding: 5px 10px;
     border-radius: 6px;
-    font-size: 11px; font-weight: 700;
+    font-size: 12px; font-weight: 700;
 }
 .status-badge.done    { background: #e9f7ef; color: #12854f; }
 .status-badge.pending { background: #f1f3f8; color: #66708a; }
 .status-badge.running { background: #ecebfe; color: var(--gl-indigo); animation: glpulse 1.5s ease-in-out infinite; }
 @keyframes glpulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
 
-.status-sub { margin-top: 5px; color: #7b8599; font-size: 10px; }
+.status-sub { margin-top: 5px; color: #7b8599; font-size: 11px; }
 .row-progress { display: none; margin: 6px auto 0; width: 80%; }
 .row-progress.active { display: block; }
 .row-bar-wrap { height: 5px; background: #e6e9f2; border-radius: 99px; overflow: hidden; }
@@ -275,32 +275,37 @@ button { font: inherit; cursor: pointer; }
 .accuracy-value { position: relative; z-index: 2; color: #1e2740; font-size: 12px; font-weight: 800; }
 .accuracy-info { text-align: left; }
 .accuracy-main { color: #1e2740; font-size: 16px; font-weight: 800; }
-.accuracy-sub { margin-top: 2px; color: #7d879c; font-size: 10px; }
+.accuracy-sub { margin-top: 2px; color: #7d879c; font-size: 11px; }
 
 /* 구간별 일치율 */
 .phase-bars { display: flex; flex-direction: column; gap: 5px; margin: 0 auto; max-width: 150px; }
 .phase-row { display: flex; align-items: center; gap: 7px; }
-.phase-name { width: 26px; color: #8992a7; font-size: 10px; text-align: left; flex-shrink: 0; }
+.phase-name { width: 28px; color: #8992a7; font-size: 11px; text-align: left; flex-shrink: 0; }
 .phase-track { flex: 1; height: 6px; background: #eef0f6; border-radius: 99px; overflow: hidden; }
 .phase-fill { display: block; height: 100%; border-radius: 99px; }
-.phase-pct { width: 32px; color: #5c6680; font-size: 10px; font-weight: 700; text-align: right; flex-shrink: 0; }
+.phase-pct { width: 34px; color: #5c6680; font-size: 11px; font-weight: 700; text-align: right; flex-shrink: 0; }
 
 /* 분석 일시 */
-.analysis-date { color: #5c6680; font-size: 12px; }
-.analysis-duration { margin-top: 5px; color: #929aac; font-size: 10px; }
+.analysis-date { color: #5c6680; font-size: 13px; }
+.analysis-duration { margin-top: 5px; color: #929aac; font-size: 11px; }
 
 /* 액션 */
 .actions { display: flex; justify-content: center; gap: 7px; }
 .action-button {
-    width: 68px; height: 56px;
+    width: 70px; height: 58px;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
     border: none; border-radius: 7px;
     background: #f8f9fc;
-    color: #59647b; font-size: 10px;
+    color: #59647b; font-size: 11px;
     text-align: center;
 }
 .action-button:hover { background: #f0efff; color: #5046e5; }
-.action-icon { font-size: 17px; color: var(--gl-indigo); }
+.action-icon { font-size: 18px; color: var(--gl-indigo); }
+/* 리포트 보기 — 가장 중요한 액션: 더 진한 배경 */
+.action-button.report { background: #ecebfe; color: #4034c9; font-weight: 700; border: 1px solid #d8d5f9; }
+.action-button.report .action-icon { color: #4034c9; }
+.action-button.report:hover { background: #e2e0ff; }
+/* SGF·재분석 — 보조 액션 */
 .action-button.download .action-icon { color: #12a8a0; }
 .action-button.analyze { background: #ecebfe; color: #4034c9; }
 .action-button.analyze .action-icon { color: #4034c9; }
