@@ -28,7 +28,9 @@ katago:
   # 모델·config 는 기존 그대로(b28) → 방금 구운 TRT 타이밍 캐시(KataGoData/trtcache) 재사용, 결과 동일·속도만 향상.
   # exe 폴더의 DLL(nvinfer/cudnn/cublas)·캐시를 찾도록 KataGoService 가 작업디렉터리를 exe 폴더로 설정함.
   # (OpenCL 로 되돌리려면 아래 path 를 C:/KataGo/katago-v1.16.5-opencl-windows-x64/katago.exe 로)
-  path: C:/baduk_ai/lizzie/katago_trt.exe
+  # 2026-09-04: 엔진 폴더가 C:/baduk_ai/lizzie → C:/bai/LY 로 이름이 바뀌어 경로 갱신.
+  #   폴더를 또 옮기면 워밍업이 "Cannot run program"으로 4회 실패하고 실시간 기능(분석·대국·놓아보기)이 전부 죽는다.
+  path: C:/bai/LY/katago_trt.exe
   model: C:/KataGo/models/kata1-b28c512nbt-s13255194368-d5935380940.bin.gz
   config: C:/KataGo/katago-v1.16.5-opencl-windows-x64/analysis_example.cfg
   record-dir: C:/KataGo/Baduk_Records
