@@ -1,22 +1,24 @@
 /* ════════════════════════════════════════════════════════════
-   오답노트(/notes) 전용 — 아이보리 배경 + 차분한 녹색
+   오답노트(/notes) 전용 — 데이터 계열(흰 배경 + 인디고)
    헤더는 app-header.css(공용 fragment). 여기는 본문만.
    ════════════════════════════════════════════════════════════ */
 
 :root {
-    --nt-green: #397347;
-    --nt-green-dark: #31663c;
-    --nt-green-soft: #f0f5ed;
-    --nt-line: #ebe8e1;
-    --nt-line-2: #e4e2dc;
-    --nt-text: #1f211e;
-    --nt-text-soft: #77766f;
-    --nt-muted: #8c8982;
-    --nt-red: #b33c2e;
-    --nt-yellow: #bd8c23;
+    /* 데이터 계열. 이름은 -green 이지만 값은 공용 인디고(위 batch.css 와 같은 이유).
+       색은 common.css 의 --app-* 만 참조한다. */
+    --nt-green: var(--app-indigo);
+    --nt-green-dark: var(--app-indigo-dark);
+    --nt-green-soft: var(--app-indigo-soft);
+    --nt-line: var(--app-line);
+    --nt-line-2: var(--app-line);
+    --nt-text: var(--app-text-1);
+    --nt-text-soft: var(--app-text-3);
+    --nt-muted: var(--app-text-4);
+    --nt-red: var(--app-bad);
+    --nt-yellow: var(--app-warn);
 }
 
-body { background: #faf9f5; color: var(--nt-text); }
+body { background: var(--app-bg-data); color: var(--nt-text); }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 
@@ -40,7 +42,7 @@ button { cursor: pointer; }
 .donut-chart {
     position: relative;
     width: 122px; height: 122px; border-radius: 50%;
-    background: conic-gradient(#e9e6df 0 360deg);
+    background: conic-gradient(var(--app-line) 0 360deg);
 }
 .donut-chart::after { content: ""; position: absolute; inset: 19px; background: #fff; border-radius: 50%; }
 .donut-center {
@@ -57,11 +59,11 @@ button { cursor: pointer; }
     font-size: 12px; color: #666;
 }
 .legend-row strong { color: #555; font-size: 12px; }
-.legend-row small { color: #929089; text-align: right; }
+.legend-row small { color: var(--app-text-4); text-align: right; }
 .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
-.legend-dot.unreviewed { background: #3c7448; }
-.legend-dot.reviewing { background: #e4b847; }
-.legend-dot.completed { background: #9fbd72; }
+.legend-dot.unreviewed { background: var(--app-indigo); }
+.legend-dot.reviewing { background: var(--app-warn); }
+.legend-dot.completed { background: var(--app-good); }
 
 /* 필터 버튼 */
 .status-filter, .category-filter {
@@ -71,23 +73,23 @@ button { cursor: pointer; }
     border: 0; background: transparent; border-radius: 7px;
     color: #555; text-align: left; font-size: 13px;
 }
-.status-filter:hover, .category-filter:hover { background: #f7f8f4; }
-.status-filter.active, .category-filter.active { background: var(--nt-green-soft); color: #316d3c; font-weight: 700; }
+.status-filter:hover, .category-filter:hover { background: var(--app-line-soft); }
+.status-filter.active, .category-filter.active { background: var(--nt-green-soft); color: var(--app-indigo); font-weight: 700; }
 .status-filter strong, .category-filter strong { margin-left: auto; font-size: 12px; color: var(--nt-muted); }
-.count-yellow { color: #d59f27 !important; }
-.count-green { color: #4c8b57 !important; }
+.count-yellow { color: var(--app-warn) !important; }
+.count-green { color: var(--app-indigo) !important; }
 
 .status-radio { width: 10px; height: 10px; border: 1.5px solid #999; border-radius: 50%; flex-shrink: 0; }
-.status-filter.active .status-radio { border-color: #3e7649; background: #3e7649; box-shadow: inset 0 0 0 2px var(--nt-green-soft); }
+.status-filter.active .status-radio { border-color: var(--app-indigo); background: var(--app-indigo); box-shadow: inset 0 0 0 2px var(--nt-green-soft); }
 .category-symbol { width: 19px; color: #777; font-size: 15px; flex-shrink: 0; }
-.category-filter.active .category-symbol { color: #3d7547; }
+.category-filter.active .category-symbol { color: var(--app-indigo); }
 
 .difficulty-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .difficulty-filter {
     height: 35px; border: 1px solid var(--nt-line-2); border-radius: 7px;
     background: #fff; color: #777; font-size: 12px;
 }
-.difficulty-filter:hover { background: #f7f7f4; }
+.difficulty-filter:hover { background: var(--app-line-soft); }
 .difficulty-filter.active { background: var(--nt-green); border-color: var(--nt-green); color: #fff; font-weight: 700; }
 .filter-note { margin: 10px 0 0; color: var(--nt-muted); font-size: 12px; line-height: 1.5; }
 
@@ -97,7 +99,7 @@ button { cursor: pointer; }
 .notes-toolbar {
     min-height: 58px;
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    border-bottom: 1px solid #e6e4dd;
+    border-bottom: 1px solid var(--app-line);
 }
 .status-tabs { display: flex; align-items: stretch; height: 58px; gap: 3px; }
 .status-tab {
@@ -107,9 +109,9 @@ button { cursor: pointer; }
 }
 .status-tab span {
     display: inline-flex; margin-left: 5px; padding: 2px 7px;
-    border-radius: 10px; background: #f0efeb; color: #68665f; font-size: 11px;
+    border-radius: 10px; background: var(--app-line-soft); color: var(--app-text-3); font-size: 11px;
 }
-.status-tab.active { color: #347040; font-weight: 700; }
+.status-tab.active { color: var(--app-indigo); font-weight: 700; }
 .status-tab.active::after {
     content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
     height: 3px; background: var(--nt-green);
@@ -120,10 +122,10 @@ button { cursor: pointer; }
     width: 245px; height: 41px;
     display: flex; align-items: center; gap: 8px;
     padding: 0 11px;
-    border: 1px solid #dedbd3; border-radius: 7px; background: #fff;
+    border: 1px solid var(--app-line); border-radius: 7px; background: #fff;
 }
 .search-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 13px; }
-.search-box input::placeholder { color: #aaa69e; }
+.search-box input::placeholder { color: var(--app-text-4); }
 .search-box svg { width: 19px; height: 19px; flex-shrink: 0; fill: none; stroke: #777; stroke-width: 1.7; }
 
 .review-start-button {
@@ -139,12 +141,12 @@ button { cursor: pointer; }
 .sort-row {
     min-height: 50px;
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    color: #79776f; font-size: 13px;
+    color: var(--app-text-3); font-size: 13px;
 }
 .sort-row strong { color: var(--nt-green); font-size: 14px; }
 .sort-row select {
     width: 120px; height: 32px; padding: 0 8px;
-    border: 1px solid #e0ddd5; border-radius: 6px;
+    border: 1px solid var(--app-line); border-radius: 6px;
     background: #fff; color: #666; outline: 0; font-size: 11px;
 }
 
@@ -158,7 +160,7 @@ button { cursor: pointer; }
     gap: 16px; align-items: stretch;
     transition: box-shadow .15s, border-color .15s;
 }
-.note-card:hover { border-color: #dcd9d0; box-shadow: 0 5px 17px rgba(30, 29, 24, .06); }
+.note-card:hover { border-color: var(--app-line); box-shadow: 0 5px 17px rgba(30, 29, 24, .06); }
 
 .note-board {
     position: relative; min-height: 132px;
@@ -216,14 +218,14 @@ button { cursor: pointer; }
 .primary-action:hover { background: var(--nt-green-dark); }
 .primary-action span { margin-left: auto; margin-right: 10px; font-size: 16px; }
 .secondary-action { border: 1px solid #e1ded7; background: #fff; color: #555; }
-.secondary-action:hover { background: #f7f7f4; }
+.secondary-action:hover { background: var(--app-line-soft); }
 .bookmark-button.saved { color: #c64a42; border-color: #e5c2bd; }
 
 /* 해설 펼침 */
 .note-explain {
     grid-column: 1 / -1;
     margin-top: 4px; padding: 13px 15px;
-    border-radius: 7px; background: #f7f8f4; border: 1px solid #e8eae3;
+    border-radius: 7px; background: var(--app-line-soft); border: 1px solid #e8eae3;
     color: #5c5f58; font-size: 13px; line-height: 1.75;
 }
 .note-explain b { color: #2f3a31; }
@@ -237,7 +239,7 @@ button { cursor: pointer; }
     border: 1px solid #e3e0d8; border-radius: 6px;
     background: #fff; color: #555; font-size: 12px;
 }
-.page-button:hover:not(:disabled) { background: #f7f7f4; }
+.page-button:hover:not(:disabled) { background: var(--app-line-soft); }
 .page-button:disabled { opacity: .4; cursor: default; }
 .page-button.active { border-color: var(--nt-green); background: var(--nt-green); color: #fff; font-weight: 700; }
 .page-button.arrow { font-size: 18px; }

@@ -8,25 +8,26 @@
     --navy:    #07113f;
     --navy-2:  #101957;
 
-    --indigo:  #4d35f2;
-    --blue:    #315cff;
-    --purple:  #704cff;
+    /* 데이터 계열. 색은 common.css 의 --app-* 만 참조한다(직접 찍지 말 것) */
+    --indigo:  var(--app-indigo);
+    --blue:    var(--app-indigo);
+    --purple:  var(--app-indigo-dark);
 
-    --text:    #111936;
-    --text-2:  #34405f;
-    --text-3:  #737d96;
-    --text-4:  #a1a9bb;
+    --text:    var(--app-text-1);
+    --text-2:  var(--app-text-2);
+    --text-3:  var(--app-text-3);
+    --text-4:  var(--app-text-4);
 
-    --border:       #e4e8f1;
-    --border-light: #edf0f6;
+    --border:       var(--app-line);
+    --border-light: var(--app-line-soft);
 
-    --bg:    #f7f8fc;
-    --white: #ffffff;
+    --bg:    var(--app-bg-data);
+    --white: var(--app-surface);
 
-    --green:  #19b96b;
-    --orange: #f39a21;
-    --red:    #e05252;
-    --cyan:   #25a8cf;
+    --green:  var(--app-good);
+    --orange: var(--app-warn);
+    --red:    var(--app-bad);
+    --cyan:   var(--app-indigo);
 
     --shadow-sm: 0 4px 16px rgba(20, 32, 75, 0.05);
     --shadow:    0 12px 35px rgba(20, 32, 75, 0.07);
@@ -235,7 +236,14 @@ button { font: inherit; }
 
 .shortcut-text { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .shortcut-title { font-size: 14px; font-weight: 800; white-space: nowrap; }
-.shortcut-description { color: #7d869d; font-size: 12px; line-height: 1.5; word-break: keep-all; }
+/* 타일은 6개가 가로로 붙어 있어 설명 폭이 100px 남짓이다. 설명이 2줄인 타일과
+   3줄인 타일이 섞이면 flex 세로중앙 정렬 탓에 제목 높이가 타일마다 어긋난다.
+   설명 높이를 2줄로 고정해 어떤 문구가 와도 제목선이 나란히 서게 한다.
+   (문구도 2줄에 들어가는 길이로 맞춰 둘 것) */
+.shortcut-description {
+    color: var(--text-3); font-size: 12px; line-height: 1.5;
+    min-height: 36px;   /* 12px × 1.5 × 2줄 */
+}
 .shortcut-arrow { margin-left: auto; width: 17px; height: 17px; color: #8992a7; flex-shrink: 0; }
 
 /* ── 14. 메인 그리드 ── */

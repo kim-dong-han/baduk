@@ -6,12 +6,68 @@
 
 :root {
     --navy:    #07113f;
-    --indigo:  #4d35f2;
-    --text:    #111936;
-    --border:       #e4e8f1;
-    --border-light: #edf0f6;
+    --indigo:  var(--app-indigo);
+    --text:    var(--app-text-1);
+    --border:       var(--app-line);
+    --border-light: var(--app-line-soft);
     --shadow-sm: 0 4px 16px rgba(20, 32, 75, 0.05);
     --shadow:    0 12px 35px rgba(20, 32, 75, 0.07);
+
+    /* ══ 공용 팔레트 — 페이지 CSS 는 여기 있는 색만 참조한다 ══
+       common.css 가 아니라 이 파일에 두는 이유: 리디자인된 9개 페이지는
+       common.css 를 link 하지 않는다(register.html 만 쓴다). 모든 페이지가
+       공통으로 로드하는 파일은 app-header.css 뿐이라 토큰의 집은 여기다.
+
+       페이지마다 색을 새로 찍으면 "같은 의도인데 값이 다른" 색이 늘어나
+       (한때 초록 6종·인디고 3종·회색 9종) 한 제품으로 안 읽힌다.
+       페이지 CSS 는 자기 접두사 변수를 아래 토큰에 연결만 할 것.
+
+       계열은 2종뿐이고, 화면 성격으로 나눈다:
+       · 데이터 계열 — 흰 배경 + 인디고. 읽고 고르는 화면
+         (home · game-list · batch · notes · gallery · result · about)
+       · 바둑판 계열 — 아이보리 배경 + 세이지. 판 위에서 두는 화면
+         (play · study)                                                */
+
+    /* 데이터 계열 포인트 */
+    --app-indigo:      #4f46e5;
+    --app-indigo-dark: #3f37c9;
+    --app-indigo-soft: #eef1fe;
+    --app-indigo-line: #d8dcfa;
+
+    /* 바둑판 계열 포인트 */
+    --app-sage:        #4d7451;
+    --app-sage-dark:   #3b5d3f;
+    --app-sage-soft:   #eaf1e9;
+    --app-sage-line:   #d5e0d4;
+
+    /* 바탕 */
+    --app-bg-data:   #f7f8fc;
+    --app-bg-board:  #f5f2ea;
+    --app-surface:   #ffffff;
+
+    /* 텍스트 4단계 — 데이터 계열(차가운 회색) */
+    --app-text-1: #171a21;   /* 제목 */
+    --app-text-2: #3b4453;   /* 본문 */
+    --app-text-3: #6d7686;   /* 보조 설명 */
+    --app-text-4: #9aa2b1;   /* 흐린 메타 */
+    --app-line:      #e5e8f0;
+    --app-line-soft: #eef0f6;
+
+    /* 텍스트 4단계 — 바둑판 계열(따뜻한 회색). 아이보리 위의 차가운 회색은 탁해 보인다 */
+    --app-btext-1: #242321;
+    --app-btext-2: #55524b;
+    --app-btext-3: #77736b;
+    --app-btext-4: #a19d94;
+    --app-bline:      #e5e1d8;
+    --app-bsurface-2: #f8f7f3;
+
+    /* 수 품질 지표 — 전 페이지 공통(복기·리포트·분석판이 같은 색을 써야 읽힌다) */
+    --app-good:   #27a978;   /* 좋은 수 */
+    --app-warn:   #e0a43b;   /* 실수 */
+    --app-bad:    #d95d4b;   /* 악수 */
+    --app-losing: #f1b833;   /* 패착 */
+    --app-normal: #b6bcc7;
+    --app-wood:   #e7c27f;   /* 바둑판 나무색 */
 }
 
 * { box-sizing: border-box; }
@@ -23,7 +79,14 @@ html, body {
     color: var(--text);
     -webkit-font-smoothing: antialiased;
 }
-body { min-width: 320px; }
+body {
+    min-width: 320px;
+    /* 한글은 기본값(normal)이면 단어 중간에서도 줄이 바뀌어 "일치율"이 "일치"+"율"로
+       쪼개진다. keep-all 은 어절을 통째로 넘겨 이걸 막고, overflow-wrap 은 그 대가로
+       생기는 문제(긴 URL·파일명이 칸을 뚫는 것)를 막는다. 둘은 항상 같이 쓴다. */
+    word-break: keep-all;
+    overflow-wrap: break-word;
+}
 
 a { color: inherit; text-decoration: none; }
 button { font: inherit; }

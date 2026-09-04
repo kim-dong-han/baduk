@@ -87,6 +87,10 @@
     --font-xl:   20px;
     --font-2xl:  24px;
     --font-3xl:  32px;
+
+    /* 공용 색 토큰(--app-*)은 app-header.css 에 있다.
+       이 파일은 register.html 만 link 하고, 리디자인된 9개 페이지는
+       app-header.css + 페이지 CSS 만 쓰기 때문. */
 }
 
 * { box-sizing: border-box; }
@@ -98,6 +102,11 @@ body {
     background: var(--background);
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
+    /* 한글은 기본값(normal)이면 단어 중간에서도 줄이 바뀌어 "일치율"이 "일치"+"율"로
+       쪼개진다. keep-all 은 어절을 통째로 넘겨 이걸 막고, overflow-wrap 은 그 대가로
+       생기는 문제(긴 URL·파일명이 칸을 뚫는 것)를 막는다. 둘은 항상 같이 쓴다. */
+    word-break: keep-all;
+    overflow-wrap: break-word;
 }
 button, input, select, textarea {
     font-family: 'Pretendard', 'Segoe UI', 'Malgun Gothic', sans-serif;

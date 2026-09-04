@@ -48,7 +48,13 @@ dto/          MoveDetail(bestPv 포함), SingleGameResult, AnalysisResponse, Upl
 - **실시간 분석판(study.html)**: `/study`. AI 대국(play) 없이 빈 판에서 흑·백 직접 착수 → 매 수 `/api/analyze/top`으로 추천수 승률(둘 차례 관점) 실시간 표시. 무르기·패스·전체지우기. 백엔드 신규 없음(analyze/top 재사용). 판/따냄/마커 로직은 result.html 놓아보기와 동형. 레이아웃은 CSS Grid: ≥1151px `[판 | 우측패널 300px]`, ≤1150px `[요약줄 / 판 / 버튼]`(우측패널을 `display:contents`로 해체, **행은 전부 auto + `.play-layout{flex:none}`** — flex:1 로 두면 행이 눌려 판 위아래가 잘림). `computeLayout()`이 CELL·BOARD_PX를 매 렌더 재계산: 넓을 땐 board-area 가로·세로 중 작은 쪽, 쌓인 배치에선 가로 폭 기준+`innerHeight*0.74` 상한(행 높이로 재면 행=auto 라 순환). 최소 280·최대 1000px. nav 는 `topnav rail`(아이콘 62px, 호버 시 234px 펼침). **추천수 목록 카드는 제거** — 추천수는 판 위 색 원으로만 읽고, 원에 **호버하면 그 수의 PV(참고도)** 가 번호로 뜬다(`hoverPv`). 상태 문구는 판 아래 `#engineState`(`.board-hint`) 한 줄. **마우스 휠**: 위=무르기·아래=다시두기(`undone` 스택, 새 착수 시 초기화).
 - **메인 허브(home.html)**: 로그인 후 `/` 진입 화면. 히어로 배너(사용자 인사+기보복기 CTA)+기능 타일 6종(실력리포트/기보복기/오답노트/갤러리/AI대국/소개)+최근 분석 4건 카드(`/game/result/{id}` 링크). 한게임 바둑 메인 포털 스타일. topnav 브랜드 로고=`/`(홈), 모든 페이지 topnav 첫 링크에 "홈" 추가.
 - **로그인 유지(remember-me)**: 로컬 회원 로그인 시 14일(일반 웹사이트 표준) 서명 쿠키 발급(TokenBasedRememberMeServices, SHA256, 무상태). 서버 재시작·브라우저 종료 후에도 쿠키로 자동 재인증(AppUserDetailsService가 아이디로 계정 재로드, UserPrincipal=UserDetails 래퍼). 세션은 인메모리라 재시작 시 소멸하지만 쿠키가 커버. 구글·네이버 OAuth 로그인은 이 경로와 무관(세션 기반).
-공통 CSS: `resources/static/css/common.css` — **앱 셸 = [사이드바 232px | 본문] 2컬럼 그리드**.
+**색 토큰의 집은 `static/css/app-header.css` 다.** 리디자인된 9개 페이지는 `common.css` 를 link 하지 않고(그 파일은 `register.html` 전용) `app-header.css` + 페이지 CSS 만 쓰므로, 모든 페이지가 공유하는 파일이 여기뿐이다. 페이지 CSS 는 자기 접두사 변수(`--bt-*`, `--nt-*`, `--pl-*` …)를 `--app-*` 토큰에 **연결만** 하고 색을 새로 찍지 않는다(찍으면 "같은 의도인데 값이 다른 색"이 다시 늘어난다 — 정리 전 초록 6종·인디고 3종·회색 9종이었다).
+- 계열은 **2종**이고 화면 성격으로 나눈다: **데이터 계열**(흰 배경 `--app-bg-data` + 인디고 `--app-indigo`) = home·game-list·batch·notes·gallery·result·about / **바둑판 계열**(아이보리 `--app-bg-board` + 세이지 `--app-sage`) = play·study. 텍스트는 계열별 4단계(`--app-text-1..4` 차가운 회색 / `--app-btext-1..4` 따뜻한 회색 — 아이보리 위의 차가운 회색은 탁해 보인다).
+- 수 품질 지표색(`--app-good/warn/bad/losing`)은 계열과 무관하게 전 페이지 공통. 복기·리포트·분석판이 같은 색을 써야 읽힌다.
+- `app-header.css` 의 `body` 에 **`word-break: keep-all` + `overflow-wrap: break-word`** 를 건다. 없으면 한글이 어절 중간에서 잘려 "일치율"이 "일치"+"율"로 쪼개진다. 본문 `<p>` 에 `<br>` 을 넣지 말 것 — 그 줄이 다시 넘쳐 끝 글자만 떨어진다.
+- **정적 리소스는 `bootRun` 이 `build/resources/main` 사본을 서빙한다.** CSS 를 고쳤는데 화면이 그대로면 브라우저 캐시가 아니라 재빌드(서버 재시작)를 안 한 것이다.
+
+공통 CSS: `resources/static/css/common.css` — **앱 셸 = [사이드바 232px | 본문] 2컬럼 그리드**(현재 `register.html` 만 사용).
 - 마크업은 `templates/fragments/shell.html` 하나만 쓴다(페이지별 `<nav>` 복사 폐지). 프래그먼트 3종:
   `side(active)` / `side_rail(active)`(아이콘 62px, 호버 시 펼침 — study 전용) / `topbar`(본문 상단 60px).
   각 페이지는 `<aside th:replace="~{fragments/shell :: side('키')}">` + `<main class="main">`(+`fill`=100vh, play·study) 구조.

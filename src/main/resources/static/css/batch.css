@@ -1,30 +1,33 @@
 /* ════════════════════════════════════════════════════════════
-   실력 리포트(/analysis/batch) 전용 — 아이보리 + 짙은 녹색 + 바둑판 나무색
+   실력 리포트(/analysis/batch) 전용 — 데이터 계열(흰 배경 + 인디고) + 바둑판 나무색
    헤더는 app-header.css(공용 fragment). 나머지는 전부 .batch-page 안으로 스코프.
    common.css 는 이 페이지에서 로드하지 않는다.
    ════════════════════════════════════════════════════════════ */
 
 .batch-page {
-    --bt-green: #356b4a;
-    --bt-green-dark: #244c35;
-    --bt-green-soft: #edf4ee;
-    --bt-green-line: #cddbcf;
+    /* 데이터 계열. 이름은 -green 이지만 값은 공용 인디고다 — 실력 리포트는 목록·복기와
+       같은 계열로 읽혀야 해서 초록 단독 팔레트를 걷어냈다. 이름까지 바꾸면 320줄에서
+       참조를 전부 고쳐야 해 연결만 바꾼다. 색은 --app-* 만 참조할 것. */
+    --bt-green: var(--app-indigo);
+    --bt-green-dark: var(--app-indigo-dark);
+    --bt-green-soft: var(--app-indigo-soft);
+    --bt-green-line: var(--app-indigo-line);
 
-    --bt-black: #171b19;
-    --bt-g900: #343936;
-    --bt-g700: #626965;
-    --bt-g500: #8a918c;
-    --bt-g300: #dfe4df;
-    --bt-g200: #eaede9;
-    --bt-g100: #f4f5f2;
+    --bt-black: var(--app-text-1);
+    --bt-g900: var(--app-text-2);
+    --bt-g700: var(--app-text-2);
+    --bt-g500: var(--app-text-3);
+    --bt-g300: var(--app-line);
+    --bt-g200: var(--app-line);
+    --bt-g100: var(--app-line-soft);
 
-    --bt-wood: #d0aa6c;
+    --bt-wood: var(--app-wood);
     --bt-wood-edge: #c29454;
-    --bt-orange: #d48735;
-    --bt-red: #c9574b;
+    --bt-orange: var(--app-warn);
+    --bt-red: var(--app-bad);
 
     min-height: 100vh;
-    background: #f8f8f5;
+    background: var(--app-bg-data);
     color: var(--bt-black);
 }
 
@@ -47,7 +50,7 @@
     margin-bottom: 20px; padding: 14px 18px;
     border-radius: 8px; font-size: 13px;
 }
-.batch-banner.running { background: var(--bt-green-soft); border: 1px solid var(--bt-green-line); color: #2f5f43; }
+.batch-banner.running { background: var(--bt-green-soft); border: 1px solid var(--bt-green-line); color: var(--app-indigo); }
 .batch-banner.error   { background: #faeeec; border: 1px solid #eccdc8; color: #a4463b; }
 .batch-spinner {
     width: 18px; height: 18px; flex: 0 0 auto;
@@ -96,7 +99,7 @@
 .summary-main { position: relative; padding: 31px 35px; overflow: hidden; }
 .summary-main::after {
     content: "棋"; position: absolute; right: 20px; bottom: -55px;
-    color: rgba(53,107,74,.045);
+    color: rgba(79,70,229,.05);
     font-family: "Noto Serif KR", serif; font-size: 250px; line-height: 1;
 }
 .summary-eyebrow { margin-bottom: 7px; color: var(--bt-g500); font-size: 12px; font-weight: 600; }
@@ -118,14 +121,14 @@
 
 /* 히어로 바둑판 — 실제 국면을 Canvas 로 그린다 */
 .summary-board-area {
-    position: relative; background: #edf1ec;
+    position: relative; background: var(--app-indigo-soft);
     display: flex; align-items: center; justify-content: center;
     padding: 24px; overflow: hidden;
 }
 .summary-board-area::before {
     content: ""; position: absolute;
     width: 320px; height: 320px; border-radius: 50%;
-    background: rgba(70,108,83,.08);
+    background: rgba(79,70,229,.07);
 }
 .batch-board {
     position: relative; z-index: 2;
@@ -140,7 +143,7 @@
     position: absolute; right: 18px; bottom: 16px; z-index: 3;
     max-width: calc(100% - 36px);
     padding: 6px 9px; background: rgba(255,255,255,.9);
-    border: 1px solid #dfe5df; border-radius: 5px;
+    border: 1px solid var(--app-line); border-radius: 5px;
     color: var(--bt-g700); font-size: 11px; line-height: 1.5;
 }
 .board-caption b { color: var(--bt-red); }
@@ -203,7 +206,7 @@ a.card-badge:hover { background: var(--bt-green-soft); color: var(--bt-green); }
 /* ── 구간 분석 ── */
 .segment-card { margin-bottom: 22px; }
 .segment-list { padding: 0 24px 23px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.segment { padding: 18px; border: 1px solid var(--bt-g200); border-radius: 7px; background: #fcfcfa; }
+.segment { padding: 18px; border: 1px solid var(--bt-g200); border-radius: 7px; background: var(--app-line-soft); }
 .segment-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .segment-name { font-size: 13px; font-weight: 600; }
 .segment-count { color: var(--bt-g500); font-size: 11px; }
@@ -249,44 +252,44 @@ a.card-badge:hover { background: var(--bt-green-soft); color: var(--bt-green); }
     text-align: left; font-size: 11px; font-weight: 500; white-space: nowrap;
 }
 .game-table td { padding: 14px 24px; border-top: 1px solid var(--bt-g200); color: var(--bt-g700); font-size: 12px; white-space: nowrap; }
-.game-table tbody tr:hover { background: #fbfcfa; }
+.game-table tbody tr:hover { background: var(--app-line-soft); }
 .game-title { color: var(--bt-g900); font-weight: 600; }
 .game-table a.game-title:hover { color: var(--bt-green); }
 .accuracy { font-weight: 600; }
 .chip { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 4px; font-size: 11px; }
-.chip.good { background: #eaf4ed; color: #3d7954; }
+.chip.good { background: #e8f6ef; color: var(--app-good); }
 .chip.warn { background: #fbf2e6; color: #a2681f; }
 .chip.bad  { background: #faeeec; color: #b45248; }
 
 /* ── 다음 학습 추천 ── */
 .recommendation {
-    padding: 27px 30px; background: #20352b; color: #fff; border-radius: 9px;
+    padding: 27px 30px; background: #1b2541; color: #fff; border-radius: 9px;
     display: flex; align-items: center; justify-content: space-between; gap: 30px;
 }
 .recommendation-copy { max-width: 720px; }
-.recommendation-label { margin-bottom: 7px; color: #9fc3aa; font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+.recommendation-label { margin-bottom: 7px; color: #a5adf0; font-size: 11px; font-weight: 700; letter-spacing: .12em; }
 .recommendation h2 { margin: 0; font-size: 20px; letter-spacing: -.035em; line-height: 1.45; }
-.recommendation p { margin: 9px 0 0; color: #b8c7be; font-size: 13px; line-height: 1.7; }
+.recommendation p { margin: 9px 0 0; color: #c3c9f2; font-size: 13px; line-height: 1.7; }
 .recommendation-actions { flex: 0 0 auto; display: flex; gap: 9px; flex-wrap: wrap; }
 .recommendation-button {
     height: 40px; padding: 0 18px;
     display: inline-flex; align-items: center;
-    border: 1px solid #688475; border-radius: 5px; background: transparent;
+    border: 1px solid #3f4a7a; border-radius: 5px; background: transparent;
     color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .recommendation-button:hover { background: rgba(255,255,255,.08); }
-.recommendation-button.solid { background: #3d6b51; border-color: #3d6b51; }
-.recommendation-button.solid:hover { background: #48795d; }
+.recommendation-button.solid { background: var(--app-indigo); border-color: var(--app-indigo); }
+.recommendation-button.solid:hover { background: var(--app-indigo-dark); }
 
 /* ── 푸터 ── */
-.batch-footer { background: #202927; color: #e7ebe8; }
+.batch-footer { background: #171a21; color: #eef0f6; }
 .batch-footer-inner {
     max-width: 1480px; margin: 0 auto; padding: 27px 28px;
     display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;
 }
-.footer-copy { color: #858f89; font-size: 11px; }
+.footer-copy { color: #6d7686; font-size: 11px; }
 .footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
-.footer-links a { color: #9ca5a0; font-size: 11px; }
+.footer-links a { color: #9aa2b1; font-size: 11px; }
 .footer-links a:hover { color: #fff; }
 
 /* ── 반응형 ── */

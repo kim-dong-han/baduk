@@ -1,21 +1,23 @@
 /* ════════════════════════════════════════════════════════════
-   갤러리(/gallery) 전용 — 아이보리 배경 + 차분한 녹색 포인트
+   갤러리(/gallery) 전용 — 데이터 계열(흰 배경 + 인디고)
    헤더는 app-header.css(공용 fragment). 여기는 본문만 담당.
    ════════════════════════════════════════════════════════════ */
 
 :root {
-    --gl-green: #3f7548;
-    --gl-green-dark: #32633a;
-    --gl-green-soft: #f0f4e9;
-    --gl-line: #ebe8e0;
-    --gl-line-2: #e5e2db;
-    --gl-text: #1e1e1b;
-    --gl-text-soft: #77746d;
-    --gl-muted: #8e8b84;
-    --gl-board: #e7c27f;
+    /* 데이터 계열. 이름은 -green 이지만 값은 공용 인디고(batch.css 와 같은 이유).
+       색은 common.css 의 --app-* 만 참조한다. */
+    --gl-green: var(--app-indigo);
+    --gl-green-dark: var(--app-indigo-dark);
+    --gl-green-soft: var(--app-indigo-soft);
+    --gl-line: var(--app-line);
+    --gl-line-2: var(--app-line);
+    --gl-text: var(--app-text-1);
+    --gl-text-soft: var(--app-text-3);
+    --gl-muted: var(--app-text-4);
+    --gl-board: var(--app-wood);
 }
 
-body { background: #faf9f5; color: var(--gl-text); }
+body { background: var(--app-bg-data); color: var(--gl-text); }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 
@@ -41,7 +43,7 @@ button { cursor: pointer; }
     background: #fff; border: 1px solid var(--gl-line-2); border-radius: 9px;
 }
 .search-box input { flex: 1; min-width: 0; border: 0; outline: 0; font-size: 14px; background: transparent; }
-.search-box input::placeholder { color: #a5a29b; }
+.search-box input::placeholder { color: var(--app-text-4); }
 .search-box svg { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: #777; stroke-width: 1.7; stroke-linecap: round; }
 
 .upload-button {
@@ -81,7 +83,7 @@ button { cursor: pointer; }
     border: 0; border-radius: 7px; background: transparent;
     color: #444; text-align: left; font-size: 13px;
 }
-.category-item:hover { background: #f6f7f1; }
+.category-item:hover { background: var(--app-line-soft); }
 .category-item.active { background: var(--gl-green-soft); color: var(--gl-green); font-weight: 700; }
 .category-icon { width: 20px; flex-shrink: 0; color: currentColor; }
 .category-item strong { margin-left: auto; font-size: 13px; color: var(--gl-muted); }
@@ -93,12 +95,12 @@ button { cursor: pointer; }
     border: 1px solid var(--gl-line-2); border-radius: 7px;
     background: #fff; color: #666; font-size: 13px;
 }
-.difficulty-button:hover { background: #f8f8f5; }
+.difficulty-button:hover { background: var(--app-line-soft); }
 .difficulty-button.active { background: var(--gl-green); border-color: var(--gl-green); color: #fff; font-weight: 700; }
 
 .sort-select, .page-size-select {
     width: 100%; height: 38px; padding: 0 12px;
-    border: 1px solid #e3e0d8; border-radius: 7px;
+    border: 1px solid var(--app-line); border-radius: 7px;
     background: #fff; color: #444; outline: none; font-size: 13px;
 }
 
@@ -121,8 +123,8 @@ button { cursor: pointer; }
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     margin-bottom: 17px;
 }
-.result-count { font-size: 15px; color: #45433d; }
-.result-count strong { color: #397347; font-size: 18px; }
+.result-count { font-size: 15px; color: var(--app-text-2); }
+.result-count strong { color: var(--app-indigo); font-size: 18px; }
 .toolbar-right { display: flex; align-items: center; gap: 14px; }
 
 .view-toggle { display: flex; border: 1px solid var(--gl-line-2); border-radius: 7px; overflow: hidden; }
@@ -141,14 +143,14 @@ button { cursor: pointer; }
 
 .gallery-card {
     min-width: 0;
-    border: 1px solid #ece9e1; border-radius: 9px;
+    border: 1px solid var(--app-line); border-radius: 9px;
     overflow: hidden; background: #fff;
     cursor: pointer;
     transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 .gallery-card:hover {
     transform: translateY(-3px);
-    border-color: #ddd9ce;
+    border-color: var(--app-line);
     box-shadow: 0 8px 24px rgba(36, 31, 20, .08);
 }
 
@@ -170,7 +172,7 @@ button { cursor: pointer; }
 .difficulty-badge.intermediate { color: #3f7548; }
 .difficulty-badge.advanced     { color: #d06c21; }
 .difficulty-badge.pro          { color: #c93535; }
-.difficulty-badge.record       { color: #6b6459; }
+.difficulty-badge.record       { color: var(--app-text-3); }
 
 .bookmark-button {
     position: absolute; top: 9px; right: 9px;
@@ -180,7 +182,7 @@ button { cursor: pointer; }
     background: rgba(255, 255, 255, .9);
     color: #666; font-size: 17px; line-height: 1;
 }
-.bookmark-button.saved { color: #c53d3d; }
+.bookmark-button.saved { color: var(--app-bad); }
 
 .card-body { padding: 13px 13px 14px; }
 .card-body h3 {
@@ -188,8 +190,8 @@ button { cursor: pointer; }
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     font-size: 14px; font-weight: 700; letter-spacing: -.3px;
 }
-.card-meta { margin: 0; color: #89867f; font-size: 11px; }
-.card-stats { display: flex; gap: 13px; margin-top: 12px; color: #77746e; font-size: 11px; }
+.card-meta { margin: 0; color: var(--app-text-4); font-size: 11px; }
+.card-stats { display: flex; gap: 13px; margin-top: 12px; color: var(--app-text-3); font-size: 11px; }
 .card-author {
     display: block; margin-top: 9px;
     color: var(--gl-muted); font-size: 11px;
@@ -199,7 +201,7 @@ button { cursor: pointer; }
 /* 리스트 보기 */
 .gallery-grid.list-view { grid-template-columns: 1fr; gap: 10px; }
 .gallery-grid.list-view .gallery-card { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; }
-.gallery-grid.list-view .board-thumbnail { border-right: 1px solid #ece9e1; }
+.gallery-grid.list-view .board-thumbnail { border-right: 1px solid var(--app-line); }
 .gallery-grid.list-view .difficulty-badge { top: 5px; left: 5px; padding: 2px 5px; font-size: 9px; }
 .gallery-grid.list-view .bookmark-button { top: 5px; right: 5px; width: 21px; height: 21px; font-size: 13px; }
 .gallery-grid.list-view .card-body { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 16px; padding: 12px 16px; }
@@ -216,7 +218,7 @@ button { cursor: pointer; }
     border: 1px solid var(--gl-line-2); border-radius: 7px;
     background: #fff; color: #555; font-size: 13px;
 }
-.page-button:hover:not(:disabled) { background: #f7f7f4; }
+.page-button:hover:not(:disabled) { background: var(--app-line-soft); }
 .page-button:disabled { opacity: .4; cursor: default; }
 .page-button.active { background: var(--gl-green); border-color: var(--gl-green); color: #fff; font-weight: 700; }
 .page-button.arrow { font-size: 18px; line-height: 1; }
@@ -243,7 +245,7 @@ button { cursor: pointer; }
 .tsume-head h3 { margin: 0; font-size: 16px; font-weight: 800; }
 .tsume-head .sub { margin-top: 3px; color: var(--gl-muted); font-size: 11px; }
 .tsume-close { border: 0; background: none; color: #999; font-size: 16px; padding: 4px 7px; border-radius: 6px; }
-.tsume-close:hover { background: #f4f3ef; color: #555; }
+.tsume-close:hover { background: var(--app-line-soft); color: #555; }
 .tsume-body { padding: 18px 20px 20px; }
 .tsume-board-wrap {
     padding: 12px; border-radius: 8px;

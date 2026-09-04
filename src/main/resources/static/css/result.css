@@ -6,20 +6,21 @@
    ════════════════════════════════════════════════════════════ */
 
 :root {
-    --rs-indigo: #5146e5;
-    --rs-navy:   #1b2541;
-    --rs-line:   #e5e8ef;
-    --rs-line-soft: #edf0f4;
-    --rs-muted:  #858ea0;
+    /* 데이터 계열. 색은 common.css 의 --app-* 만 참조한다(직접 찍지 말 것) */
+    --rs-indigo: var(--app-indigo);
+    --rs-navy:   #1b2541;   /* 상단 총평 배너 전용 딥네이비 — 계열 포인트색이 아니다 */
+    --rs-line:   var(--app-line);
+    --rs-line-soft: var(--app-line-soft);
+    --rs-muted:  var(--app-text-3);
 
-    --rs-good:   #27a978;   /* 좋은 수 = 초록 */
-    --rs-normal: #b6bcc7;
-    --rs-mistake:#ef9b3c;   /* 실수 = 주황 */
-    --rs-blunder:#e34c42;   /* 악수 = 빨강 */
-    --rs-losing: #f1b833;   /* 패착 = 노랑 */
+    --rs-good:   var(--app-good);      /* 좋은 수 = 초록 */
+    --rs-normal: var(--app-normal);
+    --rs-mistake:var(--app-warn);      /* 실수 = 주황 */
+    --rs-blunder:var(--app-bad);       /* 악수 = 빨강 */
+    --rs-losing: var(--app-losing);    /* 패착 = 노랑 */
 }
 
-body { background: #f5f6fa; color: #1d2742; }
+body { background: var(--app-bg-data); color: var(--app-text-1); }
 html { scroll-behavior: smooth; }
 button { font: inherit; cursor: pointer; }
 input { font: inherit; }

@@ -4,14 +4,15 @@
    ════════════════════════════════════════════════════════════ */
 
 :root {
-    --gl-indigo: #5146e5;
-    --gl-indigo-2: #6439e8;
-    --gl-line: #e7eaf1;
-    --gl-line-soft: #edf0f4;
-    --gl-muted: #7c8599;
+    /* 데이터 계열. 색은 common.css 의 --app-* 만 참조한다(직접 찍지 말 것) */
+    --gl-indigo: var(--app-indigo);
+    --gl-indigo-2: var(--app-indigo-dark);
+    --gl-line: var(--app-line);
+    --gl-line-soft: var(--app-line-soft);
+    --gl-muted: var(--app-text-3);
 }
 
-body { background: #f7f8fc; color: #17203a; }
+body { background: var(--app-bg-data); color: var(--app-text-1); }
 
 input, select { font: inherit; }
 button { font: inherit; cursor: pointer; }
